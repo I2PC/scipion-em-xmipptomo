@@ -27,7 +27,7 @@
 # **************************************************************************
 
 import numpy as np
-from pwem.protocol import EMProtocol
+from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
 

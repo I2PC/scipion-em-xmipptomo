@@ -26,9 +26,9 @@
 # **************************************************************************
 import numpy as np
 
-from pwem import ImageHandler
-from pwem.data import Particle, Volume, Coordinate, Transform
-from pwem.protocol import ProtAnalysis3D
+from pyworkflow.em import ImageHandler
+from pyworkflow.em.data import Particle, Volume, Coordinate, Transform
+from pyworkflow.em.protocol import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
 from pyworkflow.utils import importFromPlugin
 import xmippLib

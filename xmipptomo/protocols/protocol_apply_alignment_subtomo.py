@@ -26,10 +26,10 @@
 # *
 # **************************************************************************
 
-import pwem
-from pwem.convert import ImageHandler
-import pwem.metadata as md
-from pwem.protocol import EMProtocol
+import pyworkflow.em as em
+from pyworkflow.em.convert import ImageHandler
+import pyworkflow.em.metadata as md
+from pyworkflow.em.protocol import EMProtocol
 from pyworlflow.protocol.params import PointerParam
 from tomo.objects import SetOfSubTomograms
 from tomo.objects import AverageSubTomogram
@@ -57,7 +57,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol):
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self, outputFn):
-        writeSetOfVolumes(self.inputSubtomograms.get(), outputFn, alignType=pwem.ALIGN_3D)
+        writeSetOfVolumes(self.inputSubtomograms.get(), outputFn, alignType=em.ALIGN_3D)
         return [outputFn]
 
     def applyAlignmentStep(self, inputFn):
@@ -75,7 +75,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol):
             id = row.getValue(xmippLib.MDL_IMAGE)
             id = id.split('@')[0]
             id = id.strip('0')
-            alignmentToRow(self.inputSubtomograms.get().__getitem__(id).getTransform(), rowOut, pwem.ALIGN_3D)
+            alignmentToRow(self.inputSubtomograms.get().__getitem__(id).getTransform(), rowOut, em.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms

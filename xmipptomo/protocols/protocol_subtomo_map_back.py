@@ -26,10 +26,10 @@
 # *
 # **************************************************************************
 
-from pwem import ALIGN_3D
-from pwem.convert import ImageHandler
-import pwem.metadata as md
-from pwem.protocol import EMProtocol
+from pyworkflow.em import ALIGN_3D
+from pyworkflow.em.convert import ImageHandler
+import pyworkflow.em.metadata as md
+from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 from tomo.objects import Tomogram
 from tomo.protocols import ProtTomoBase
