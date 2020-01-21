@@ -30,7 +30,7 @@ import pyworkflow.em as em
 from pyworkflow.em.convert import ImageHandler
 import pyworkflow.em.metadata as md
 from pyworkflow.em.protocol import EMProtocol
-from pyworlflow.protocol.params import PointerParam
+from pyworkflow.protocol.params import PointerParam
 from tomo.objects import SetOfSubTomograms
 from tomo.objects import AverageSubTomogram
 from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
@@ -97,7 +97,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol):
         alignedSet.copyItems(subtomograms,
                              updateItemCallback=self._updateItem,
                              itemDataIterator=md.iterRows(inputMd, sortByLabel=md.MDL_ITEM_ID))
-        alignedSet.setAlignment(pwem.ALIGN_NONE)
+        alignedSet.setAlignment(em.ALIGN_NONE)
         avgFile = self._getExtraPath("average.xmp")
         imgh = ImageHandler()
         avgImage = imgh.computeAverage(alignedSet)
