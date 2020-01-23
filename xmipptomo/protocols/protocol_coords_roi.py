@@ -46,33 +46,38 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
                       pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
         form.addParam('inputMesh', PointerParam, label="Input mesh",
-                      pointerClass='Mesh', help='Select the mesh')
+                      pointerClass='Mesh, SetOfCoordinates', help='Select the mesh')  # REMOVE SETOFCOORD!!!! (just for the test to work)
         form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
                       display=EnumParam.DISPLAY_HLIST,
                       help='Selection options:\n*Whole cc*: It takes the whole connected componnent (cc) if all the '
                            'points in the cc belongs to the ROI. If a "Number of points" is introduced in the following'
                            ' field, the whole cc will be taken if that number of points from the cc belongs to the ROI.'
                            '\n*Points in roi*: It takes just the points of the cc which belongs to the roi')
-        form.addParam('points', IntParam, label="Number of points", condition='selection == 0',
+        form.addParam('points', IntParam, label="Number of points", condition='selection == 0', allowsNull=True,
                       help='see "Selection" help')
+        form.addParam('distance', IntParam, label='Distance', default=0,
+                      help='Maximum radial distance (in pixels) between mesh vertex and a coordinate to consider that '
+                           'it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeDistances')
-        self._insertFunctionStep('createOutput')
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
         inputCoor = self.inputCoordinates.get()
         inputMesh = self.inputMesh.get()
-
-    def createOutput(self):
-        inputSet = self.inputCoordinates.get()
-        outputSet = self._createSetOfCoordinates3D(inputSet.getPrecedents())
-        outputSet.copyInfo(inputSet)
-        outputSet.setBoxSize(inputSet.getBoxSize())
-        self._defineOutputs(output3DCoordinates=inputSet)
-        self._defineSourceRelation(inputSet, inputSet)
+        distance = self.distance.get()
+        outputSet = self._createSetOfCoordinates3D(inputCoor.getPrecedents())
+        outputSet.copyInfo(inputCoor)
+        outputSet.setBoxSize(inputCoor.getBoxSize())
+        for coorm in inputMesh.iterItems():  # TODO: This works if mesh is a SetOfCoord, for REAL MESHES, inputMesh.getMesh() + .iterItems()???
+            for coorc in inputCoor.iterItems():
+                if abs(coorm.getX() - coorc.getX()) <= distance and abs(coorm.getY() - coorc.getY()) <= distance \
+                        and abs(coorm.getZ() - coorc.getZ()) <= distance:
+                    outputSet.append(coorc)
+        self._defineOutputs(outputCoordinates=outputSet)
+        self._defineSourceRelation(inputCoor, outputSet)
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):

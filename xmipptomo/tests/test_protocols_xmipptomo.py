@@ -27,15 +27,13 @@
 from pyworkflow.utils import importFromPlugin
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
-from xmipptomo.protocols import XmippProtUnbinningCoord
-
-
+from xmipptomo.protocols import XmippProtUnbinningCoord, XmippProtCCroi
 ProtImportCoordinates3D = importFromPlugin("tomo.protocols", "ProtImportCoordinates3D")
 ProtImportTomograms = importFromPlugin("tomo.protocols", "ProtImportTomograms")
 
+
 class TestXmippProtUnbinningCoord(BaseTest):
-    """ This class check if the protocol to import sub tomograms works
-    properly."""
+    """ This class check if the protocol to unbinning coordinates works properly."""
 
     @classmethod
     def setUpClass(cls):
@@ -43,7 +41,6 @@ class TestXmippProtUnbinningCoord(BaseTest):
         cls.dataset = DataSet.getDataSet('tomo-em')
         cls.tomogram = cls.dataset.getFile('tomo1')
         cls.coords3D = cls.dataset.getFile('overview_wbp.txt')
-        cls.inputSetOfSubTomogram = cls.dataset.getFile('subtomo')
 
     def _runPreviousProtocols(self):
         protImportTomogram = self.newProtocol(ProtImportTomograms,
@@ -84,6 +81,55 @@ class TestXmippProtUnbinningCoord(BaseTest):
         self.assertTrue(outputCoordinates.getFirstItem().getY() == 1400)
         self.assertTrue(outputCoordinates.getFirstItem().getZ() == 1024)
         return xmipptomoUnbinning
+
+
+class TestXmippProtCCroi(BaseTest):
+    """ This class check if the protocol to adjust coordinates to a roi works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('tomo1')
+        cls.coords3D = cls.dataset.getFile('overview_wbp.txt')
+
+    def _runPreviousProtocols(self):
+        protImportTomogram = self.newProtocol(ProtImportTomograms,
+                                              filesPath=self.tomogram,
+                                              samplingRate=5)
+        self.launchProtocol(protImportTomogram)
+
+        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
+                                                   auto=ProtImportCoordinates3D.IMPORT_FROM_EMAN,
+                                                   filesPath=self.coords3D,
+                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   filesPattern='', boxSize=32,
+                                                   samplingRate=5)
+
+        self.launchProtocol(protImportCoordinates3d)
+        self.assertIsNotNone(protImportTomogram.outputTomograms,
+                             "There was a problem with tomogram output")
+        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
+                             "There was a problem with coordinates 3d output")
+
+        return protImportCoordinates3d
+
+    def _runCoordsRoi(self):
+        protImport = self._runPreviousProtocols()
+        coordsRoi = self.newProtocol(XmippProtCCroi,
+                                     inputCoordinates=protImport.outputCoordinates,
+                                     inputMesh=protImport.outputCoordinates,
+                                     selection=0)
+        self.launchProtocol(coordsRoi)
+        self.assertIsNotNone(coordsRoi.outputCoordinates,
+                             "There was a problem with SetOfCoordinates output")
+        return coordsRoi
+
+    def test_basicCoordsRoi(self):
+        xmipptomoCoordsRoi = self._runCoordsRoi()
+        outputCoordinates = getattr(xmipptomoCoordsRoi, 'outputCoordinates')
+        self.assertTrue(outputCoordinates)
+        return xmipptomoCoordsRoi
 
 
 # class TestXmippProtProjectZ(TestXmippBase):
