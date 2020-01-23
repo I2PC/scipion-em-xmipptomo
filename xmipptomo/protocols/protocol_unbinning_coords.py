@@ -67,10 +67,10 @@ class XmippProtUnbinningCoord(EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
-        summary.append("")
+        summary.append("Binning factor %s" % self.factor.get())
         return summary
 
     def _methods(self):
         methods = []
-        methods.append("")
+        methods.append("Coordinates have been multiplied by a factor %s" % self.factor.get())
         return methods
