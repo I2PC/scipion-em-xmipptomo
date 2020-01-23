@@ -66,16 +66,17 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
         inputCoor = self.inputCoordinates.get()
-        inputMesh = self.inputMesh.get()
+        inputMesh = self.inputMesh.get()  # for REAL MESHES, inputMesh.getMesh() + .iterItems()???
         distance = self.distance.get()
         outputSet = self._createSetOfCoordinates3D(inputCoor.getPrecedents())
         outputSet.copyInfo(inputCoor)
         outputSet.setBoxSize(inputCoor.getBoxSize())
-        for coorm in inputMesh.iterItems():  # TODO: This works if mesh is a SetOfCoord, for REAL MESHES, inputMesh.getMesh() + .iterItems()???
+        for coorm in inputMesh.iterItems():  # TODO: This works if mesh is a SetOfCoord
             for coorc in inputCoor.iterItems():
                 if abs(coorm.getX() - coorc.getX()) <= distance and abs(coorm.getY() - coorc.getY()) <= distance \
                         and abs(coorm.getZ() - coorc.getZ()) <= distance:
                     outputSet.append(coorc)
+        # selection options??
         self._defineOutputs(outputCoordinates=outputSet)
         self._defineSourceRelation(inputCoor, outputSet)
 
