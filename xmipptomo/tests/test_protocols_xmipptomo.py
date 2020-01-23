@@ -24,11 +24,67 @@
 # *
 # **************************************************************************
 
+from pyworkflow.utils import importFromPlugin
 from pyworkflow.tests import BaseTest, setupTestProject
-from tomo.protocols import ProtImportSubTomograms
 from tomo.tests import DataSet
-from xmipptomo.protocols import XmippProtConnectedComponents, XmippProtUndoAlignSubtomo, \
-    XmippProtApplyTransformSubtomo, XmippProtRoiIJ, XmippProtSubtomoMapBack, XmippProtSubtomoProject
+from xmipptomo.protocols import XmippProtUnbinningCoord
+
+
+ProtImportCoordinates3D = importFromPlugin("tomo.protocols", "ProtImportCoordinates3D")
+ProtImportTomograms = importFromPlugin("tomo.protocols", "ProtImportTomograms")
+
+class TestXmippProtUnbinningCoord(BaseTest):
+    """ This class check if the protocol to import sub tomograms works
+    properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('tomo1')
+        cls.coords3D = cls.dataset.getFile('overview_wbp.txt')
+        cls.inputSetOfSubTomogram = cls.dataset.getFile('subtomo')
+
+    def _runPreviousProtocols(self):
+        protImportTomogram = self.newProtocol(ProtImportTomograms,
+                                              filesPath=self.tomogram,  # TODO: import binning 4 tomogram
+                                              samplingRate=5)
+        self.launchProtocol(protImportTomogram)
+
+        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
+                                                   auto=ProtImportCoordinates3D.IMPORT_FROM_EMAN,
+                                                   filesPath=self.coords3D,
+                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   filesPattern='', boxSize=32,
+                                                   samplingRate=5)
+
+        self.launchProtocol(protImportCoordinates3d)
+        self.assertIsNotNone(protImportTomogram.outputTomograms,
+                             "There was a problem with tomogram output")
+        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
+                             "There was a problem with coordinates 3d output")
+
+        return protImportCoordinates3d
+
+    def _runUnbinningCoords(self):
+        protImport = self._runPreviousProtocols()
+        unbinning = self.newProtocol(XmippProtUnbinningCoord,
+                                     inputCoordinates=protImport.outputCoordinates,
+                                     factor=4)
+        self.launchProtocol(unbinning)
+        self.assertIsNotNone(unbinning.outputCoordinates,
+                             "There was a problem with SetOfCoordinates output")
+        return unbinning
+
+    def test_basicUnbinning(self):
+        xmipptomoUnbinning = self._runUnbinningCoords()
+        outputCoordinates = getattr(xmipptomoUnbinning, 'outputCoordinates')
+        self.assertTrue(outputCoordinates)
+        self.assertTrue(outputCoordinates.getFirstItem().getX() == 1256)
+        self.assertTrue(outputCoordinates.getFirstItem().getY() == 1400)
+        self.assertTrue(outputCoordinates.getFirstItem().getZ() == 1024)
+        return xmipptomoUnbinning
+
 
 # class TestXmippProtProjectZ(TestXmippBase):
 #     """This class check if the protocol project top in Xmipp works properly."""
