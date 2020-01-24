@@ -80,6 +80,7 @@ class TestXmippProtUnbinningCoord(BaseTest):
         xmipptomoUnbinning = self._runUnbinningCoords()
         outputCoordinates = getattr(xmipptomoUnbinning, 'outputCoordinates')
         self.assertTrue(outputCoordinates)
+        self.assertTrue(outputCoordinates.getSamplingRate() == 1.25)
         self.assertTrue(outputCoordinates.getFirstItem().getX() == 1256)
         self.assertTrue(outputCoordinates.getFirstItem().getY() == 1400)
         self.assertTrue(outputCoordinates.getFirstItem().getZ() == 1024)

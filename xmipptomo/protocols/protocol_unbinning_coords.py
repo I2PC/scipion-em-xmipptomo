@@ -54,12 +54,14 @@ class XmippProtUnbinningCoord(EMProtocol, ProtTomoBase):
     def unbinningCoords(self):
         inputSet = self.inputCoordinates.get()
         outputSet = self._createSetOfCoordinates3D(inputSet.getPrecedents())
+        factor = self.factor.get()
         outputSet.copyInfo(inputSet)
         outputSet.setBoxSize(inputSet.getBoxSize())
+        outputSet.setSamplingRate(inputSet.getSamplingRate()/factor)
         for coord in inputSet:
-            coord.setX(coord.getX() * self.factor.get())
-            coord.setY(coord.getY() * self.factor.get())
-            coord.setZ(coord.getZ() * self.factor.get())
+            coord.setX(coord.getX() * factor)
+            coord.setY(coord.getY() * factor)
+            coord.setZ(coord.getZ() * factor)
             outputSet.append(coord)
         self._defineOutputs(outputCoordinates=outputSet)
         self._defineSourceRelation(inputSet, outputSet)
