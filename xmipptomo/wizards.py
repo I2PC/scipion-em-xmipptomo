@@ -24,15 +24,32 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
 from pyworkflow.utils import importFromPlugin
 from pyworkflow.wizard import Wizard
 
-XmippProtConnectedComponents = importFromPlugin("xmipptomo.protocols",
-                                                "XmippProtConnectedComponents")
+XmippProtConnectedComponents = importFromPlugin("xmipptomo.protocols", "XmippProtConnectedComponents")
+XmippProtCCroi = importFromPlugin("xmipptomo.protocols", "XmippProtCCroi")
+
 
 class XmippConnectedCompWizard(Wizard):
-    _targets = ([(XmippProtConnectedComponents, ['distance'])]
-                if XmippProtConnectedComponents is not None else [])
+    _targets = ([(XmippProtConnectedComponents, ['distance'])])
+
+    def show(self, form):
+        tomoCCProt = form.protocol
+        inputCoordinates = tomoCCProt.inputCoordinates.get()
+        if not inputCoordinates:
+            print('You must specify input coordinates')
+            return
+        boxSize = inputCoordinates.getBoxSize()
+        if not boxSize:
+            print('These coordinates do not have box size. Please, enter distance manually.')
+            return
+        distance = boxSize * 3
+        form.setVar('distance', distance)
+
+class XmippProtCCroi(Wizard):
+    _targets = ([(XmippProtCCroi, ['distance'])])
 
     def show(self, form):
         tomoCCProt = form.protocol
