@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
+# * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
 # *
-# *    Unidad de  Bioinformatica of Centro Nacional de Biotecnologia, CSIC
+# * [1] SciLifeLab, Stockholm University
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -24,13 +24,5 @@
 # *
 # **************************************************************************
 
-from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
-from .protocol_apply_alignment_subtomo import XmippProtApplyTransformSubtomo
-from .protocol_undo_alignment_subtomo import XmippProtUndoAlignSubtomo
-from .protocol_project_top import XmippProtSubtomoProject
-from .protocol_connected_components import XmippProtConnectedComponents
-from .protocol_roiIJ import XmippProtRoiIJ
-from .protocol_coords_roi import XmippProtCCroi
-from .protocol_unbinning_coords import XmippProtUnbinningCoord
-from .protocol_cltomo import XmippProtCLTomo
-from .protocol_resolution_monotomo import XmippProtMonoTomo
+from .viewer_cltomo import XmippCLTomoViewer
+from .viewer_resolution_monotomo import XmippMonoTomoViewer
