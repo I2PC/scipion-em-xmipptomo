@@ -70,7 +70,7 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
 
         tomoList = [tomo.clone() for tomo in self.inputTomos.get().iterItems()]
 
-        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath())
+        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath(), 'txt')
 
         path = self._getExtraPath()
         self.dlg = TomogramsDialog(None, False, provider=tomoProvider, path=path)
