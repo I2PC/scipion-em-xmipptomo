@@ -57,7 +57,7 @@ class XmippProtUnbinningCoord(EMProtocol, ProtTomoBase):
         factor = self.factor.get()
         outputSet.copyInfo(inputSet)
         outputSet.setBoxSize(inputSet.getBoxSize())
-        outputSet.setSamplingRate(inputSet.getSamplingRate())
+        outputSet.setSamplingRate(inputSet.getSamplingRate()/factor)
         for coord in inputSet:
             coord.setX(coord.getX() * factor)
             coord.setY(coord.getY() * factor)
