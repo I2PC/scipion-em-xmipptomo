@@ -33,4 +33,3 @@ from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_unbinning_coords import XmippProtUnbinningCoord
 from .protocol_cltomo import XmippProtCLTomo
-from .protocol_resolution_monotomo import XmippProtMonoTomo

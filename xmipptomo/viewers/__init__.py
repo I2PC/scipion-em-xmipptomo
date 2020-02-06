@@ -25,4 +25,3 @@
 # **************************************************************************
 
 from .viewer_cltomo import XmippCLTomoViewer
-from .viewer_resolution_monotomo import XmippMonoTomoViewer
