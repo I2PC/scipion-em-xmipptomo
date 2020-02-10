@@ -54,7 +54,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         form.addParam('rangeParam', EnumParam, choices=['All', 'Range'], default=0, display=EnumParam.DISPLAY_HLIST,
                       label='Range of slices', help='Range of slices used to compute the projection, where 0 is the '
                                                     'central slice.')
-        form.addParam('cropParam', IntParam, default=10, label='Voxels', condition="rangeParam == 1",
+        form.addParam('cropParam', IntParam, default=10, label='Slices', condition="rangeParam == 1",
                       help='Crop this amount of voxels in each side of the selected direction.')
 
     # --------------------------- INSERT steps functions ------------------------
