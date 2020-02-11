@@ -25,9 +25,13 @@
 # **************************************************************************
 
 import os
+
 from pyworkflow.em.viewers.showj import *
 from pyworkflow.em.protocol import ProtAnalysis2D
 from pyworkflow.protocol.params import PointerParam
+
+import pyworkflow.utils as pwutlis
+
 from tomo.objects import Mesh, SetOfMeshes
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
@@ -58,7 +62,7 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
             if file.endswith(".txt"):
                 mesh_roi = Mesh(self._getExtraPath(file))
                 for tomo in self.inputTomos.get().iterItems():
-                    if file[:-5] in tomo.getFileName():
+                    if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
                         mesh_roi.setVolume(tomo.clone())
                 outSet.append(mesh_roi)
         outSet.setVolumes(self.inputTomos.get())
