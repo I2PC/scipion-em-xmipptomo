@@ -59,7 +59,7 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
                 mesh_roi = Mesh(self._getExtraPath(file))
                 for tomo in self.inputTomos.get().iterItems():
                     if file[:-5] in tomo.getFileName():
-                        mesh_roi.setVolume(tomo)
+                        mesh_roi.setVolume(tomo.clone())
                 outSet.append(mesh_roi)
         outSet.setVolumes(self.inputTomos.get())
         self._defineOutputs(outputMeshes=outSet)
