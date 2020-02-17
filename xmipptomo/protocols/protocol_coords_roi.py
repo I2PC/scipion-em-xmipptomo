@@ -26,8 +26,10 @@
 # *
 # **************************************************************************
 
+import os
+import numpy as np
 from pyworkflow.em.protocol import EMProtocol
-from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
+from pyworkflow.protocol.params import MultiPointerParam, EnumParam, IntParam
 from tomo.protocols import ProtTomoBase
 
 
@@ -43,21 +45,23 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input coordinates')
-        form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
-                      pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
-        form.addParam('inputMesh', PointerParam, label="Input mesh",
-                      pointerClass='Mesh, SetOfCoordinates', help='Select the mesh')  # REMOVE SETOFCOORD!!!! (just for the test to work)
-        form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
-                      display=EnumParam.DISPLAY_HLIST,
-                      help='Selection options:\n*Whole cc*: It takes the whole connected componnent (cc) if all the '
-                           'points in the cc belongs to the ROI. If a "Number of points" is introduced in the following'
-                           ' field, the whole cc will be taken if that number of points from the cc belongs to the ROI.'
-                           '\n*Points in roi*: It takes just the points of the cc which belongs to the roi')
-        form.addParam('points', IntParam, label="Number of points", condition='selection == 0', allowsNull=True,
-                      help='see "Selection" help')
-        form.addParam('distance', IntParam, label='Distance', default=0,
-                      help='Maximum radial distance (in pixels) between mesh vertex and a coordinate to consider that '
-                           'it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
+        form.addParam('inputCoordinates', MultiPointerParam, label="Input connected components",
+                      pointerClass='SetOfCoordinates3D', help='Select the Connected components (SetOfCoordinates3D).')
+        form.addParam('inputMeshes', MultiPointerParam, label="Input ROIs",
+                      pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
+        # form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
+        #               display=EnumParam.DISPLAY_HLIST,
+        #               help='Selection options:\n*Whole cc*: It takes the whole connected component (cc) if all the '
+        #                  'points in the cc belongs to the ROI. If a "Number of points" is introduced in the following'
+        #                  ' field, the whole cc will be taken if that number of points from the cc belongs to the ROI.'
+        #                    '\n*Points in roi*: It takes just the points of the cc which belongs to the roi')
+        form.addParam('points', IntParam, label="Percentage of coordinates in ROI",  default=80,
+                      # condition='selection == 0',
+                      allowsNull=True, help='Percentage of coordinates from a connected component that should be inside'
+                                            ' the ROI to consider that connected component.')
+        form.addParam('distance', IntParam, label='Distance', default=128,
+                      help='Maximum euclidean distance (in pixels) between ROI vertex and a coordinate to consider that'
+                           ' it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -65,20 +69,21 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
-        inputCoor = self.inputCoordinates.get()
-        inputMesh = self.inputMesh.get()  # for REAL MESHES, inputMesh.getMesh() + .iterItems()???
-        distance = self.distance.get()
-        outputSet = self._createSetOfCoordinates3D(inputCoor.getPrecedents())
-        outputSet.copyInfo(inputCoor)
-        outputSet.setBoxSize(inputCoor.getBoxSize())
-        for coorm in inputMesh.iterItems():  # TODO: This works if mesh is a SetOfCoord
-            for coorc in inputCoor.iterItems():
-                if abs(coorm.getX() - coorc.getX()) <= distance and abs(coorm.getY() - coorc.getY()) <= distance \
-                        and abs(coorm.getZ() - coorc.getZ()) <= distance:
-                    outputSet.append(coorc)
-        # selection options??
-        self._defineOutputs(outputCoordinates=outputSet)
-        self._defineSourceRelation(inputCoor, outputSet)
+        for inputSetCoor in self.inputCoordinates:
+            i = 0
+            perc = self._percentage(inputSetCoor)
+            for inputSetMesh in self.inputMeshes:
+                for mesh in inputSetMesh.get().iterItems():
+                    if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh._volName:  # GETTER!
+                        coorsmesh = mesh.getMesh()
+                        for coorcc in inputSetCoor.get():
+                            for cmesh in coorsmesh:   # [x, y, z] ??
+                                for cm in cmesh:
+                                    if self._euclideanDistance(coorcc, cm) <= self.distance.get():
+                                        i += 1
+            if i >= perc:
+                # cc as output (see output cc protocol)
+                pass
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
@@ -91,3 +96,9 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         methods.append("")
         return methods
 
+    # --------------------------- UTILS functions --------------------------------------------
+    def _percentage(self, inputSetCoor):
+        return (self.points.get()*inputSetCoor.get().getSize())/100
+
+    def _euclideanDistance(self, coorcc, cm):
+        return np.sqrt((coorcc.getX() - int(cm[0])) + (coorcc.getY() - int(cm[1])) + (coorcc.getZ() - int(cm[2])))
