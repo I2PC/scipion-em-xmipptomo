@@ -31,5 +31,4 @@ from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_coords_roi import XmippProtCCroi
-from .protocol_unbinning_coords import XmippProtUnbinningCoord
 from .protocol_cltomo import XmippProtCLTomo
