@@ -102,6 +102,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                 outputSet = self._createSetOfCoordinates3D(inputSet.getPrecedents(), ix+1)
                 outputSet.copyInfo(inputSet)
                 outputSet.setBoxSize(inputSet.getBoxSize())
+                outputSet.setSamplingRate(inputSet.getSamplingRate())
                 for coor3D in inputSet.iterItems():
                     if (coor3D.getObjId()-1) in coorInd:
                         outputSet.append(coor3D)
