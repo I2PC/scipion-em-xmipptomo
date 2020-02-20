@@ -25,16 +25,16 @@
 # *
 # **************************************************************************
 import numpy as np
-
-from pyworkflow.em import ImageHandler
-from pyworkflow.em.data import Particle, Volume, Coordinate, Transform
-from pyworkflow.em.protocol import ProtAnalysis3D
+from pwem.emlib.image import ImageHandler
+from pwem.emlib import lib
+from pwem.objects import Particle, Volume, Coordinate, Transform
+from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
-from pyworkflow.utils import importFromPlugin
-import xmippLib
+from pwem import Domain
 
-SubTomogram = importFromPlugin('tomo.objects', 'SubTomogram')
-Tomogram = importFromPlugin('tomo.objects', 'Tomogram')
+SubTomogram = Domain.importFromPlugin('tomo.objects', 'SubTomogram',
+                                      doRaise=True)
+Tomogram = Domain.importFromPlugin('tomo.objects', 'Tomogram')
 
 
 class XmippProtSubtomoProject(ProtAnalysis3D):
@@ -79,7 +79,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             proj = np.empty([x, y])
             img = ImageHandler().createImage()
             fnProj = self._getExtraPath("projection%d.stk" % idx)
-            xmippLib.createEmptyFile(fnProj, x, y, z, 1)
+            lib.createEmptyFile(fnProj, x, y, z, 1)
             if dir == 0:
                 if self.rangeParam.get() == 1:
                     volData = volData[:, :, (x / 2 - cropParam):(x / 2 + cropParam):1]

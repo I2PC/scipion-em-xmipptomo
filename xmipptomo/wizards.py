@@ -25,11 +25,13 @@
 # *
 # **************************************************************************
 
-from pyworkflow.utils import importFromPlugin
 from pyworkflow.wizard import Wizard
+from pwem import Domain
 
-XmippProtConnectedComponents = importFromPlugin("xmipptomo.protocols", "XmippProtConnectedComponents")
-XmippProtCCroi = importFromPlugin("xmipptomo.protocols", "XmippProtCCroi")
+XmippProtConnectedComponents = Domain.importFromPlugin("xmipptomo.protocols",
+                                                       "XmippProtConnectedComponents",
+                                                       doRaise=True)
+XmippProtCCroi = Domain.importFromPlugin("xmipptomo.protocols", "XmippProtCCroi")
 
 
 class XmippConnectedCompWizard(Wizard):

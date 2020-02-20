@@ -25,15 +25,18 @@ with open('requirements.txt') as f:
 
 setup(
     name='scipion-em-xmipptomo',  # Required
-    version='0.1',  # Required
+    version='3.0.0',  # Required
     description='Scipion plugin template.',  # Required
     long_description=long_description,  # Optional
     url='https://github.com/scipion-em/scipion-em-template',  # Optional
     author='you',  # Optional
     author_email='you@yourinstitution.email',  # Optional
-    keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
+    keywords='scipion cryoem imageprocessing scipion-3.0',  # Optional
     packages=find_packages(),
     install_requires=[requirements],
+    entry_points={  # Optional
+       'pyworkflow.plugin': 'xmipptomo = xmipptomo',
+    },
     package_data={  # Optional
        'xmipptomo': ['icon.png', 'protocols.conf'],
     }

@@ -25,10 +25,10 @@
 # **************************************************************************
 
 import os
-from pyworkflow.em.viewers.showj import *
-from pyworkflow.em.protocol import ProtAnalysis2D
+from pwem.viewers.showj import *
+from pwem.protocols import ProtAnalysis2D
 from pyworkflow.protocol.params import PointerParam
-from tomo.objects import Mesh, SetOfMeshes
+from tomo.objects import Mesh
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
 

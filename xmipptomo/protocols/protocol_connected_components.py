@@ -27,12 +27,14 @@
 # **************************************************************************
 
 import numpy as np
-from pyworkflow.em.protocol import EMProtocol
+from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
 
+
 class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
-    """ This protocol takes a set of coordinates and identifies connected components among the picked particles."""
+    """ This protocol takes a set of coordinates and identifies connected
+    components among the picked particles."""
 
     _label = 'connected components'
 
@@ -49,12 +51,12 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                                                                      'connected component. Wizard returns three times '
                                                                      'the box size of the input coordinates.')
 
-    # --------------------------- INSERT steps functions --------------------------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeConnectedComponents')
         self._insertFunctionStep('createOutput')
 
-    # --------------------------- STEPS functions -------------------------------
+    # --------------------------- STEPS functions ------------------------------
     def computeConnectedComponents(self):
         inputCoor = self.inputCoordinates.get()
         minDist = self.distance.get()

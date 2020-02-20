@@ -24,13 +24,18 @@
 # *
 # **************************************************************************
 
-from pyworkflow.utils import importFromPlugin
+
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from xmipptomo.protocols import XmippProtCCroi, XmippProtSubtomoProject
-ProtImportCoordinates3D = importFromPlugin("tomo.protocols", "ProtImportCoordinates3D")
-ProtImportTomograms = importFromPlugin("tomo.protocols", "ProtImportTomograms")
-ProtImportSubTomograms = importFromPlugin("tomo.protocols", "ProtImportSubTomograms")
+
+from pwem import Domain
+ProtImportCoordinates3D = Domain.importFromPlugin("tomo.protocols",
+                                                  "ProtImportCoordinates3D",
+                                                  doRaise=True)
+ProtImportTomograms = Domain.importFromPlugin("tomo.protocols", "ProtImportTomograms")
+ProtImportSubTomograms = Domain.importFromPlugin("tomo.protocols", "ProtImportSubTomograms")
+
 
 class TestXmippProtCCroi(BaseTest):
     """ This class check if the protocol to adjust coordinates to a roi works properly."""

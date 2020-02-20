@@ -27,13 +27,14 @@
 # **************************************************************************
 
 import numpy as np
-import pyworkflow.em as em
-from pyworkflow.em.data import Transform
-import pyworkflow.em.metadata as md
-from pyworkflow.em.protocol import EMProtocol
+import pwem
+from pwem.emlib import lib
+from pwem.objects import Transform
+import pwem.metadata as md
+from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam
 from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
-import xmippLib
+
 
 class XmippProtUndoAlignSubtomo(EMProtocol):
     """ Apply inverse alignment matrix from one set of subtomograms to an equivalent one, which have been previously
@@ -59,7 +60,7 @@ class XmippProtUndoAlignSubtomo(EMProtocol):
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self, outputFn):
-        writeSetOfVolumes(self.alignedSubtomograms.get(), outputFn, alignType=em.ALIGN_3D)
+        writeSetOfVolumes(self.alignedSubtomograms.get(), outputFn, alignType=pwem.ALIGN_3D)
         return [outputFn]
 
     def applyAlignmentStep(self, inputFn):
@@ -74,13 +75,13 @@ class XmippProtUndoAlignSubtomo(EMProtocol):
         for row in md.iterRows(mdWindow):
             rowOut = md.Row()
             rowOut.copyFromRow(row)
-            id = row.getValue(xmippLib.MDL_IMAGE)
+            id = row.getValue(lib.MDL_IMAGE)
             id = id.split('@')[0]
             id = id.strip('0')
             inverseMatrix = np.linalg.inv(self.matrixSubtomograms.get().__getitem__(id).getTransform().getMatrix())
             transform = Transform()
             transform.setMatrix(inverseMatrix)
-            alignmentToRow(transform, rowOut, em.ALIGN_3D)
+            alignmentToRow(transform, rowOut, pwem.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms

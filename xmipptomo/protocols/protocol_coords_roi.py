@@ -26,14 +26,14 @@
 # *
 # **************************************************************************
 
-from pyworkflow.em.protocol import EMProtocol
+from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
 from tomo.protocols import ProtTomoBase
 
 
 class XmippProtCCroi(EMProtocol, ProtTomoBase):
-    """ This protocol adjust a SetOfCoordinates (which usually will come from a connected componnent) to a ROI (region
-    of interest) previously defined"""
+    """ This protocol adjust a SetOfCoordinates (which usually will come from a
+    connected componnent) to a ROI (region of interest) previously defined"""
 
     _label = 'coordinates to roi'
 

@@ -26,16 +26,15 @@
 # *
 # **************************************************************************
 
-from pyworkflow.em import ALIGN_3D
-from pyworkflow.em.convert import ImageHandler
-import pyworkflow.em.metadata as md
-from pyworkflow.em.protocol import EMProtocol
+from pwem import ALIGN_3D
+from pwem.emlib import lib
+import pwem.metadata as md
+from pwem.emlib.image import ImageHandler
+from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 from tomo.objects import Tomogram
 from tomo.protocols import ProtTomoBase
-
 from xmipp3.convert import alignmentToRow
-import xmippLib
 
 
 class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
@@ -105,14 +104,14 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             TsSubtomo = self.inputClasses.get().getSamplingRate()
             TsTomo = tomo.getSamplingRate()
             scaleFactor = TsSubtomo/TsTomo
-            mdGeometry = xmippLib.MetaData()
+            mdGeometry = lib.MetaData()
             for subtomo in self.inputClasses.get().getFirstItem().iterItems():
                 if subtomo.getCoordinate3D().getVolId() == tomo.getObjId():
                     nRow = md.Row()
-                    nRow.setValue(xmippLib.MDL_ITEM_ID, long(subtomo.getObjId()))
-                    nRow.setValue(xmippLib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
-                    nRow.setValue(xmippLib.MDL_YCOOR, int(subtomo.getCoordinate3D().getY()*scaleFactor))
-                    nRow.setValue(xmippLib.MDL_ZCOOR, int(subtomo.getCoordinate3D().getZ()*scaleFactor))
+                    nRow.setValue(lib.MDL_ITEM_ID, int(subtomo.getObjId()))
+                    nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
+                    nRow.setValue(lib.MDL_YCOOR, int(subtomo.getCoordinate3D().getY()*scaleFactor))
+                    nRow.setValue(lib.MDL_ZCOOR, int(subtomo.getCoordinate3D().getZ()*scaleFactor))
                     # Convert transform matrix to Euler Angles (rot, tilt, psi)
                     alignmentToRow(subtomo.getTransform(), nRow, ALIGN_3D)
                     nRow.addToMd(mdGeometry)
