@@ -26,9 +26,12 @@
 # *
 # **************************************************************************
 
+from pwem import Domain
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
-from tomo.protocols import ProtTomoBase
+
+ProtTomoBase = Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase',
+                                            doRaise=True)
 
 
 class XmippProtCCroi(EMProtocol, ProtTomoBase):

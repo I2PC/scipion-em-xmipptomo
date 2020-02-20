@@ -26,13 +26,18 @@
 import os
 
 from pwem.protocols import ProtClassify3D
+from pwem import Domain
 from pyworkflow.protocol import (IntParam, PointerParam, LEVEL_ADVANCED,
                                  BooleanParam, StringParam, FloatParam)
 from pyworkflow.utils import Environ
-from xmipp3 import Plugin
-from xmipp3.convert import (writeSetOfVolumes, readSetOfClassesVol,
-                            readSetOfVolumes)
 
+Plugin = Domain.importFromPlugin('xmipp3', 'Plugin', doRaise=True)
+writeSetOfVolumes = Domain.importFromPlugin('xmipp3.convert',
+                                            'writeSetOfVolumes', doRaise=True)
+readSetOfClassesVol = Domain.importFromPlugin('xmipp3.convert',
+                                            'readSetOfClassesVol')
+readSetOfVolumes = Domain.importFromPlugin('xmipp3.convert',
+                                            'readSetOfVolumes')
 
 class XmippProtCLTomo(ProtClassify3D):
     """ Averages a set of subtomograms taking into account the missing edge. """

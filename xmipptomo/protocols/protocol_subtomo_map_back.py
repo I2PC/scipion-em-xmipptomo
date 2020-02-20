@@ -26,15 +26,19 @@
 # *
 # **************************************************************************
 
-from pwem import ALIGN_3D
+from pwem import ALIGN_3D, Domain
 from pwem.emlib import lib
-import pwem.metadata as md
+import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
-from tomo.objects import Tomogram
-from tomo.protocols import ProtTomoBase
-from xmipp3.convert import alignmentToRow
+
+Tomogram = Domain.importFromPlugin('tomo.objects', 'Tomogram', doRaise=True)
+ProtTomoBase = Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase')
+alignmentToRow = Domain.importFromPlugin('xmipp3.convert', 'alignmentToRow',
+                                         doRaise=True)
+
+
 
 
 class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):

@@ -24,13 +24,19 @@
 # *
 # **************************************************************************
 
-import os
+from pwem import Domain
 from pwem.viewers.showj import *
 from pwem.protocols import ProtAnalysis2D
 from pyworkflow.protocol.params import PointerParam
-from tomo.objects import Mesh
-from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
-from tomo.protocols.protocol_base import ProtTomoBase
+
+Mesh = Domain.importFromPlugin('tomo.objects', 'Mesh', doRaise=True)
+TomogramsTreeProvider = Domain.importFromPlugin('tomo.viewers.views_tkinter_tree',
+                                                'TomogramsTreeProvider')
+TomogramsDialog = Domain.importFromPlugin('tomo.viewers.views_tkinter_tree',
+                                                'TomogramsDialog')
+
+ProtTomoBase = Domain.importFromPlugin('tomo.protocols.protocol_base',
+                                       'ProtTomoBase')
 
 
 class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):

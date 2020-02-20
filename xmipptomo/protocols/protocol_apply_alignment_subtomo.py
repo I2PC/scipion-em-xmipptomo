@@ -30,13 +30,20 @@ import pwem
 from pwem.emlib import MDL_IMAGE
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
-import pwem.metadata as md
+import pwem.emlib.metadata as md
 
 from pyworkflow.protocol.params import PointerParam
-from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
+
 # Tomo plugin must be installed
-AverageSubTomogram = pwem.Domain.importFromPlugin('tomo.objects', 'AverageSubTomogram',
+AverageSubTomogram = pwem.Domain.importFromPlugin('tomo.objects',
+                                                  'AverageSubTomogram',
                                                   doRaise=True)
+xmippToLocation = pwem.Domain.importFromPlugin('xmipp3.convert',
+                                               'xmippToLocation')
+writeSetOfVolumes = pwem.Domain.importFromPlugin('xmipp3.convert',
+                                                 'writeSetOfVolumes')
+alignmentToRow = pwem.Domain.importFromPlugin('xmipp3.convert',
+                                              'alignmentToRow')
 
 class XmippProtApplyTransformSubtomo(EMProtocol):
     """ Apply alignment matrix and produce a new set of subtomograms, with each subtomogram aligned to its reference. """

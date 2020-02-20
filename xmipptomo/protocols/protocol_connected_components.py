@@ -27,9 +27,12 @@
 # **************************************************************************
 
 import numpy as np
+import pwem
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
-from tomo.protocols import ProtTomoBase
+
+ProtTomoBase = pwem.Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase',
+                                            doRaise=True)
 
 
 class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
