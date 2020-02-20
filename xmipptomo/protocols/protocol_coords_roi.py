@@ -26,10 +26,9 @@
 # *
 # **************************************************************************
 
-import os
 import numpy as np
 from pyworkflow.em.protocol import EMProtocol
-from pyworkflow.protocol.params import MultiPointerParam, EnumParam, IntParam
+from pyworkflow.protocol.params import MultiPointerParam, IntParam
 from tomo.protocols import ProtTomoBase
 
 
@@ -69,20 +68,34 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
-        for inputSetCoor in self.inputCoordinates:
+        for ix, inputSetCoor in enumerate(self.inputCoordinates):
             i = 0
             perc = self._percentage(inputSetCoor)
             for inputSetMesh in self.inputMeshes:
                 for mesh in inputSetMesh.get().iterItems():
+                    # The if goes here or above depending on if the set comes from the same tomo or each mesh come from
+                    # a different tomo. Now is done for each mesh.
                     if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh._volName:  # GETTER!
-                        coorsmesh = mesh.getMesh()
                         for coorcc in inputSetCoor.get():
-                            for cmesh in coorsmesh:   # [x, y, z] ??
+                            for cmesh in mesh.getMesh():   # [x, y, z] ??
+                                # print("-----cmesh----", cmesh)
                                 for cm in cmesh:
+                                    # print("-----cm----", cm)
                                     if self._euclideanDistance(coorcc, cm) <= self.distance.get():
-                                        i += 1
+                                        i += 1  # for each cc => i couldn't be greater than size of cc
+                                        break
+            print("---------", i)
             if i >= perc:
-                # cc as output (see output cc protocol)
+                outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix+1)
+                outputSet.copyInfo(inputSetCoor)
+                outputSet.copyItems(inputSetCoor.get())
+                outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                name = 'output3DCoordinates%s' % str(ix+1)
+                args = {}
+                args[name] = outputSet
+                self._defineOutputs(**args)
+                self._defineSourceRelation(inputSetCoor, outputSet)
                 pass
 
     # --------------------------- INFO functions --------------------------------
