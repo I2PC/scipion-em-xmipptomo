@@ -25,6 +25,7 @@
 # **************************************************************************
 
 import os
+import numpy as np
 
 from pyworkflow.em.viewers.showj import *
 from pyworkflow.em.protocol import ProtAnalysis2D
@@ -60,11 +61,14 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
         outSet = self._createSetOfMeshes()
         for file in os.listdir(self._getExtraPath()):
             if file.endswith(".txt"):
-                mesh_roi = Mesh(self._getExtraPath(file))
-                for tomo in self.inputTomos.get().iterItems():
-                    if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
-                        mesh_roi.setVolume(tomo.clone())
-                outSet.append(mesh_roi)
+                data = np.loadtxt(self._getExtraPath(file), delimiter=',')
+                groups = np.unique(data[:, 3]).astype(int)
+                for group in groups:
+                    mesh = Mesh(group=group, path=self._getExtraPath(file))
+                    for tomo in self.inputTomos.get().iterItems():
+                        if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
+                            mesh.setVolume(tomo.clone())
+                    outSet.append(mesh)
         outSet.setVolumes(self.inputTomos.get())
         self._defineOutputs(outputMeshes=outSet)
         self._defineSourceRelation(self.inputTomos.get(), outSet)
