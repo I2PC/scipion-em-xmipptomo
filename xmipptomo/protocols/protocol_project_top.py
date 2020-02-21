@@ -73,7 +73,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         for item in input.iterItems():
             vol = Volume()
             idx = item.getObjId()
-            vol.setLocation('%d@%s' % (idx, item.getFileName()))
+            vol.setLocation(item.getLocation())
             vol = ImageHandler().read(vol.getLocation())
             volData = vol.getData()
             proj = np.empty([x, y])
