@@ -73,15 +73,10 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
             perc = self._percentage(inputSetCoor)
             for inputSetMesh in self.inputMeshes:
                 for mesh in inputSetMesh.get().iterItems():
-                    # The if goes here or above depending on if the set comes from the same tomo or each mesh come from
-                    # a different tomo. Now is done for each mesh.
-                    if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh._volName:  # GETTER!
+                    if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
                         for coorcc in inputSetCoor.get():
-                            for cmesh in mesh.getMesh():   # [x, y, z] ??
-                                # print("-----cmesh----", cmesh)
-                                for cm in cmesh:
-                                    # print("-----cm----", cm)
-                                    if self._euclideanDistance(coorcc, cm) <= self.distance.get():
+                            for coormesh in mesh.getMesh():
+                                    if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
                                         i += 1  # for each cc => i couldn't be greater than size of cc
                                         break
             print("---------", i)
