@@ -28,7 +28,7 @@
 
 import numpy as np
 from pyworkflow.em.protocol import EMProtocol
-from pyworkflow.protocol.params import MultiPointerParam, IntParam
+from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam
 from tomo.protocols import ProtTomoBase
 
 
@@ -46,7 +46,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         form.addSection(label='Input coordinates')
         form.addParam('inputCoordinates', MultiPointerParam, label="Input connected components",
                       pointerClass='SetOfCoordinates3D', help='Select the Connected components (SetOfCoordinates3D).')
-        form.addParam('inputMeshes', MultiPointerParam, label="Input ROIs",
+        form.addParam('inputMeshes', PointerParam, label="Input ROIs",
                       pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
         # form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
         #               display=EnumParam.DISPLAY_HLIST,
@@ -71,16 +71,15 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         for ix, inputSetCoor in enumerate(self.inputCoordinates):
             i = 0
             perc = self._percentage(inputSetCoor)
-            for inputSetMesh in self.inputMeshes:
-                for mesh in inputSetMesh.get().iterItems():
-                    if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
-                        for coorcc in inputSetCoor.get():
-                            for coormesh in mesh.getMesh():
-                                    if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
-                                        i += 1  # for each cc => i couldn't be greater than size of cc
-                                        break
+            for mesh in self.inputMeshes.get().iterItems():
+                if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
+                    for coorcc in inputSetCoor.get():
+                        for coormesh in mesh.getMesh():
+                            if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
+                                i += 1
+                                break
             print("---------", i)
-            if i >= perc:
+            if i >= perc and i<= inputSetCoor.get().getSize():
                 outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix+1)
                 outputSet.copyInfo(inputSetCoor)
                 outputSet.copyItems(inputSetCoor.get())
@@ -91,7 +90,6 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                 args[name] = outputSet
                 self._defineOutputs(**args)
                 self._defineSourceRelation(inputSetCoor, outputSet)
-                pass
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
