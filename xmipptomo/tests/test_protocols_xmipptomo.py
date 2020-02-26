@@ -67,7 +67,7 @@ class TestXmippProtCCroi(BaseTest):
                                      inputMesh=protImport.outputCoordinates,
                                      selection=0)
         self.launchProtocol(coordsRoi)
-        self.assertIsNotNone(coordsRoi.outputCoordinates,
+        self.assertIsNotNone(coordsRoi.outputCoordinates3D,
                              "There was a problem with SetOfCoordinates output")
         return coordsRoi
 

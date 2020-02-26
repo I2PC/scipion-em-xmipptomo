@@ -69,27 +69,27 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
         for ix, inputSetCoor in enumerate(self.inputCoordinates):
-            i = 0
             perc = self._percentage(inputSetCoor)
             for mesh in self.inputMeshes.get().iterItems():
                 if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
+                    i = 0
                     for coorcc in inputSetCoor.get():
                         for coormesh in mesh.getMesh():
                             if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
                                 i += 1
                                 break
-            print("---------", i)
-            if i >= perc and i<= inputSetCoor.get().getSize():
-                outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix+1)
-                outputSet.copyInfo(inputSetCoor)
-                outputSet.copyItems(inputSetCoor.get())
-                outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
-                outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
-                name = 'output3DCoordinates%s' % str(ix+1)
-                args = {}
-                args[name] = outputSet
-                self._defineOutputs(**args)
-                self._defineSourceRelation(inputSetCoor, outputSet)
+                    print("----------------------", i)
+                    if i >= perc:
+                        outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix+1)
+                        outputSet.copyInfo(inputSetCoor)
+                        outputSet.copyItems(inputSetCoor.get())
+                        outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                        outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                        name = 'output3DCoordinates%s' % str(ix+1)
+                        args = {}
+                        args[name] = outputSet
+                        self._defineOutputs(**args)
+                        self._defineSourceRelation(inputSetCoor, outputSet)
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
