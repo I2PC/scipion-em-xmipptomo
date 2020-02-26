@@ -28,7 +28,7 @@
 
 import numpy as np
 from pyworkflow.em.protocol import EMProtocol
-from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam
+from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
 from tomo.protocols import ProtTomoBase
 
 
@@ -48,17 +48,16 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                       pointerClass='SetOfCoordinates3D', help='Select the Connected components (SetOfCoordinates3D).')
         form.addParam('inputMeshes', PointerParam, label="Input ROIs",
                       pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
-        # form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
-        #               display=EnumParam.DISPLAY_HLIST,
-        #               help='Selection options:\n*Whole cc*: It takes the whole connected component (cc) if all the '
-        #                  'points in the cc belongs to the ROI. If a "Number of points" is introduced in the following'
-        #                  ' field, the whole cc will be taken if that number of points from the cc belongs to the ROI.'
-        #                    '\n*Points in roi*: It takes just the points of the cc which belongs to the roi')
+        form.addParam('selection', EnumParam, choices=['Connected component', 'Points'], default=0, label='Selection',
+                      display=EnumParam.DISPLAY_HLIST,
+                      help='Selection options:\n*Connected component*: It takes the whole connected component (cc) if '
+                           'a percentage of the points (introduced in the next field) in the cc belongs to the ROI. '
+                           '\n*Points*: It takes just the points of the cc which belongs to the roi')
         form.addParam('points', IntParam, label="Percentage of coordinates in ROI",  default=80,
-                      # condition='selection == 0',
+                      condition='selection == 0',
                       allowsNull=True, help='Percentage of coordinates from a connected component that should be inside'
                                             ' the ROI to consider that connected component.')
-        form.addParam('distance', IntParam, label='Distance', default=128,
+        form.addParam('distance', IntParam, label='Distance', default=50,
                       help='Maximum euclidean distance (in pixels) between ROI vertex and a coordinate to consider that'
                            ' it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
 
@@ -68,24 +67,47 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
+        sel = self.selection.get()
         for ix, inputSetCoor in enumerate(self.inputCoordinates):
             perc = self._percentage(inputSetCoor)
             for mesh in self.inputMeshes.get().iterItems():
                 if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
-                    i = 0
+                    if sel == 0:
+                        i = 0
+                    else:
+                        outputSetList = []
                     for coorcc in inputSetCoor.get():
                         for coormesh in mesh.getMesh():
                             if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
-                                i += 1
+                                if sel == 0:
+                                    i += 1
+                                else:
+                                    outputSetList.append(coorcc.getObjId())
                                 break
-                    print("----------------------", i)
-                    if i >= perc:
-                        outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix+1)
+                    if sel == 0:
+                        if i >= perc:
+                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
+                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.copyItems(inputSetCoor.get())
+                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                            name = 'output3DCoordinates%s' % str(ix+1)
+                            args = {}
+                            args[name] = outputSet
+                            self._defineOutputs(**args)
+                            self._defineSourceRelation(inputSetCoor, outputSet)
+
+                    else:
+                        outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
                         outputSet.copyInfo(inputSetCoor)
-                        outputSet.copyItems(inputSetCoor.get())
                         outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
                         outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
-                        name = 'output3DCoordinates%s' % str(ix+1)
+                        for coor3D in inputSetCoor.get().iterItems():
+                            if coor3D.getObjId() in outputSetList:
+                                outputSet.append(coor3D)
+                        if outputSet.getSize() == 0:
+                            break
+                        name = 'output3DCoordinates%s' % str(ix + 1)
                         args = {}
                         args[name] = outputSet
                         self._defineOutputs(**args)
@@ -94,12 +116,18 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
-        summary.append("")
+        if self.selection.get() == 0:
+            summary.append("Percentage of coordinates in ROI: %d" % self.points.get())
+        summary.append("Max distance to ROI: %d\nConnected components in ROIs: %d"
+                       % (self.distance.get(), len(self._outputs)))
         return summary
 
     def _methods(self):
         methods = []
-        methods.append("")
+        methods.append("%d connected components detected" % len(self._outputs))
+        if self.selection.get() == 0:
+            methods.append("with at least %d percent of points" % self.points.get())
+        methods.append("at a maximun distance of %d pixels of a ROI." % self.distance.get())
         return methods
 
     # --------------------------- UTILS functions --------------------------------------------
