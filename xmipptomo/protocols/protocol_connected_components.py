@@ -41,7 +41,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input subtomograms')
+        form.addSection(label='Input coordinates')
         form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
                       pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
         form.addParam('distance', FloatParam, label='Distance', help='Maximum radial distance (in pixels) between '
