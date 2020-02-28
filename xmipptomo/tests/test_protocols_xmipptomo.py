@@ -55,14 +55,14 @@ class TestXmippProtCC(BaseTest):
         self.launchProtocol(protImportCoordinates3d)
         self.assertIsNotNone(protImportTomogram.outputTomograms,
                              "There was a problem with tomogram output")
-        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates3D,
+        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
                              "There was a problem with coordinates 3d output")
         return protImportCoordinates3d
 
     def test_cc(self):
         protImport = self._runPreviousProtocols()
         protConnectedComponents = self.newProtocol(XmippProtConnectedComponents,
-                                                   inputCoordinates=protImport.outputCoordinates3D,
+                                                   inputCoordinates=protImport.outputCoordinates,
                                                    distance=120)
         self.launchProtocol(protConnectedComponents)
         self.assertTrue(protConnectedComponents.output3DCoordinates1)
