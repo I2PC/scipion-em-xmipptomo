@@ -25,9 +25,14 @@
 # **************************************************************************
 
 import os
+import numpy as np
+
 from pyworkflow.em.viewers.showj import *
 from pyworkflow.em.protocol import ProtAnalysis2D
 from pyworkflow.protocol.params import PointerParam
+
+import pyworkflow.utils as pwutlis
+
 from tomo.objects import Mesh, SetOfMeshes
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
@@ -56,11 +61,14 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
         outSet = self._createSetOfMeshes()
         for file in os.listdir(self._getExtraPath()):
             if file.endswith(".txt"):
-                mesh_roi = Mesh(self._getExtraPath(file))
-                for tomo in self.inputTomos.get().iterItems():
-                    if file[:-5] in tomo.getFileName():
-                        mesh_roi.setVolume(tomo)
-                outSet.append(mesh_roi)
+                data = np.loadtxt(self._getExtraPath(file), delimiter=',')
+                groups = np.unique(data[:, 3]).astype(int)
+                for group in groups:
+                    mesh = Mesh(group=group, path=self._getExtraPath(file))
+                    for tomo in self.inputTomos.get().iterItems():
+                        if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
+                            mesh.setVolume(tomo.clone())
+                    outSet.append(mesh)
         outSet.setVolumes(self.inputTomos.get())
         self._defineOutputs(outputMeshes=outSet)
         self._defineSourceRelation(self.inputTomos.get(), outSet)
@@ -70,7 +78,7 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
 
         tomoList = [tomo.clone() for tomo in self.inputTomos.get().iterItems()]
 
-        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath())
+        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath(), 'txt')
 
         path = self._getExtraPath()
         self.dlg = TomogramsDialog(None, False, provider=tomoProvider, path=path)
