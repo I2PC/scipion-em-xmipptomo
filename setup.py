@@ -35,6 +35,6 @@ setup(
     packages=find_packages(),
     install_requires=[requirements],
     package_data={  # Optional
-       'xmipptomo': ['icon.png', 'protocols.conf'],
+       'xmipptomo': ['xmipp_logo.png', 'protocols.conf'],
     }
 )

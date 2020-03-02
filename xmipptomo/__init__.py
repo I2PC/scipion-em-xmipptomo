@@ -27,7 +27,7 @@
 import pyworkflow.em
 import xmipp3
 
-_logo = "icon.png"
+_logo = "xmipp_logo.png"
 _references = ['you2019']
 
 class Plugin(xmipp3.Plugin):
