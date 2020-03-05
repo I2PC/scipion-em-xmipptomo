@@ -121,4 +121,3 @@ class TestXmippProtProjectZ(BaseTest):
         self.assertTrue(outputParticles)
         return projection
 
-
