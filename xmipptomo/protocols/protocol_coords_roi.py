@@ -105,8 +105,6 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                         for coor3D in inputSetCoor.get().iterItems():
                             if coor3D.getObjId() in outputSetList:
                                 outputSet.append(coor3D)
-                        if outputSet.getSize() == 0:
-                            break
                         name = 'output3DCoordinates%s' % str(ix + 1)
                         args = {}
                         args[name] = outputSet
