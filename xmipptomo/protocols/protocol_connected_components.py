@@ -58,7 +58,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeConnectedComponentsStep(self):
         self.tomoList = []
-        for coor in self.inputCoordinates.get().iterItems():
+        for coor in self.inputCoordinates.get().iterItems(orderBy='_volName'):
             coorName = coor.getVolName()
             if coorName not in self.tomoList:
                 self.tomoList.append(coorName)
@@ -67,11 +67,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
             tomoNameshort = os.path.basename(tomoname)
             for prec in self.inputCoordinates.get().getPrecedents().iterItems():
                 if prec.getFileName() == tomoname:
-                    precSet = self._createSetOfTomograms('_'+tomoNameshort)
-                    precSet.copyInfo(self.inputCoordinates.get().getPrecedents())
-                    precSet.append(prec)
-                    tomocoorset = self._createSetOfCoordinates3D(precSet, '_'+tomoNameshort)
-                    precSet.write()
+                    tomocoorset = self._createSetOfCoordinates3D(self.inputCoordinates.get().getPrecedents(), '_'+tomoNameshort)
             for coorinset in self.inputCoordinates.get().iterItems():
                 if coorinset.getVolName() == tomoname:
                     tomocoorset.append(coorinset)
