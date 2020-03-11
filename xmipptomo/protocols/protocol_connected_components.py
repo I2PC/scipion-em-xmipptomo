@@ -26,7 +26,7 @@
 # *
 # **************************************************************************
 
-import os
+from os.path import basename
 import numpy as np
 from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
@@ -57,25 +57,26 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def computeConnectedComponentsStep(self):
-        self.tomoList = []
-        for coor in self.inputCoordinates.get().iterItems(orderBy='_volName'):
-            coorName = coor.getVolName()
-            if coorName not in self.tomoList:
-                self.tomoList.append(coorName)
-        fi = 0
-        for tomoname in self.tomoList:
-            tomoNameshort = os.path.basename(tomoname)
-            for prec in self.inputCoordinates.get().getPrecedents().iterItems():
-                if prec.getFileName() == tomoname:
-                    tomocoorset = self._createSetOfCoordinates3D(self.inputCoordinates.get().getPrecedents(), '_'+tomoNameshort)
-            for coorinset in self.inputCoordinates.get().iterItems():
-                if coorinset.getVolName() == tomoname:
-                    tomocoorset.append(coorinset)
-            tomocoorset.write()
-            inputCoor = tomocoorset
+        inputCoors = self.inputCoordinates.get()
+        tomoList = []
+        coorSetList = []
+
+        # Create a separate setOfCoordinates for each tomogram
+        for coor in inputCoors.iterItems(orderBy='_volName'):
+            tomoName = coor.getVolName()
+            if tomoName not in tomoList:
+                tomoList.append(tomoName)
+                tomocoorset = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), '_' + basename(tomoName))
+                coorSetList.append(tomocoorset)
+            tomocoorset.append(coor)
+
+        # For each setOfCoordinates, perform "connected components" logic
+        outputsetIndex = 0
+        for coorSet in coorSetList:
+            coorSet.write()
             minDist = self.distance.get()
             coorlist = []
-            for i, coor in enumerate(inputCoor.iterItems()):
+            for i, coor in enumerate(coorSet.iterItems()):
                 coorlist.append([coor.getX(), coor.getY(), coor.getZ()])
             A = np.zeros([len(coorlist), len(coorlist)])
             for j, coor1 in enumerate(coorlist):
@@ -88,6 +89,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                                 and abs(coor1[2]-coor2[2]) <= minDist:
                             A[j, k] = 1
                             A[k, j] = 1
+            tomoNameshort = basename(coorSet.getFirstItem().getVolName())
             np.savetxt(self._getExtraPath('adjacency_matrix_%s' % tomoNameshort), A)
             D = np.diag(A.sum(axis=1))
             np.savetxt(self._getExtraPath('degree_matrix_%s' % tomoNameshort), D)
@@ -98,29 +100,31 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
             vecs = vecs.real
             np.savetxt(self._getExtraPath('eigenvecs_matrix_%s' % tomoNameshort), vecs)
             np.savetxt(self._getExtraPath('eigenvalues_matrix_%s' % tomoNameshort), vals)
-            vals0list = [i for i, x in enumerate(vals.real) if abs(x) < (1/(np.sqrt(len(inputCoor)))*1e-3)]
-            self.listOfSets = [[] for x in range(len(vals0list))]
-            for k in range(len(inputCoor)):
+            vals0list = [i for i, x in enumerate(vals.real) if abs(x) < (1/(np.sqrt(len(coorSet)))*1e-3)]
+            listOfSets = [[] for x in range(len(vals0list))]
+            for k in range(len(coorSet)):
                 row = []
                 for j in vals0list:
                     row.append(vecs[k, j])
                 row = [abs(number)for number in row]
                 ixMax = np.argmax(row)
-                self.listOfSets[ixMax].append(k)
-            for ix, coorInd in enumerate(self.listOfSets):
-                fi += 1
-                outputSet = self._createSetOfCoordinates3D(self.inputCoordinates.get().getPrecedents(), fi)
-                outputSet.copyInfo(self.inputCoordinates.get())
-                outputSet.setBoxSize(self.inputCoordinates.get().getBoxSize())
-                outputSet.setSamplingRate(self.inputCoordinates.get().getSamplingRate())
-                for id, coor3D in enumerate(inputCoor.iterItems()):
+                listOfSets[ixMax].append(k)
+
+            # Create as output a setOfCoordinates for each connected component
+            for ix, coorInd in enumerate(listOfSets):
+                outputsetIndex += 1
+                outputSet = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), outputsetIndex)
+                outputSet.copyInfo(inputCoors)
+                outputSet.setBoxSize(inputCoors.getBoxSize())
+                outputSet.setSamplingRate(inputCoors.getSamplingRate())
+                for id, coor3D in enumerate(coorSet.iterItems()):
                     if id in coorInd:
                         outputSet.append(coor3D)
-                name = 'output3DCoordinates%s' % str(fi)
+                name = 'output3DCoordinates%s' % str(outputsetIndex)
                 args = {}
                 args[name] = outputSet
                 self._defineOutputs(**args)
-                self._defineSourceRelation(self.inputCoordinates.get(), outputSet)
+                self._defineSourceRelation(inputCoors, outputSet)
 
     # --------------------------- INFO functions --------------------------------
 
