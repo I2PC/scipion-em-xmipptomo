@@ -98,18 +98,19 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                             self._defineSourceRelation(inputSetCoor, outputSet)
 
                     else:
-                        outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
-                        outputSet.copyInfo(inputSetCoor)
-                        outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
-                        outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
-                        for coor3D in inputSetCoor.get().iterItems():
-                            if coor3D.getObjId() in outputSetList:
-                                outputSet.append(coor3D)
-                        name = 'output3DCoordinates%s' % str(ix + 1)
-                        args = {}
-                        args[name] = outputSet
-                        self._defineOutputs(**args)
-                        self._defineSourceRelation(inputSetCoor, outputSet)
+                        if len(outputSetList) != 0:
+                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
+                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                            for coor3D in inputSetCoor.get().iterItems():
+                                if coor3D.getObjId() in outputSetList:
+                                    outputSet.append(coor3D)
+                            name = 'output3DCoordinates%s' % str(ix + 1)
+                            args = {}
+                            args[name] = outputSet
+                            self._defineOutputs(**args)
+                            self._defineSourceRelation(inputSetCoor, outputSet)
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):

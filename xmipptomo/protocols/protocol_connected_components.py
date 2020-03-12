@@ -112,19 +112,20 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
             # Create as output a setOfCoordinates for each connected component
             for ix, coorInd in enumerate(listOfSets):
-                outputsetIndex += 1
-                outputSet = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), outputsetIndex)
-                outputSet.copyInfo(inputCoors)
-                outputSet.setBoxSize(inputCoors.getBoxSize())
-                outputSet.setSamplingRate(inputCoors.getSamplingRate())
-                for id, coor3D in enumerate(coorSet.iterItems()):
-                    if id in coorInd:
-                        outputSet.append(coor3D)
-                name = 'output3DCoordinates%s' % str(outputsetIndex)
-                args = {}
-                args[name] = outputSet
-                self._defineOutputs(**args)
-                self._defineSourceRelation(inputCoors, outputSet)
+                if len(coorInd) != 0:
+                    outputsetIndex += 1
+                    outputSet = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), outputsetIndex)
+                    outputSet.copyInfo(inputCoors)
+                    outputSet.setBoxSize(inputCoors.getBoxSize())
+                    outputSet.setSamplingRate(inputCoors.getSamplingRate())
+                    for id, coor3D in enumerate(coorSet.iterItems()):
+                        if id in coorInd:
+                            outputSet.append(coor3D)
+                    name = 'output3DCoordinates%s' % str(outputsetIndex)
+                    args = {}
+                    args[name] = outputSet
+                    self._defineOutputs(**args)
+                    self._defineSourceRelation(inputCoors, outputSet)
 
     # --------------------------- INFO functions --------------------------------
 
