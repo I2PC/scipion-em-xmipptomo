@@ -46,7 +46,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
         form.addSection(label='Input coordinates')
         form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
                       pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
-        form.addParam('distance', FloatParam, label='Distance1', help='Maximum radial distance (in voxels) between '
+        form.addParam('distance', FloatParam, label='Distance', help='Maximum radial distance (in voxels) between '
                                                                       'particles to consider that they are in the same '
                                                                       'connected component. Wizard returns three times '
                                                                       'the box size of the input coordinates.')
