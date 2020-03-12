@@ -36,7 +36,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     """ This protocol adjust a SetOfCoordinates (which usually will come from a connected componnent) to a ROI (region
     of interest) previously defined"""
 
-    _label = 'coordinates to roi'
+    _label = 'connected components to ROIs'
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -59,7 +59,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                                             ' the ROI to consider that connected component.')
         form.addParam('distance', IntParam, label='Distance', default=50,
                       help='Maximum euclidean distance (in pixels) between ROI vertex and a coordinate to consider that'
-                           ' it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
+                           ' it belongs to the ROI.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
