@@ -28,6 +28,7 @@
 
 from os.path import basename
 import numpy as np
+from pyworkflow.object import Set
 from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
@@ -54,6 +55,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeConnectedComponentsStep')
+        self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions -------------------------------
     def computeConnectedComponentsStep(self):
@@ -124,8 +126,14 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                     name = 'output3DCoordinates%s' % str(outputsetIndex)
                     args = {}
                     args[name] = outputSet
+                    outputSet.setStreamState(Set.STREAM_OPEN)
                     self._defineOutputs(**args)
                     self._defineSourceRelation(inputCoors, outputSet)
+
+    def createOutputStep(self):
+        for outputset in self._iterOutputsNew():
+            outputset[1].setStreamState(Set.STREAM_CLOSED)
+        self._store()
 
     # --------------------------- INFO functions --------------------------------
 

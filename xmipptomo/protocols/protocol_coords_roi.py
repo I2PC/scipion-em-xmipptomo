@@ -28,6 +28,7 @@
 
 import os
 import numpy as np
+from pyworkflow.object import Set
 from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
 from tomo.protocols import ProtTomoBase
@@ -65,6 +66,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeDistances')
+        self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
@@ -95,6 +97,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                             name = 'output3DCoordinates%s' % str(ix+1)
                             args = {}
                             args[name] = outputSet
+                            outputSet.setStreamState(Set.STREAM_OPEN)
                             self._defineOutputs(**args)
                             self._defineSourceRelation(inputSetCoor, outputSet)
 
@@ -110,8 +113,14 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                             name = 'output3DCoordinates%s' % str(ix + 1)
                             args = {}
                             args[name] = outputSet
+                            outputSet.setStreamState(Set.STREAM_OPEN)
                             self._defineOutputs(**args)
                             self._defineSourceRelation(inputSetCoor, outputSet)
+
+    def createOutputStep(self):
+        for outputset in self._iterOutputsNew():
+            outputset[1].setStreamState(Set.STREAM_CLOSED)
+        self._store()
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
