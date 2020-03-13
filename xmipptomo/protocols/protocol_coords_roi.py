@@ -26,6 +26,7 @@
 # *
 # **************************************************************************
 
+import os
 import numpy as np
 from pyworkflow.em.protocol import EMProtocol
 from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
@@ -45,7 +46,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input coordinates')
         form.addParam('inputCoordinates', MultiPointerParam, label="Input connected components",
-                      pointerClass='SetOfCoordinates3D', help='Select the Connected components (SetOfCoordinates3D).')
+                      pointerClass='SetOfCoordinates3D', help='Select the Connected components.')
         form.addParam('inputMeshes', PointerParam, label="Input ROIs",
                       pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
         form.addParam('selection', EnumParam, choices=['Connected component', 'Points'], default=0, label='Selection',
@@ -71,7 +72,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         for ix, inputSetCoor in enumerate(self.inputCoordinates):
             perc = self._percentage(inputSetCoor)
             for mesh in self.inputMeshes.get().iterItems():
-                if inputSetCoor.get().getPrecedents().getFirstItem().getFileName() == mesh.getVolume().getFileName():
+                if os.path.basename(inputSetCoor.get().getFirstItem().getVolName()) == os.path.basename(mesh.getVolume().getFileName()):
                     if sel == 0:
                         i = 0
                     else:
