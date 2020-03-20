@@ -26,19 +26,26 @@
 # *
 # **************************************************************************
 
+import os
+import numpy as np
+
+from pyworkflow.object import Set
+from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
+
 from pwem import Domain
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
 
 ProtTomoBase = Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase',
                                             doRaise=True)
+
+from tomo.protocols import ProtTomoBase
 
 
 class XmippProtCCroi(EMProtocol, ProtTomoBase):
     """ This protocol adjust a SetOfCoordinates (which usually will come from a
     connected componnent) to a ROI (region of interest) previously defined"""
 
-    _label = 'coordinates to roi'
+    _label = 'connected components to ROIs'
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -46,51 +53,102 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input coordinates')
-        form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
-                      pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
-        form.addParam('inputMesh', PointerParam, label="Input mesh",
-                      pointerClass='Mesh, SetOfCoordinates', help='Select the mesh')  # REMOVE SETOFCOORD!!!! (just for the test to work)
-        form.addParam('selection', EnumParam, choices=['Whole cc', 'Points in roi'], default=0, label='Selection',
+        form.addParam('inputCoordinates', MultiPointerParam, label="Input connected components",
+                      pointerClass='SetOfCoordinates3D', help='Select the Connected components.')
+        form.addParam('inputMeshes', PointerParam, label="Input ROIs",
+                      pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
+        form.addParam('selection', EnumParam, choices=['Connected component', 'Points'], default=0, label='Selection',
                       display=EnumParam.DISPLAY_HLIST,
-                      help='Selection options:\n*Whole cc*: It takes the whole connected componnent (cc) if all the '
-                           'points in the cc belongs to the ROI. If a "Number of points" is introduced in the following'
-                           ' field, the whole cc will be taken if that number of points from the cc belongs to the ROI.'
-                           '\n*Points in roi*: It takes just the points of the cc which belongs to the roi')
-        form.addParam('points', IntParam, label="Number of points", condition='selection == 0', allowsNull=True,
-                      help='see "Selection" help')
-        form.addParam('distance', IntParam, label='Distance', default=0,
-                      help='Maximum radial distance (in pixels) between mesh vertex and a coordinate to consider that '
-                           'it belongs to the ROI. Wizard returns three times the box size of the input coordinates.')
+                      help='Selection options:\n*Connected component*: It takes the whole connected component (cc) if '
+                           'a percentage of the points (introduced in the next field) in the cc belongs to the ROI. '
+                           '\n*Points*: It takes just the points of the cc which belongs to the roi')
+        form.addParam('points', IntParam, label="Percentage of coordinates in ROI",  default=80,
+                      condition='selection == 0',
+                      allowsNull=True, help='Percentage of coordinates from a connected component that should be inside'
+                                            ' the ROI to consider that connected component.')
+        form.addParam('distance', IntParam, label='Distance', default=50,
+                      help='Maximum euclidean distance (in pixels) between ROI vertex and a coordinate to consider that'
+                           ' it belongs to the ROI.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeDistances')
+        self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
-        inputCoor = self.inputCoordinates.get()
-        inputMesh = self.inputMesh.get()  # for REAL MESHES, inputMesh.getMesh() + .iterItems()???
-        distance = self.distance.get()
-        outputSet = self._createSetOfCoordinates3D(inputCoor.getPrecedents())
-        outputSet.copyInfo(inputCoor)
-        outputSet.setBoxSize(inputCoor.getBoxSize())
-        for coorm in inputMesh.iterItems():  # TODO: This works if mesh is a SetOfCoord
-            for coorc in inputCoor.iterItems():
-                if abs(coorm.getX() - coorc.getX()) <= distance and abs(coorm.getY() - coorc.getY()) <= distance \
-                        and abs(coorm.getZ() - coorc.getZ()) <= distance:
-                    outputSet.append(coorc)
-        # selection options??
-        self._defineOutputs(outputCoordinates=outputSet)
-        self._defineSourceRelation(inputCoor, outputSet)
+        sel = self.selection.get()
+        for ix, inputSetCoor in enumerate(self.inputCoordinates):
+            perc = self._percentage(inputSetCoor)
+            for mesh in self.inputMeshes.get().iterItems():
+                if os.path.basename(inputSetCoor.get().getFirstItem().getVolName()) == os.path.basename(mesh.getVolume().getFileName()):
+                    if sel == 0:
+                        i = 0
+                    else:
+                        outputSetList = []
+                    for coorcc in inputSetCoor.get():
+                        for coormesh in mesh.getMesh():
+                            if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
+                                if sel == 0:
+                                    i += 1
+                                else:
+                                    outputSetList.append(coorcc.getObjId())
+                                break
+                    if sel == 0:
+                        if i >= perc:
+                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
+                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.copyItems(inputSetCoor.get())
+                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                            name = 'output3DCoordinates%s' % str(ix+1)
+                            args = {}
+                            args[name] = outputSet
+                            outputSet.setStreamState(Set.STREAM_OPEN)
+                            self._defineOutputs(**args)
+                            self._defineSourceRelation(inputSetCoor, outputSet)
+
+                    else:
+                        if len(outputSetList) != 0:
+                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
+                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
+                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
+                            for coor3D in inputSetCoor.get().iterItems():
+                                if coor3D.getObjId() in outputSetList:
+                                    outputSet.append(coor3D)
+                            name = 'output3DCoordinates%s' % str(ix + 1)
+                            args = {}
+                            args[name] = outputSet
+                            outputSet.setStreamState(Set.STREAM_OPEN)
+                            self._defineOutputs(**args)
+                            self._defineSourceRelation(inputSetCoor, outputSet)
+
+    def createOutputStep(self):
+        for outputset in self._iterOutputsNew():
+            outputset[1].setStreamState(Set.STREAM_CLOSED)
+        self._store()
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
-        summary.append("")
+        if self.selection.get() == 0:
+            summary.append("Percentage of coordinates in ROI: %d" % self.points.get())
+        summary.append("Max distance to ROI: %d\nConnected components in ROIs: %d"
+                       % (self.distance.get(), len(self._outputs)))
         return summary
 
     def _methods(self):
         methods = []
-        methods.append("")
+        methods.append("%d connected components detected" % len(self._outputs))
+        if self.selection.get() == 0:
+            methods.append("with at least %d percent of points" % self.points.get())
+        methods.append("at a maximun distance of %d pixels of a ROI." % self.distance.get())
         return methods
 
+    # --------------------------- UTILS functions --------------------------------------------
+    def _percentage(self, inputSetCoor):
+        return (self.points.get()*inputSetCoor.get().getSize())/100
+
+    def _euclideanDistance(self, coorcc, cm):
+        return np.sqrt((coorcc.getX() - int(cm[0])) + (coorcc.getY() - int(cm[1])) + (coorcc.getZ() - int(cm[2])))

@@ -26,7 +26,7 @@
 
 import xmipp3
 
-_logo = "icon.png"
+_logo = "xmipp_logo.png"
 _references = ['you2019']
 
 

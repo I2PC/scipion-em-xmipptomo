@@ -24,19 +24,17 @@
 # *
 # **************************************************************************
 
-from pwem import Domain
+import os
+import numpy as np
+
+from pyworkflow.protocol.params import PointerParam
+import pyworkflow.utils as pwutlis
 from pwem.viewers.showj import *
 from pwem.protocols import ProtAnalysis2D
-from pyworkflow.protocol.params import PointerParam
 
-Mesh = Domain.importFromPlugin('tomo.objects', 'Mesh', doRaise=True)
-TomogramsTreeProvider = Domain.importFromPlugin('tomo.viewers.views_tkinter_tree',
-                                                'TomogramsTreeProvider')
-TomogramsDialog = Domain.importFromPlugin('tomo.viewers.views_tkinter_tree',
-                                                'TomogramsDialog')
-
-ProtTomoBase = Domain.importFromPlugin('tomo.protocols.protocol_base',
-                                       'ProtTomoBase')
+from tomo.objects import Mesh
+from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
+from tomo.protocols.protocol_base import ProtTomoBase
 
 
 class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
@@ -62,11 +60,14 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
         outSet = self._createSetOfMeshes()
         for file in os.listdir(self._getExtraPath()):
             if file.endswith(".txt"):
-                mesh_roi = Mesh(self._getExtraPath(file))
-                for tomo in self.inputTomos.get().iterItems():
-                    if file[:-5] in tomo.getFileName():
-                        mesh_roi.setVolume(tomo)
-                outSet.append(mesh_roi)
+                data = np.loadtxt(self._getExtraPath(file), delimiter=',')
+                groups = np.unique(data[:, 3]).astype(int)
+                for group in groups:
+                    mesh = Mesh(group=group, path=self._getExtraPath(file))
+                    for tomo in self.inputTomos.get().iterItems():
+                        if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
+                            mesh.setVolume(tomo.clone())
+                    outSet.append(mesh)
         outSet.setVolumes(self.inputTomos.get())
         self._defineOutputs(outputMeshes=outSet)
         self._defineSourceRelation(self.inputTomos.get(), outSet)
@@ -76,7 +77,7 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
 
         tomoList = [tomo.clone() for tomo in self.inputTomos.get().iterItems()]
 
-        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath())
+        tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath(), 'txt')
 
         path = self._getExtraPath()
         self.dlg = TomogramsDialog(None, False, provider=tomoProvider, path=path)

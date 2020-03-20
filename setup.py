@@ -38,6 +38,6 @@ setup(
        'pyworkflow.plugin': 'xmipptomo = xmipptomo',
     },
     package_data={  # Optional
-       'xmipptomo': ['icon.png', 'protocols.conf'],
+       'xmipptomo': ['xmipp_logo.png', 'protocols.conf'],
     }
 )

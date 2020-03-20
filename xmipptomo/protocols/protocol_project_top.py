@@ -59,6 +59,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
+
         self._insertFunctionStep('projectZStep')
         self._insertFunctionStep('createOutputStep')
 
@@ -73,7 +74,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         for item in input.iterItems():
             vol = Volume()
             idx = item.getObjId()
-            vol.setLocation(item.getLocation())
+            vol.setLocation('%d@%s' % (item.getLocation()))
             vol = ImageHandler().read(vol.getLocation())
             volData = vol.getData()
             proj = np.empty([x, y])

@@ -26,12 +26,7 @@
 # **************************************************************************
 
 from pyworkflow.wizard import Wizard
-from pwem import Domain
-
-XmippProtConnectedComponents = Domain.importFromPlugin("xmipptomo.protocols",
-                                                       "XmippProtConnectedComponents",
-                                                       doRaise=True)
-XmippProtCCroi = Domain.importFromPlugin("xmipptomo.protocols", "XmippProtCCroi")
+from .protocols import XmippProtConnectedComponents
 
 
 class XmippConnectedCompWizard(Wizard):
@@ -50,18 +45,3 @@ class XmippConnectedCompWizard(Wizard):
         distance = boxSize * 3
         form.setVar('distance', distance)
 
-class XmippProtCCroi(Wizard):
-    _targets = ([(XmippProtCCroi, ['distance'])])
-
-    def show(self, form):
-        tomoCCProt = form.protocol
-        inputCoordinates = tomoCCProt.inputCoordinates.get()
-        if not inputCoordinates:
-            print('You must specify input coordinates')
-            return
-        boxSize = inputCoordinates.getBoxSize()
-        if not boxSize:
-            print('These coordinates do not have box size. Please, enter distance manually.')
-            return
-        distance = boxSize * 3
-        form.setVar('distance', distance)

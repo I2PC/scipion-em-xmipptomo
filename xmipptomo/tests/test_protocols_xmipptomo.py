@@ -25,19 +25,16 @@
 # **************************************************************************
 
 from pyworkflow.tests import BaseTest, setupTestProject
-from xmipptomo.protocols import XmippProtCCroi, XmippProtSubtomoProject
+from tomo.tests import DataSet
+from tomo.protocols import (ProtImportCoordinates3D,
+                            ProtImportTomograms,
+                            ProtImportSubTomograms)
 
-from pwem import Domain
-DataSet = Domain.importFromPlugin('tomo.tests', 'DataSet', doRaise=True)
-ProtImportCoordinates3D = Domain.importFromPlugin("tomo.protocols",
-                                                  "ProtImportCoordinates3D",
-                                                  doRaise=True)
-ProtImportTomograms = Domain.importFromPlugin("tomo.protocols", "ProtImportTomograms")
-ProtImportSubTomograms = Domain.importFromPlugin("tomo.protocols", "ProtImportSubTomograms")
+from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtCCroi
 
 
-class TestXmippProtCCroi(BaseTest):
-    """ This class check if the protocol to adjust coordinates to a roi works
+class TestXmippProtCC(BaseTest):
+    """ This class check if the protocol to compute connected components works
     properly."""
 
     @classmethod
@@ -53,10 +50,9 @@ class TestXmippProtCCroi(BaseTest):
                                               samplingRate=5)
         self.launchProtocol(protImportTomogram)
         protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
-                                                   auto=ProtImportCoordinates3D.IMPORT_FROM_EMAN,
                                                    filesPath=self.coords3D,
                                                    importTomograms=protImportTomogram.outputTomograms,
-                                                   filesPattern='', boxSize=32,
+                                                   boxSize=32,
                                                    samplingRate=5)
         self.launchProtocol(protImportCoordinates3d)
         self.assertIsNotNone(protImportTomogram.outputTomograms,
@@ -65,22 +61,19 @@ class TestXmippProtCCroi(BaseTest):
                              "There was a problem with coordinates 3d output")
         return protImportCoordinates3d
 
-    def _runCoordsRoi(self):
+    def test_cc(self):
         protImport = self._runPreviousProtocols()
-        coordsRoi = self.newProtocol(XmippProtCCroi,
-                                     inputCoordinates=protImport.outputCoordinates,
-                                     inputMesh=protImport.outputCoordinates,
-                                     selection=0)
-        self.launchProtocol(coordsRoi)
-        self.assertIsNotNone(coordsRoi.outputCoordinates,
-                             "There was a problem with SetOfCoordinates output")
-        return coordsRoi
-
-    def test_basicCoordsRoi(self):
-        xmipptomoCoordsRoi = self._runCoordsRoi()
-        outputCoordinates = getattr(xmipptomoCoordsRoi, 'outputCoordinates')
-        self.assertTrue(outputCoordinates)
-        return xmipptomoCoordsRoi
+        protConnectedComponents = self.newProtocol(XmippProtConnectedComponents,
+                                                   inputCoordinates=protImport.outputCoordinates,
+                                                   distance=120)
+        self.launchProtocol(protConnectedComponents)
+        self.assertTrue(protConnectedComponents.output3DCoordinates1)
+        self.assertEqual(protConnectedComponents.output3DCoordinates1.getSize(), 2)
+        self.assertTrue(protConnectedComponents.output3DCoordinates2)
+        self.assertEqual(protConnectedComponents.output3DCoordinates2.getSize(), 2)
+        self.assertTrue(protConnectedComponents.output3DCoordinates3)
+        self.assertEqual(protConnectedComponents.output3DCoordinates3.getSize(), 1)
+        return protConnectedComponents
 
 
 class TestXmippProtProjectZ(BaseTest):
@@ -129,5 +122,4 @@ class TestXmippProtProjectZ(BaseTest):
         outputParticles = getattr(projection, 'outputParticles')
         self.assertTrue(outputParticles)
         return projection
-
 
