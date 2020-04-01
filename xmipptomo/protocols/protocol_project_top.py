@@ -83,13 +83,13 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             lib.createEmptyFile(fnProj, x, y, z, 1)
             if dir == 0:
                 if self.rangeParam.get() == 1:
-                    volData = volData[:, :, (x/2 - cropParam):(x/2 + cropParam):1]
+                    volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
                 for zi in range(z):
                     for yi in range(y):
                         proj[zi, yi] = np.sum(volData[zi, yi, :])
             elif dir == 1:
                 if self.rangeParam.get() == 1:
-                    volData = volData[:, (x/2 - cropParam):(x/2 + cropParam):1, :]
+                    volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
                 for zi in range(z):
                     for xi in range(x):
                         proj[zi, xi] = np.sum(volData[zi, :, xi])
