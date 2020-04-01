@@ -112,6 +112,17 @@ class TestXmippProtProjectZ(BaseTest):
                              "There was a problem with particles output")
         return proj
 
+    def _createProjZ_range(self):
+        protImport = self._runPreviousProtocols()
+        proj = self.newProtocol(XmippProtSubtomoProject,
+                                input=protImport.outputSubTomograms,
+                                rangeParam=1,
+                                cropParam=20)
+        self.launchProtocol(proj)
+        self.assertIsNotNone(proj.outputParticles,
+                             "There was a problem with particles output")
+        return proj
+
     def test_top(self):
         projection = self._createProjZ()
         outputParticles = getattr(projection, 'outputParticles')
@@ -123,6 +134,12 @@ class TestXmippProtProjectZ(BaseTest):
         outputParticles = getattr(projection, 'outputParticles')
         self.assertTrue(outputParticles)
         return projection
+
+    def test_top_range(self):
+        projection = self._createProjZ_range()
+        outputParticles = getattr(projection, 'outputParticles')
+        self.assertTrue(outputParticles)
+        return projection 
 
 class TestXmippApplyTransf(BaseTest):
     """This class check if the protocol apply_alignment_subtomo works properly."""
