@@ -24,13 +24,14 @@
 # *
 # **************************************************************************
 
+import pwem
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
                             ProtImportSubTomograms)
 
-from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtCCroi
+from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo
 
 
 class TestXmippProtCC(BaseTest):
@@ -77,7 +78,7 @@ class TestXmippProtCC(BaseTest):
 
 
 class TestXmippProtProjectZ(BaseTest):
-    """This class check if the protocol project top in Xmipp works properly."""
+    """This class check if the protocol project top works properly."""
 
     @classmethod
     def setUpClass(cls):
@@ -123,3 +124,43 @@ class TestXmippProtProjectZ(BaseTest):
         self.assertTrue(outputParticles)
         return projection
 
+class TestXmippApplyTransf(BaseTest):
+    """This class check if the protocol apply_alignment_subtomo works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.setOfSubtomograms = cls.dataset.getFile('basename.hdf')
+
+    def _runPreviousProtocols(self):
+        protImport = self.newProtocol(ProtImportSubTomograms,
+                                      filesPath=self.setOfSubtomograms,
+                                      samplingRate=5)
+        self.launchProtocol(protImport)
+        mltomo = pwem.Domain.importFromPlugin('xmipp2.protocols', 'Xmipp2ProtMLTomo')
+        protMltomo = self.newProtocol(mltomo,
+                                      inputVolumes=protImport.outputSubTomograms,
+                                      randomInitialization=True,
+                                      numberOfReferences=1,
+                                      numberOfIters=3,
+                                      angularSampling=30)
+        self.launchProtocol(protMltomo)
+        return protMltomo
+
+    def _applyAlignment(self):
+        protMltomo = self._runPreviousProtocols()
+        apply = self.newProtocol(XmippProtApplyTransformSubtomo,
+                                 inputSubtomograms=protMltomo.outputSubtomograms)
+        self.launchProtocol(apply)
+        self.assertIsNotNone(apply.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+        self.assertIsNotNone(apply.outputAverage,
+                             "There was a problem with average output")
+        return apply
+
+    def test_applyAlignment(self):
+        align = self._applyAlignment()
+        self.assertTrue(getattr(align, 'outputSubtomograms'))
+        self.assertTrue(getattr(align, 'outputAverage'))
+        return align
