@@ -157,8 +157,8 @@ class TestXmipptomoApplyTransf(BaseTest):
                                       filesPath=self.setOfSubtomograms,
                                       samplingRate=5)
         self.launchProtocol(protImport)
-        mltomo = pwem.Domain.importFromPlugin('xmipp2.protocols', 'Xmipp2ProtMLTomo')
-        protMltomo = self.newProtocol(mltomo,
+        from xmipp2.protocols import Xmipp2ProtMLTomo
+        protMltomo = self.newProtocol(Xmipp2ProtMLTomo,
                                       inputVolumes=protImport.outputSubTomograms,
                                       randomInitialization=True,
                                       numberOfReferences=1,
@@ -214,16 +214,16 @@ class TestXmipptomoMapback(BaseTest):
         self.launchProtocol(protImportCoordinates3d)
         self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
                              "There was a problem with coordinates 3d output")
-        extract = pwem.Domain.importFromPlugin('eman2.protocols.tomo_protocols', 'EmanProtTomoExtraction')
-        protTomoExtraction = self.newProtocol(extract,
+        from eman2.protocols import EmanProtTomoExtraction
+        protTomoExtraction = self.newProtocol(EmanProtTomoExtraction,
                                               inputTomograms=protImportTomogram.outputTomograms,
                                               inputCoordinates=protImportCoordinates3d.outputCoordinates,
                                               boxSize=32)
         self.launchProtocol(protTomoExtraction)
         self.assertIsNotNone(protTomoExtraction.outputSetOfSubtomogram,
                          "There was a problem with SetOfSubtomogram output")
-        mltomo = pwem.Domain.importFromPlugin('xmipp2.protocols', 'Xmipp2ProtMLTomo')
-        protMltomo = self.newProtocol(mltomo,
+        from xmipp2.protocols import Xmipp2ProtMLTomo
+        protMltomo = self.newProtocol(Xmipp2ProtMLTomo,
                                       inputVolumes=protTomoExtraction.outputSetOfSubtomogram,
                                       randomInitialization=True,
                                       numberOfReferences=1,
