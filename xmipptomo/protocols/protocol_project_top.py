@@ -30,11 +30,7 @@ from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
-from pwem import Domain
-
-SubTomogram = Domain.importFromPlugin('tomo.objects', 'SubTomogram',
-                                      doRaise=True)
-Tomogram = Domain.importFromPlugin('tomo.objects', 'Tomogram')
+from tomo.objects import SubTomogram
 
 
 class XmippProtSubtomoProject(ProtAnalysis3D):

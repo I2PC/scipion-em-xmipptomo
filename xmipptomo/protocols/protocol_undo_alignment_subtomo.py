@@ -33,13 +33,8 @@ from pwem.objects import Transform
 import pwem.emlib.metadata as md
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam
+from xmipp3.convert import alignmentToRow, xmippToLocation, writeSetOfVolumes
 
-alignmentToRow = pwem.Domain.importFromPlugin('xmipp3.convert', 'alignmentToRow',
-                                         doRaise=True)
-xmippToLocation = pwem.Domain.importFromPlugin('xmipp3.convert', 'alignmentToRow',
-                                         doRaise=True)
-writeSetOfVolumes = pwem.Domain.importFromPlugin('xmipp3.convert', 'alignmentToRow',
-                                         doRaise=True)
 
 class XmippProtUndoAlignSubtomo(EMProtocol):
     """ Apply inverse alignment matrix from one set of subtomograms to an equivalent one, which have been previously

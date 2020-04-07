@@ -33,12 +33,9 @@ from pwem.protocols import EMProtocol
 import pwem.emlib.metadata as md
 from pyworkflow.protocol.params import PointerParam
 
-# Tomo plugin must be installed
-AverageSubTomogram = pwem.Domain.importFromPlugin('tomo.objects', 'AverageSubTomogram', doRaise=True)
-ProtTomoBase = pwem.Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase', doRaise=True)
-xmippToLocation = pwem.Domain.importFromPlugin('xmipp3.convert', 'xmippToLocation')
-writeSetOfVolumes = pwem.Domain.importFromPlugin('xmipp3.convert', 'writeSetOfVolumes')
-alignmentToRow = pwem.Domain.importFromPlugin('xmipp3.convert', 'alignmentToRow')
+from tomo.objects import AverageSubTomogram
+from tomo.protocols import ProtTomoBase
+from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
 
 
 class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):

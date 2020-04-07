@@ -24,7 +24,6 @@
 # *
 # **************************************************************************
 
-import pwem
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
