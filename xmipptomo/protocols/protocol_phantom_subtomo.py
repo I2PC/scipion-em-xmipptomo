@@ -26,10 +26,11 @@
 # *
 # **************************************************************************
 import numpy as np
-import pwem
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import IntParam
-ProtTomoBase = pwem.Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase', doRaise=True)
+from tomo.protocols import ProtTomoBase
+from tomo.objects import SetOfSubTomograms
+
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     """ Create subtomogram phantoms """
@@ -51,6 +52,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('createPhantomsStep')
+        self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions --------------------------------------------
     def createPhantomsStep(self):
@@ -70,6 +72,19 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             self.runJob("xmipp_transform_geometry",
                         " -i %s -o %s --rotate_volume euler %d %d %d "
                         % (fnVol, fnPhantomi, rot, tilt, psi))
+
+    def createOutputStep(self):
+        self.outputSubTomogramsSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
+        for item in self.getInputTomograms().iterItems():
+            for ind, tomoFile in enumerate(self.tomoFiles):
+                if os.path.basename(tomoFile) == os.path.basename(item.getFileName()):
+                    coordSet = self.lines[ind]
+                    outputSet = self.readSetOfSubTomograms(
+                        self._getExtraPath(pwutils.replaceBaseExt(tomoFile, "hdf")),
+                        self.outputSubTomogramsSet, coordSet)
+
+        self._defineOutputs(outputSetOfSubtomogram=outputSet)
+        self._defineSourceRelation(self.inputCoordinates, outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
