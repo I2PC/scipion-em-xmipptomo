@@ -29,7 +29,7 @@ import numpy as np
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import IntParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms
+from tomo.objects import SetOfSubTomograms, SubTomogram
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
@@ -40,14 +40,15 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
-        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', help="How many phantom subtomograms")
-        form.addParam('dim', IntParam, label='Dimension of subtomograms', help="dimx = dimy = dimz")
-        form.addParam('rotmin', IntParam, label='Min rot angle')
-        form.addParam('rotmax', IntParam, label='Max rot angle')
-        form.addParam('tiltmin', IntParam, label='Min tilt angle')
-        form.addParam('tiltmax', IntParam, label='Max tilt angle')
-        form.addParam('psimin', IntParam, label='Min psi angle')
-        form.addParam('psimax', IntParam, label='Max psi angle')
+        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=10,
+                      help="How many phantom subtomograms")
+        form.addParam('dim', IntParam, label='Dimension of subtomograms', default=40, help="dimx = dimy = dimz")
+        form.addParam('rotmin', IntParam, label='Min rot angle', default=0)
+        form.addParam('rotmax', IntParam, label='Max rot angle', default=10)
+        form.addParam('tiltmin', IntParam, label='Min tilt angle', default=0)
+        form.addParam('tiltmax', IntParam, label='Max tilt angle', default=10)
+        form.addParam('psimin', IntParam, label='Min psi angle', default=0)
+        form.addParam('psimax', IntParam, label='Max psi angle', default=10)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -64,7 +65,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         fhDescr.close()
         fnVol = self._getExtraPath("phantom.vol")
         self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
-        for i in range(self.nsubtomos.get()):
+        self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
+        self.outputSet.setDim([dim, dim, dim])
+        for i in range(int(self.nsubtomos.get())-1):
             fnPhantomi = self._getExtraPath("phantom%03d.vol" % i)
             rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
             tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
@@ -72,23 +75,22 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             self.runJob("xmipp_transform_geometry",
                         " -i %s -o %s --rotate_volume euler %d %d %d "
                         % (fnVol, fnPhantomi, rot, tilt, psi))
+            subtomo = SubTomogram()
+            subtomo.setLocation(fnPhantomi)
+            self.outputSet.append(subtomo)
 
     def createOutputStep(self):
-        self.outputSubTomogramsSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
-        for item in self.getInputTomograms().iterItems():
-            for ind, tomoFile in enumerate(self.tomoFiles):
-                if os.path.basename(tomoFile) == os.path.basename(item.getFileName()):
-                    coordSet = self.lines[ind]
-                    outputSet = self.readSetOfSubTomograms(
-                        self._getExtraPath(pwutils.replaceBaseExt(tomoFile, "hdf")),
-                        self.outputSubTomogramsSet, coordSet)
-
-        self._defineOutputs(outputSetOfSubtomogram=outputSet)
-        self._defineSourceRelation(self.inputCoordinates, outputSet)
+        self._defineOutputs(outputSubtomograms=self.outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
         errors = []
+        if self.rotmin.get() >= self.rotmax.get():
+            errors.append("rot max must be bigger than rot min")
+        if self.tiltmin.get() >= self.tiltmax.get():
+            errors.append("tilt max must be bigger than tilt min")
+        if self.psimin.get() >= self.psimax.get():
+            errors.append("psi max must be bigger than psi min")
         return errors
 
     def _summary(self):
