@@ -25,6 +25,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import numpy as np
 
 import pwem
 from pwem.emlib import MDL_IMAGE
@@ -76,15 +77,19 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         mdWindow = md.MetaData(self._getExtraPath('windowed_subtomograms.xmd'))
         mdWindowTransform = md.MetaData()
         idList = list(inputSt.getIdSet())
+        inputsbt = self.inputSubtomograms.get()
         for row in md.iterRows(mdWindow):
             rowOut = md.Row()
             rowOut.copyFromRow(row)
             id = row.getValue(MDL_IMAGE)
             id = id.split('@')[0]
             id = id.strip('0')
-            alignmentToRow(self.inputSubtomograms.get().__getitem__(idList[int(id)-1]).getTransform(), rowOut,
-                           pwem.ALIGN_3D)
+            transf = inputsbt[(idList[int(id)-1])].getTransform()
+            invMatrix = np.linalg.inv(transf.getMatrix())
+            transf.setMatrix(invMatrix)
+            alignmentToRow(transf, rowOut, pwem.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
+
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms
         self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform' %
