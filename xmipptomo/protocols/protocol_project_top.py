@@ -30,11 +30,7 @@ from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
-from pwem import Domain
-
-SubTomogram = Domain.importFromPlugin('tomo.objects', 'SubTomogram',
-                                      doRaise=True)
-Tomogram = Domain.importFromPlugin('tomo.objects', 'Tomogram')
+from tomo.objects import SubTomogram
 
 
 class XmippProtSubtomoProject(ProtAnalysis3D):
@@ -83,19 +79,19 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             lib.createEmptyFile(fnProj, x, y, z, 1)
             if dir == 0:
                 if self.rangeParam.get() == 1:
-                    volData = volData[:, :, (x / 2 - cropParam):(x / 2 + cropParam):1]
+                    volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
                 for zi in range(z):
                     for yi in range(y):
                         proj[zi, yi] = np.sum(volData[zi, yi, :])
             elif dir == 1:
                 if self.rangeParam.get() == 1:
-                    volData = volData[:, (x / 2 - cropParam):(x / 2 + cropParam):1, :]
+                    volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
                 for zi in range(z):
                     for xi in range(x):
                         proj[zi, xi] = np.sum(volData[zi, :, xi])
-            else:
+            elif dir == 2:
                 if self.rangeParam.get() == 1:
-                    volData = volData[(x / 2 - cropParam):(x / 2 + cropParam):1, :, :]
+                    volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
                 for xi in range(x):
                     for yi in range(y):
                         proj[xi, yi] = np.sum(volData[:, yi, xi])
@@ -121,7 +117,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 p.setClassId(item.getClassId())
             if item.hasTransform():
                 transform = Transform()
-                transform.setMatrix(item.gets().getMatrix())
+                transform.setMatrix(item.getTransform().getMatrix())
                 p.setTransform(transform)
             imgSetOut.append(p)
 

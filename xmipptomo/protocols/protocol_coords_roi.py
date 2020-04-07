@@ -31,13 +31,7 @@ import numpy as np
 
 from pyworkflow.object import Set
 from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
-
-from pwem import Domain
 from pwem.protocols import EMProtocol
-
-ProtTomoBase = Domain.importFromPlugin('tomo.protocols', 'ProtTomoBase',
-                                            doRaise=True)
-
 from tomo.protocols import ProtTomoBase
 
 

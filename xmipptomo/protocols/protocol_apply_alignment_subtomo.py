@@ -31,22 +31,15 @@ from pwem.emlib import MDL_IMAGE
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 import pwem.emlib.metadata as md
-
 from pyworkflow.protocol.params import PointerParam
 
-# Tomo plugin must be installed
-AverageSubTomogram = pwem.Domain.importFromPlugin('tomo.objects',
-                                                  'AverageSubTomogram',
-                                                  doRaise=True)
-xmippToLocation = pwem.Domain.importFromPlugin('xmipp3.convert',
-                                               'xmippToLocation')
-writeSetOfVolumes = pwem.Domain.importFromPlugin('xmipp3.convert',
-                                                 'writeSetOfVolumes')
-alignmentToRow = pwem.Domain.importFromPlugin('xmipp3.convert',
-                                              'alignmentToRow')
+from tomo.objects import AverageSubTomogram
+from tomo.protocols import ProtTomoBase
+from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
 
-class XmippProtApplyTransformSubtomo(EMProtocol):
-    """ Apply alignment matrix and produce a new set of subtomograms, with each subtomogram aligned to its reference. """
+
+class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
+    """ Apply alignment matrix and produce a new setOfSubtomograms, with each subtomogram aligned to its reference. """
 
     _label = 'apply alignment subtomo'
 
@@ -92,7 +85,8 @@ class XmippProtApplyTransformSubtomo(EMProtocol):
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms
         self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform' %
-                    (self._getExtraPath("window_with_original_geometry.xmd"), self._getExtraPath('aligned_subtomograms.stk')))
+                    (self._getExtraPath("window_with_original_geometry.xmd"),
+                     self._getExtraPath('aligned_subtomograms.stk')))
         # Window subtomograms to their original size
         alignStk = self._getExtraPath('aligned_subtomograms.stk')
         outputStk = self._getPath('output_subtomograms.stk')
