@@ -27,7 +27,7 @@
 # **************************************************************************
 import numpy as np
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import IntParam
+from pyworkflow.protocol.params import IntParam, FloatParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram
 
@@ -43,6 +43,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=10,
                       help="How many phantom subtomograms")
         form.addParam('dim', IntParam, label='Dimension of subtomograms', default=40, help="dimx = dimy = dimz")
+        form.addParam('sampling', FloatParam, label='Sampling rate', default=4)
         form.addParam('rotmin', IntParam, label='Min rot angle', default=0)
         form.addParam('rotmax', IntParam, label='Max rot angle', default=10)
         form.addParam('tiltmin', IntParam, label='Min tilt angle', default=0)
@@ -60,13 +61,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         fnDescr = self._getExtraPath("phantom.descr")
         fhDescr = open(fnDescr, 'w')
         dim = self.dim.get()
-        fhDescr.write("%s %s %s 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0"
+        fhDescr.write("%s %s %s 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\nsph + 1 0 -5 5 2"
                       % (dim, dim, dim))
         fhDescr.close()
         fnVol = self._getExtraPath("phantom.vol")
         self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
         self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
         self.outputSet.setDim([dim, dim, dim])
+        self.outputSet.setSamplingRate(self.sampling.get())
         for i in range(int(self.nsubtomos.get())-1):
             fnPhantomi = self._getExtraPath("phantom%03d.vol" % i)
             rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
@@ -77,6 +79,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                         % (fnVol, fnPhantomi, rot, tilt, psi))
             subtomo = SubTomogram()
             subtomo.setLocation(fnPhantomi)
+            subtomo.setSamplingRate(self.sampling.get())
             self.outputSet.append(subtomo)
 
     def createOutputStep(self):
