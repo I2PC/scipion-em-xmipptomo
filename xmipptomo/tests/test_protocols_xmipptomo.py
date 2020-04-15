@@ -259,7 +259,7 @@ class TestXmipptomoPhantom(BaseTest):
         setupTestProject(cls)
 
     def _phantom(self):
-        phantom = self.newProtocol(XmippProtPhantomSubtomo)
+        phantom = self.newProtocol(XmippProtPhantomSubtomo, option=1)
         self.launchProtocol(phantom)
         self.assertIsNotNone(phantom.outputSubtomograms,
                              "There was a problem with subtomograms output")
