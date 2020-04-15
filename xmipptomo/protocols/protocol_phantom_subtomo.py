@@ -27,9 +27,9 @@
 # **************************************************************************
 import numpy as np
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import IntParam, FloatParam
+from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, StringParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
@@ -40,16 +40,25 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
-        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=10,
-                      help="How many phantom subtomograms")
-        form.addParam('dim', IntParam, label='Dimension of subtomograms', default=40, help="dimx = dimy = dimz")
+        form.addParam('option', EnumParam, choices=['Import volume', 'Create'], default=0,
+                      display=EnumParam.DISPLAY_HLIST, label=' ',
+                      help="Import a volume or create 'base' phantom manually")
+        form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
+                      condition="option==0", help="Volume used as 'base' phantom")
+        form.addParam('create', StringParam, label='Create phantom', condition="option==1",
+                      default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
+                              'sph + 1 0 -5 5 2', help="create a phantom description.")
         form.addParam('sampling', FloatParam, label='Sampling rate', default=4)
+
+        form.addSection(label='Transform')
+        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=50,
+                      help="How many phantom subtomograms")
         form.addParam('rotmin', IntParam, label='Min rot angle', default=0)
-        form.addParam('rotmax', IntParam, label='Max rot angle', default=10)
+        form.addParam('rotmax', IntParam, label='Max rot angle', default=60)
         form.addParam('tiltmin', IntParam, label='Min tilt angle', default=0)
-        form.addParam('tiltmax', IntParam, label='Max tilt angle', default=10)
+        form.addParam('tiltmax', IntParam, label='Max tilt angle', default=60)
         form.addParam('psimin', IntParam, label='Min psi angle', default=0)
-        form.addParam('psimax', IntParam, label='Max psi angle', default=10)
+        form.addParam('psimax', IntParam, label='Max psi angle', default=60)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -58,17 +67,29 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def createPhantomsStep(self):
-        fnDescr = self._getExtraPath("phantom.descr")
-        fhDescr = open(fnDescr, 'w')
-        dim = self.dim.get()
-        fhDescr.write("%s %s %s 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\nsph + 1 0 -5 5 2"
-                      % (dim, dim, dim))
-        fhDescr.close()
-        fnVol = self._getExtraPath("phantom.vol")
-        self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+        if self.option.get() == 0:
+            inputVol = self.inputVolume.get()
+            fnVol = inputVol.getLocation()[1]
+            dim = inputVol.getDim()
+        else:
+            desc = self.create.get()
+            fnDescr = self._getExtraPath("phantom.descr")
+            fhDescr = open(fnDescr, 'w')
+            fhDescr.write(desc)
+            fhDescr.close()
+            dim = [desc.split()[0], desc.split()[1], desc.split()[2]]
+            fnVol = self._getExtraPath("phantom.vol")
+            self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+
         self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
-        self.outputSet.setDim([dim, dim, dim])
+        self.outputSet.setDim(dim)
         self.outputSet.setSamplingRate(self.sampling.get())
+        subtomobase = SubTomogram()
+        acq = TomoAcquisition()
+        subtomobase.setAcquisition(acq)
+        subtomobase.setLocation(fnVol)
+        subtomobase.setSamplingRate(self.sampling.get())
+        self.outputSet.append(subtomobase)
         for i in range(int(self.nsubtomos.get())-1):
             fnPhantomi = self._getExtraPath("phantom%03d.vol" % i)
             rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
@@ -78,6 +99,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                         " -i %s -o %s --rotate_volume euler %d %d %d "
                         % (fnVol, fnPhantomi, rot, tilt, psi))
             subtomo = SubTomogram()
+            subtomo.setAcquisition(acq)
             subtomo.setLocation(fnPhantomi)
             subtomo.setSamplingRate(self.sampling.get())
             self.outputSet.append(subtomo)
