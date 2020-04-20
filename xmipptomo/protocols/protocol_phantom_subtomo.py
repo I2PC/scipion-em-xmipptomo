@@ -29,7 +29,7 @@ import numpy as np
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, StringParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
@@ -87,6 +87,8 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         subtomobase = SubTomogram()
         acq = TomoAcquisition()
         subtomobase.setAcquisition(acq)
+        coord = Coordinate3D()
+        subtomobase.setCoordinate3D(coord)
         subtomobase.setLocation(fnVol)
         subtomobase.setSamplingRate(self.sampling.get())
         self.outputSet.append(subtomobase)
@@ -100,6 +102,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                         % (fnVol, fnPhantomi, rot, tilt, psi))
             subtomo = SubTomogram()
             subtomo.setAcquisition(acq)
+            subtomo.setCoordinate3D(coord)
             subtomo.setLocation(fnPhantomi)
             subtomo.setSamplingRate(self.sampling.get())
             self.outputSet.append(subtomo)
