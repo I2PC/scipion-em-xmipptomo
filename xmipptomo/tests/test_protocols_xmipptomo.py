@@ -31,7 +31,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportSubTomograms)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
-    XmippProtSubtomoMapBack
+    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -249,3 +249,23 @@ class TestXmipptomoMapback(BaseTest):
         mapback = self._mapback()
         self.assertTrue(getattr(mapback, 'outputTomograms'))
         return mapback
+
+
+class TestXmipptomoPhantom(BaseTest):
+    """This class check if the protocol create phantom subtomo works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+    def _phantom(self):
+        phantom = self.newProtocol(XmippProtPhantomSubtomo, option=1)
+        self.launchProtocol(phantom)
+        self.assertIsNotNone(phantom.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+        return phantom
+
+    def test_phantom(self):
+        phantom = self._phantom()
+        self.assertTrue(getattr(phantom, 'outputSubtomograms'))
+        return phantom
