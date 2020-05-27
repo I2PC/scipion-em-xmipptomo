@@ -26,7 +26,6 @@
 
 import os
 import numpy as np
-import imod.utils as utils
 import pwem.objects as data
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -68,7 +67,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         form.addParam('shiftSigma',
                       params.FloatParam,
-                      default=1.0,
+                      default=0.1,
                       label='Shift sigma',
                       condition='shiftMisalignment==0',
                       help='Sigma value for the shift misalignment')
@@ -83,156 +82,150 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         form.addParam('angleSigma',
                       params.FloatParam,
-                      default=1.0,
+                      default=0.1,
                       label='Angle sigma',
                       condition='angleMisalignment==0',
                       help='Sigma value for the angle misalignment')
 
+        form.addParam('computeAlignment', params.EnumParam,
+                      choices=['Yes', 'No'],
+                      default=1,
+                      label='Generate interpolated tilt-series',
+                      important=True,
+                      display=params.EnumParam.DISPLAY_HLIST,
+                      help='Generate and save the interpolated tilt-series applying the'
+                           'obtained transformation matrix.')
+
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         for ts in self.inputSetOfTiltSeries.get():
-            self._insertFunctionStep('convertInputStep', ts.getObjId())
-            self._insertFunctionStep('computeXcorrStep', ts.getObjId())
-            if self.computeAlignment.get() == 0:
-                self._insertFunctionStep('computeInterpolatedStackStep', ts.getObjId())
+            self._insertFunctionStep('introduceRandomMisalignment', ts.getObjId())
+            # if self.computeAlignment.get() == 0:
+            #     self._insertFunctionStep('computeInterpolation', ts.getObjId())
 
     # --------------------------- STEPS functions ----------------------------
-    def convertInputStep(self, tsObjId):
+    def introduceRandomMisalignment(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
-        extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
-        path.makePath(tmpPrefix)
-        path.makePath(extraPrefix)
-        outputTsFileName = os.path.join(tmpPrefix, "%s.st" % tsId)
 
-        """Apply the transformation form the input tilt-series"""
-        ts.applyTransform(outputTsFileName)
+        outputSetOfTiltSeries = self.getOutputMisalignedSetOfTiltSeries()
+        missAliTs = tomoObj.TiltSeries(tsId=tsId)
+        missAliTs.copyInfo(ts)
+        outputSetOfTiltSeries.append(missAliTs)
 
-        """Generate angle file"""
-        angleFilePath = os.path.join(tmpPrefix, "%s.rawtlt" % tsId)
-        ts.generateTltFile(angleFilePath)
+        for index, ti in enumerate(ts):
+            missAliTi = tomoObj.TiltImage()
+            missAliTi.copyInfo(ti, copyId=True)
+            missAliTi.setLocation(ti.getLocation())
 
-    def computeXcorrStep(self, tsObjId):
-        """Compute transformation matrix for each tilt series"""
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
-        extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
+            transformMat = ti.getTransform().getMatrix()
+            newTransformMat = self.modifyTransformMatrix(transformMat)
 
-        paramsXcorr = {
-            'input': os.path.join(tmpPrefix, '%s.st' % tsId),
-            'output': os.path.join(extraPrefix, '%s.prexf' % tsId),
-            'tiltfile': os.path.join(tmpPrefix, '%s.rawtlt' % tsId),
-            'RotationAngle': self.rotationAngle.get(),
-            'FilterSigma1': 0.03,
-            'FilterSigma2': 0.05,
-            'FilterRadius2': 0.25
-        }
-        argsXcorr = "-input %(input)s " \
-                    "-output %(output)s " \
-                    "-tiltfile %(tiltfile)s " \
-                    "-RotationAngle %(RotationAngle)f " \
-                    "-FilterSigma1 %(FilterSigma1)f " \
-                    "-FilterSigma2 %(FilterSigma2)f " \
-                    "-FilterRadius2 %(FilterRadius2)f"
-        Plugin.runImod(self, 'tiltxcorr', argsXcorr % paramsXcorr)
+            print("---------------------------------------------")
+            print(transformMat)
+            print(newTransformMat)
 
-        paramsXftoxg = {
-            'input': os.path.join(extraPrefix, '%s.prexf' % tsId),
-            'goutput': os.path.join(extraPrefix, '%s.prexg' % tsId),
-        }
-        argsXftoxg = "-input %(input)s " \
-                     "-goutput %(goutput)s"
-        Plugin.runImod(self, 'xftoxg', argsXftoxg % paramsXftoxg)
-
-        """Generate output tilt series"""
-        outputSetOfTiltSeries = self.getOutputSetOfTiltSeries()
-        tsId = ts.getTsId()
-        alignmentMatrix = utils.formatTransformationMatrix(self._getExtraPath('%s/%s.prexg' % (tsId, tsId)))
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(ts)
-        outputSetOfTiltSeries.append(newTs)
-        for index, tiltImage in enumerate(ts):
-            newTi = tomoObj.TiltImage()
-            newTi.copyInfo(tiltImage, copyId=True)
-            newTi.setLocation(tiltImage.getLocation())
             transform = data.Transform()
-            transform.setMatrix(alignmentMatrix[:, :, index])
-            newTi.setTransform(transform)
-            newTs.append(newTi)
-        newTs.write()
-        outputSetOfTiltSeries.update(newTs)
+            transform.setMatrix(newTransformMat)
+            missAliTi.setTransform(transform)
+            missAliTs.append(missAliTi)
+
+        missAliTs.write()
+        outputSetOfTiltSeries.update(missAliTs)
         outputSetOfTiltSeries.write()
         self._store()
 
-    def computeInterpolatedStackStep(self, tsObjId):
+        if self.computeAlignment.get() == 0:
+            outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
+
+            extraPrefix = self._getExtraPath(tsId)
+            path.makePath(extraPrefix)
+            outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
+
+            """Apply the transformation form the input tilt-series"""
+            missAliTs.applyTransform(outputTsFileName)
+
+            missAliInterTs = tomoObj.TiltSeries(tsId=tsId)
+            missAliInterTs.copyInfo(ts)
+            outputInterpolatedSetOfTiltSeries.append(missAliInterTs)
+
+            for index, tiltImage in enumerate(ts):
+                missAliInterTi = tomoObj.TiltImage()
+                missAliInterTi.copyInfo(tiltImage, copyId=True)
+                missAliInterTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s_missAli.st' % tsId)))
+                missAliInterTs.append(missAliInterTi)
+
+            missAliInterTs.write()
+
+            outputInterpolatedSetOfTiltSeries.update(missAliInterTs)
+            outputInterpolatedSetOfTiltSeries.updateDim()
+            outputInterpolatedSetOfTiltSeries.write()
+
+            self._store()
+
+    def computeInterpolation(self, tsObjId):
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
 
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
         extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
+        path.makePath(extraPrefix)
+        outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
 
-        paramsAlignment = {
-            'input': os.path.join(tmpPrefix, '%s.st' % tsId),
-            'output': os.path.join(extraPrefix, '%s_preali.st' % tsId),
-            'xform': os.path.join(extraPrefix, "%s.prexg" % tsId),
-            'bin': int(self.binning.get()),
-            'imagebinned': 1.0
-        }
-        argsAlignment = "-input %(input)s " \
-                        "-output %(output)s " \
-                        "-xform %(xform)s " \
-                        "-bin %(bin)d " \
-                        "-imagebinned %(imagebinned)s"
-        Plugin.runImod(self, 'newstack', argsAlignment % paramsAlignment)
+        """Apply the transformation form the input tilt-series"""
+        ts.applyTransform(outputTsFileName)
 
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
         outputInterpolatedSetOfTiltSeries.append(newTs)
 
-        if self.binning > 1:
-            newTs.setSamplingRate(ts.getSamplingRate() * int(self.binning.get()))
-
         for index, tiltImage in enumerate(ts):
             newTi = tomoObj.TiltImage()
             newTi.copyInfo(tiltImage, copyId=True)
-            newTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s_preali.st' % tsId)))
-            if self.binning > 1:
-                newTi.setSamplingRate(tiltImage.getSamplingRate() * int(self.binning.get()))
+            newTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s_missAli.st' % tsId)))
             newTs.append(newTi)
 
-        ih = ImageHandler()
-        x, y, z, _ = ih.getDimensions(newTs.getFirstItem().getFileName())
-        newTs.setDim((x, y, z))
         newTs.write()
 
         outputInterpolatedSetOfTiltSeries.update(newTs)
         outputInterpolatedSetOfTiltSeries.updateDim()
         outputInterpolatedSetOfTiltSeries.write()
+
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
-    def getOutputSetOfTiltSeries(self):
-        if not hasattr(self, "outputSetOfTiltSeries"):
-            outputSetOfTiltSeries = self._createSetOfTiltSeries()
-            outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
-            outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
-        return self.outputSetOfTiltSeries
+    def modifyTransformMatrix(self, transformMatrix):
+        if self.shiftMisalignment == 0:
+            xShitOffset = np.random.normal(0, self.shiftSigma.get())
+            yShitOffset = np.random.normal(0, self.shiftSigma.get())
+            transformMatrix[0, 2] += xShitOffset
+            transformMatrix[1, 2] += yShitOffset
+
+        if self.shiftMisalignment == 0:
+            angle = np.arccos(transformMatrix[0, 0])
+            newAngle = angle + np.random.normal(0, self.angleSigma.get())
+            transformMatrix[0, 0] += np.cos(newAngle)
+            transformMatrix[0, 1] += - np.sin(newAngle)
+            transformMatrix[1, 0] += np.sin(newAngle)
+            transformMatrix[1, 1] += np.cos(newAngle)
+
+        return transformMatrix
+
+    def getOutputMisalignedSetOfTiltSeries(self):
+        if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
+            outputMisalignedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Misaligned')
+            outputMisalignedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputMisalignedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+            self._defineOutputs(outputMisalignedSetOfTiltSeries=outputMisalignedSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputMisalignedSetOfTiltSeries)
+        return self.outputMisalignedSetOfTiltSeries
 
     def getOutputInterpolatedSetOfTiltSeries(self):
         if not hasattr(self, "outputInterpolatedSetOfTiltSeries"):
             outputInterpolatedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Interpolated')
             outputInterpolatedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputInterpolatedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            if self.binning > 1:
-                samplingRate = self.inputSetOfTiltSeries.get().getSamplingRate()
-                samplingRate *= self.binning.get()
-                outputInterpolatedSetOfTiltSeries.setSamplingRate(samplingRate)
             self._defineOutputs(outputInterpolatedSetOfTiltSeries=outputInterpolatedSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputInterpolatedSetOfTiltSeries)
         return self.outputInterpolatedSetOfTiltSeries
@@ -251,12 +244,13 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
             summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
                            % (self.inputSetOfTiltSeries.get().getSize(),
-                              self.outputSetOfTiltSeries.getSize()))
+                              self.outputMisalignedSetOfTiltSeries.getSize()))
+
         elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
             summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
                            "Interpolated Tilt-Series: %d.\n"
-                           % (self.outputSetOfTiltSeries.getSize(),
-                              self.outputSetOfTiltSeries.getSize(),
+                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
+                              self.outputMisalignedSetOfTiltSeries.getSize(),
                               self.outputInterpolatedSetOfTiltSeries.getSize()))
         else:
             summary.append("Output classes not ready yet.")
@@ -265,14 +259,13 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
     def _methods(self):
         methods = []
         if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("The transformation matrix has been calculated for %d "
-                           "Tilt-series using the IMOD procedure.\n"
-                           % (self.outputSetOfTiltSeries.getSize()))
+            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
+                           % (self.outputMisalignedSetOfTiltSeries.getSize()))
+
         elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("The transformation matrix has been calculated for %d "
-                           "Tilt-series using the IMOD procedure.\n"
+            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
                            "Also, interpolation has been completed for %d Tilt-series.\n"
-                           % (self.outputSetOfTiltSeries.getSize(),
+                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
                               self.outputInterpolatedSetOfTiltSeries.getSize()))
         else:
             methods.append("Output classes not ready yet.")
