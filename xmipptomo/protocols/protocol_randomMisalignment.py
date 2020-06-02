@@ -85,7 +85,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       default=0.1,
                       label='Angle sigma',
                       condition='angleMisalignment==0',
-                      help='Sigma value for the angle misalignment')
+                      help='Sigma value for the angle misalignment (radians).')
 
         form.addParam('computeAlignment', params.EnumParam,
                       choices=['Yes', 'No'],
@@ -108,10 +108,10 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
-        outputSetOfTiltSeries = self.getOutputMisalignedSetOfTiltSeries()
+        outputMisalignedSetOfTiltSeries = self.getOutputMisalignedSetOfTiltSeries()
         missAliTs = tomoObj.TiltSeries(tsId=tsId)
         missAliTs.copyInfo(ts)
-        outputSetOfTiltSeries.append(missAliTs)
+        outputMisalignedSetOfTiltSeries.append(missAliTs)
 
         for index, ti in enumerate(ts):
             missAliTi = tomoObj.TiltImage()
@@ -121,18 +121,17 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             transformMat = ti.getTransform().getMatrix()
             newTransformMat = self.modifyTransformMatrix(transformMat)
 
-            print("---------------------------------------------")
-            print(transformMat)
-            print(newTransformMat)
+            newTransform = data.Transform()
+            newTransform.setMatrix(newTransformMat)
+            missAliTi.setTransform(newTransform)
 
-            transform = data.Transform()
-            transform.setMatrix(newTransformMat)
-            missAliTi.setTransform(transform)
             missAliTs.append(missAliTi)
 
         missAliTs.write()
-        outputSetOfTiltSeries.update(missAliTs)
-        outputSetOfTiltSeries.write()
+
+        outputMisalignedSetOfTiltSeries.update(missAliTs)
+        outputMisalignedSetOfTiltSeries.write()
+
         self._store()
 
         if self.computeAlignment.get() == 0:
@@ -152,13 +151,12 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             for index, tiltImage in enumerate(ts):
                 missAliInterTi = tomoObj.TiltImage()
                 missAliInterTi.copyInfo(tiltImage, copyId=True)
-                missAliInterTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s_missAli.st' % tsId)))
+                missAliInterTi.setLocation(index + 1, outputTsFileName)
                 missAliInterTs.append(missAliInterTi)
 
             missAliInterTs.write()
 
             outputInterpolatedSetOfTiltSeries.update(missAliInterTs)
-            outputInterpolatedSetOfTiltSeries.updateDim()
             outputInterpolatedSetOfTiltSeries.write()
 
             self._store()
@@ -196,20 +194,23 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix):
-        if self.shiftMisalignment == 0:
-            xShitOffset = np.random.normal(0, self.shiftSigma.get())
-            yShitOffset = np.random.normal(0, self.shiftSigma.get())
-            transformMatrix[0, 2] += xShitOffset
-            transformMatrix[1, 2] += yShitOffset
+        print(transformMatrix)
+        if self.shiftMisalignment.get() == 0:
+            transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftSigma.get())
+            transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftSigma.get())
 
-        if self.shiftMisalignment == 0:
+        if self.angleMisalignment.get() == 0:
             angle = np.arccos(transformMatrix[0, 0])
-            newAngle = angle + np.random.normal(0, self.angleSigma.get())
-            transformMatrix[0, 0] += np.cos(newAngle)
-            transformMatrix[0, 1] += - np.sin(newAngle)
-            transformMatrix[1, 0] += np.sin(newAngle)
-            transformMatrix[1, 1] += np.cos(newAngle)
+            newAngle = angle + np.random.normal(angle, self.angleSigma.get())
+            transformMatrix[0, 0] = np.cos(newAngle)
+            transformMatrix[0, 1] = - np.sin(newAngle)
+            transformMatrix[1, 0] = np.sin(newAngle)
+            transformMatrix[1, 1] = np.cos(newAngle)
+            print(angle)
+            print(newAngle)
 
+        print(transformMatrix)
+        print("------------------------------------------------------------")
         return transformMatrix
 
     def getOutputMisalignedSetOfTiltSeries(self):
