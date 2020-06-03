@@ -118,7 +118,10 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             missAliTi.copyInfo(ti, copyId=True)
             missAliTi.setLocation(ti.getLocation())
 
-            transformMat = ti.getTransform().getMatrix()
+            if ti.hasTransform():
+                transformMat = ti.getTransform().getMatrix()
+            else:
+                transformMat = np.identity(3)
             newTransformMat = self.modifyTransformMatrix(transformMat)
 
             newTransform = data.Transform()
@@ -232,14 +235,6 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         return self.outputInterpolatedSetOfTiltSeries
 
     # --------------------------- INFO functions ----------------------------
-    def _validate(self):
-        validateMsgs = []
-
-        if not self.inputSetOfTiltSeries.get().getFirstItem().getFirstItem().hasTransform():
-            validateMsgs = "The input set of tilt-series must have an associated transform matrix"
-
-        return validateMsgs
-
     def _summary(self):
         summary = []
         if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
