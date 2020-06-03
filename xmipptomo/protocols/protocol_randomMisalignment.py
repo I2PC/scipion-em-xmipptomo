@@ -67,7 +67,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         form.addParam('shiftSigma',
                       params.FloatParam,
-                      default=0.1,
+                      default=2.0,
                       label='Shift sigma',
                       condition='shiftMisalignment==0',
                       help='Sigma value for the shift misalignment')
@@ -82,7 +82,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         form.addParam('angleSigma',
                       params.FloatParam,
-                      default=0.1,
+                      default=0.01,
                       label='Angle sigma',
                       condition='angleMisalignment==0',
                       help='Sigma value for the angle misalignment (radians).')
