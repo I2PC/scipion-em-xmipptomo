@@ -197,7 +197,6 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix):
-        print(transformMatrix)
         if self.shiftMisalignment.get() == 0:
             transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftSigma.get())
             transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftSigma.get())
@@ -209,11 +208,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             transformMatrix[0, 1] = - np.sin(newAngle)
             transformMatrix[1, 0] = np.sin(newAngle)
             transformMatrix[1, 1] = np.cos(newAngle)
-            print(angle)
-            print(newAngle)
 
-        print(transformMatrix)
-        print("------------------------------------------------------------")
         return transformMatrix
 
     def getOutputMisalignedSetOfTiltSeries(self):
