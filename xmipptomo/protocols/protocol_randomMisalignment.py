@@ -100,8 +100,6 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('introduceRandomMisalignment', ts.getObjId())
-            # if self.computeAlignment.get() == 0:
-            #     self._insertFunctionStep('computeInterpolation', ts.getObjId())
 
     # --------------------------- STEPS functions ----------------------------
     def introduceRandomMisalignment(self, tsObjId):
@@ -163,37 +161,6 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             outputInterpolatedSetOfTiltSeries.write()
 
             self._store()
-
-    def computeInterpolation(self, tsObjId):
-        outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
-
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
-
-        extraPrefix = self._getExtraPath(tsId)
-        path.makePath(extraPrefix)
-        outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
-
-        """Apply the transformation form the input tilt-series"""
-        ts.applyTransform(outputTsFileName)
-
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(ts)
-        outputInterpolatedSetOfTiltSeries.append(newTs)
-
-        for index, tiltImage in enumerate(ts):
-            newTi = tomoObj.TiltImage()
-            newTi.copyInfo(tiltImage, copyId=True)
-            newTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s_missAli.st' % tsId)))
-            newTs.append(newTi)
-
-        newTs.write()
-
-        outputInterpolatedSetOfTiltSeries.update(newTs)
-        outputInterpolatedSetOfTiltSeries.updateDim()
-        outputInterpolatedSetOfTiltSeries.write()
-
-        self._store()
 
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix):
