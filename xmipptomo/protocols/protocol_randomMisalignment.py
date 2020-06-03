@@ -41,7 +41,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
     Introduce a random misalignment in the transformation matrix of a tilt-series
     """
 
-    _label = 'random misalignment'
+    _label = 'random tilt-series misalignment'
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
