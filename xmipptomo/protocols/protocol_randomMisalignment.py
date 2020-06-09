@@ -32,8 +32,6 @@ import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
-from imod import Plugin
-from pwem.emlib.image import ImageHandler
 
 
 class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
