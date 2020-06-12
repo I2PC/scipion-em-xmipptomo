@@ -404,7 +404,22 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         return increment
 
     def getSineLobeError(self, index, size, amplitude, phase, offset):
-        pass
+        abscissa = (index + phase) / size
+        if abscissa > 1:
+            abscissa = abscissa - 1
+
+        increment = offset + amplitude * abs(np.sin(abscissa * np.pi))
+
+        return increment
+
+    def getSineError(self, index, size, amplitude, phase, offset):
+        abscissa = (index + phase) / size
+        if abscissa > 1:
+            abscissa = abscissa - 1
+
+        increment = offset + amplitude * abs(np.sin(abscissa * 2 * np.pi))
+
+        return increment
 
     def getOutputMisalignedSetOfTiltSeries(self):
         if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
