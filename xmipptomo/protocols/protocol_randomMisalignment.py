@@ -280,7 +280,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                 transformMat = ti.getTransform().getMatrix()
             else:
                 transformMat = np.identity(3)
-            newTransformMat = self.modifyTransformMatrix(transformMat)
+            newTransformMat = self.modifyTransformMatrix(transformMat, index, ts.getSize())
 
             newTransform = data.Transform()
             newTransform.setMatrix(newTransformMat)
@@ -323,27 +323,27 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             self._store()
 
     # --------------------------- UTILS functions ----------------------------
-    def modifyTransformMatrix(self, transformMatrix):
+    def modifyTransformMatrix(self, transformMatrix, index, size):
         """Shift in X axis modifications"""
-        if self.shiftXNoiseType.get() == 1:
-            transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXConstantError.get())
-        if self.shiftXNoiseType.get() == 5:
+        if self.shiftXNoiseType.get() == 1:  # Constant
+            transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftXConstantError.get()
+        if self.shiftXNoiseType.get() == 5:  # Random
             transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXRandomErrorSigma.get())
 
         """Shift in Y axis modifications"""
-        if self.shiftYNoiseType.get() == 1:
-            transformMatrix[1, 2] = np.random.normal(transformMatrix[0, 2], self.shiftYConstantError.get())
-        if self.shiftYNoiseType.get() == 5:
+        if self.shiftYNoiseType.get() == 1:  # Constant
+            transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftYConstantError.get()
+        if self.shiftYNoiseType.get() == 5:  # Random
             transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftYRandomErrorSigma.get())
 
         """Angle modifications"""
         angleModificated = False
         if not self.angleMisalignment.get() == 0:
             oldAngle = np.arccos(transformMatrix[0, 0])
-        if self.angleNoiseType.get() == 1:
-            newAngle = oldAngle + np.random.normal(oldAngle, self.angleConstantError.get())
+        if self.angleNoiseType.get() == 1:  # Constant
+            newAngle = oldAngle + self.angleConstantError.get()
             angleModificated = True
-        if self.angleMisalignment.get() == 5:
+        if self.angleMisalignment.get() == 5:  # Random
             newAngle = oldAngle + np.random.normal(oldAngle, self.angleRandomErrorSigma.get())
             angleModificated = True
 
@@ -354,6 +354,12 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
             transformMatrix[1, 1] = np.cos(newAngle)
 
         return transformMatrix
+
+    def getIncrementalNoiseValue(self, index, size, low, high):
+        slope = (high-low)/size
+        increment = low + (slope * index)
+        return increment
+
 
     def getOutputMisalignedSetOfTiltSeries(self):
         if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
