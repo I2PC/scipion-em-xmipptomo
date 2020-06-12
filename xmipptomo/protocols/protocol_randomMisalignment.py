@@ -111,6 +111,13 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced.')
 
+        form.addParam('shiftXSineErrorOffset',
+                      params.FloatParam,
+                      default=0.0,
+                      label='Error offset',
+                      condition='shiftXNoiseType==3 or shiftXNoiseType==4',
+                      help='Offset of the error function.')
+
         form.addParam('shiftXRandomErrorSigma',
                       params.FloatParam,
                       default=2.0,
@@ -174,6 +181,13 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced.')
+
+        form.addParam('shiftYSineErrorOffset',
+                      params.FloatParam,
+                      default=0.0,
+                      label='Error offset',
+                      condition='shiftYNoiseType==3 or shiftYNoiseType==4',
+                      help='Offset of the error function.')
 
         form.addParam('shiftYRandomErrorSigma',
                       params.FloatParam,
@@ -241,6 +255,13 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced.')
+
+        form.addParam('angleSineErrorOffset',
+                      params.FloatParam,
+                      default=0.0,
+                      label='Error offset',
+                      condition='angleNoiseType==3 or angleNoiseType==4',
+                      help='Offset of the error function.')
 
         form.addParam('angleRandomErrorSigma',
                       params.FloatParam,
@@ -382,6 +403,8 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         increment = low + (slope * index)
         return increment
 
+    def getSineLobeError(self, index, size, amplitude, phase, offset):
+        pass
 
     def getOutputMisalignedSetOfTiltSeries(self):
         if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
