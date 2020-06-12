@@ -109,14 +109,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       default=0.0,
                       label='Error amplitude',
-                      condition='shiftXMisalignment==0 and shiftXNoiseType==3 or shiftXNoiseType==4',
+                      condition='shiftXMisalignment==0 and (shiftXNoiseType==3 or shiftXNoiseType==4)',
                       help='Maximum shift value in the X axis for the error function.')
 
         form.addParam('shiftXSineErrorPhase',
                       params.IntParam,
                       default=0,
                       label='Error phase',
-                      condition='shiftXMisalignment==0 and shiftXNoiseType==3 or shiftXNoiseType==4',
+                      condition='shiftXMisalignment==0 and (shiftXNoiseType==3 or shiftXNoiseType==4)',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced')
@@ -183,14 +183,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       default=0.0,
                       label='Error amplitude',
-                      condition='shiftYMisalignment==0 and shiftYNoiseType==3 or shiftYNoiseType==4',
+                      condition='shiftYMisalignment==0 and (shiftYNoiseType==3 or shiftYNoiseType==4)',
                       help='Maximum shift value in the Y axis for the error function.')
 
         form.addParam('shiftYSineErrorPhase',
                       params.IntParam,
                       default=0,
                       label='Error phase',
-                      condition='shiftYMisalignment==0 and shiftYNoiseType==3 or shiftYNoiseType==4',
+                      condition='shiftYMisalignment==0 and (shiftYNoiseType==3 or shiftYNoiseType==4)',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced')
@@ -256,14 +256,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       default=0.0,
                       label='Error amplitude',
-                      condition='angleMisalignment==0 and angleNoiseType==3 or angleNoiseType==4',
+                      condition='angleMisalignment==0 and (angleNoiseType==3 or angleNoiseType==4)',
                       help='Maximum angle error value for the error function.')
 
         form.addParam('angleSineErrorPhase',
                       params.IntParam,
                       default=0,
                       label='Error phase',
-                      condition='angleMisalignment==0 and angleNoiseType==3 or angleNoiseType==4',
+                      condition='angleMisalignment==0 and (angleNoiseType==3 or angleNoiseType==4)',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced')
