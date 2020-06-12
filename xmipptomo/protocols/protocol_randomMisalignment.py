@@ -351,41 +351,94 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         """Shift in X axis modifications"""
         if self.shiftXNoiseType.get() == 1:  # Constant
             transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftXConstantError.get()
+
         if self.shiftXNoiseType.get() == 2:  # Incremental
             transformMatrix[0, 2] = transformMatrix[0, 2] + \
                                     self.getIncrementalNoiseValue(index,
                                                                   size,
                                                                   self.shiftXIncrementalErrorInitial.get(),
                                                                   self.shiftXIncrementalErrorFinal.get())
+
+        if self.shiftXNoiseType.get() == 3:  # Sine lobe
+            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+                                    self.getSineLobeNoiseValue(index,
+                                                               size,
+                                                               self.shiftXSineErrorAmplitude.get(),
+                                                               self.shiftXSineErrorPhase.get(),
+                                                               self.shiftXSineErrorOffset.get())
+
+        if self.shiftXNoiseType.get() == 4:  # Sine
+            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+                                    self.getSineNoiseValue(index,
+                                                           size,
+                                                           self.shiftXSineErrorAmplitude.get(),
+                                                           self.shiftXSineErrorPhase.get(),
+                                                           self.shiftXSineErrorOffset.get())
+
         if self.shiftXNoiseType.get() == 5:  # Random
             transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXRandomErrorSigma.get())
 
         """Shift in Y axis modifications"""
         if self.shiftYNoiseType.get() == 1:  # Constant
-            transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftYConstantError.get()
+            transformMatrix[1, 2] = transformMatrix[1, 2] + self.shiftYConstantError.get()
+
         if self.shiftYNoiseType.get() == 2:  # Incremental
-            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+            transformMatrix[1, 2] = transformMatrix[1, 2] + \
                                     self.getIncrementalNoiseValue(index,
                                                                   size,
                                                                   self.shiftYIncrementalErrorInitial.get(),
                                                                   self.shiftYIncrementalErrorFinal.get())
+
+        if self.shiftYNoiseType.get() == 3:  # Sine lobe
+            transformMatrix[1, 2] = transformMatrix[1, 2] + \
+                                    self.getSineLobeNoiseValue(index,
+                                                               size,
+                                                               self.shiftYSineErrorAmplitude.get(),
+                                                               self.shiftYSineErrorPhase.get(),
+                                                               self.shiftYSineErrorOffset.get())
+
+        if self.shiftYNoiseType.get() == 4:  # Sine
+            transformMatrix[1, 2] = transformMatrix[1, 2] + \
+                                    self.getSineNoiseValue(index,
+                                                           size,
+                                                           self.shiftYSineErrorAmplitude.get(),
+                                                           self.shiftYSineErrorPhase.get(),
+                                                           self.shiftYSineErrorOffset.get())
+
         if self.shiftYNoiseType.get() == 5:  # Random
             transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftYRandomErrorSigma.get())
 
         """Angle modifications"""
         angleModified = False
-        if not self.angleMisalignment.get() == 0:
-            oldAngle = np.arccos(transformMatrix[0, 0])
+        oldAngle = np.arccos(transformMatrix[0, 0])
+
         if self.angleNoiseType.get() == 1:  # Constant
             newAngle = oldAngle + self.angleConstantError.get()
             angleModified = True
+
         if self.angleNoiseType.get() == 2:  # Incremental
-            transformMatrix[0, 2] = transformMatrix[0, 2] + \
-                                    self.getIncrementalNoiseValue(index,
-                                                                  size,
-                                                                  self.angleIncrementalErrorInitial.get(),
-                                                                  self.angleIncrementalErrorFinal.get())
+            newAngle = oldAngle + self.getIncrementalNoiseValue(index,
+                                                                size,
+                                                                self.angleIncrementalErrorInitial.get(),
+                                                                self.angleIncrementalErrorFinal.get())
             angleModified = True
+
+        if self.angleNoiseType.get() == 3:  # Sine lobe
+            newAngle = oldAngle + self.getSineLobeNoiseValue(index,
+                                                             size,
+                                                             self.angleSineErrorAmplitude.get(),
+                                                             self.angleSineErrorPhase.get(),
+                                                             self.angleSineErrorOffset.get())
+            angleModified = True
+
+        if self.angleNoiseType.get() == 4:  # Sine
+            newAngle = oldAngle + self.getSineNoiseValue(index,
+                                                         size,
+                                                         self.angleSineErrorAmplitude.get(),
+                                                         self.angleSineErrorPhase.get(),
+                                                         self.angleSineErrorOffset.get())
+            angleModified = True
+
         if self.angleMisalignment.get() == 5:  # Random
             newAngle = oldAngle + np.random.normal(oldAngle, self.angleRandomErrorSigma.get())
             angleModified = True
@@ -398,12 +451,16 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         return transformMatrix
 
-    def getIncrementalNoiseValue(self, index, size, low, high):
-        slope = (high-low)/size
+    @staticmethod
+    def getIncrementalNoiseValue(index, size, low, high):
+        slope = (high - low) / size
+
         increment = low + (slope * index)
+
         return increment
 
-    def getSineLobeError(self, index, size, amplitude, phase, offset):
+    @staticmethod
+    def getSineLobeNoiseValue(index, size, amplitude, phase, offset):
         abscissa = (index + phase) / size
         if abscissa > 1:
             abscissa = abscissa - 1
@@ -412,7 +469,8 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
 
         return increment
 
-    def getSineError(self, index, size, amplitude, phase, offset):
+    @staticmethod
+    def getSineNoiseValue(index, size, amplitude, phase, offset):
         abscissa = (index + phase) / size
         if abscissa > 1:
             abscissa = abscissa - 1
