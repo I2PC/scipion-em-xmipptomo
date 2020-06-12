@@ -465,7 +465,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         if abscissa > 1:
             abscissa = abscissa - 1
 
-        increment = offset + amplitude * abs(np.sin(abscissa * np.pi))
+        increment = offset + amplitude * np.sin(abscissa * np.pi)
 
         return increment
 
@@ -475,7 +475,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         if abscissa > 1:
             abscissa = abscissa - 1
 
-        increment = offset + amplitude * abs(np.sin(abscissa * 2 * np.pi))
+        increment = offset + amplitude * np.sin(abscissa * 2 * np.pi)
 
         return increment
 
