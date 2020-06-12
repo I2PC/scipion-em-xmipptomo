@@ -325,21 +325,33 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix):
         """Shift in X axis modifications"""
-        if self.shiftMisalignment.get() == 0:
-            transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftSigma.get())
-            transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftSigma.get())
+        if self.shiftXNoiseType.get() == 1:
+            transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXConstantError.get())
+        if self.shiftXNoiseType.get() == 5:
+            transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXRandomErrorSigma.get())
 
-        if self.angleMisalignment.get() == 0:
-            angle = np.arccos(transformMatrix[0, 0])
-            newAngle = angle + np.random.normal(angle, self.angleSigma.get())
+        """Shift in Y axis modifications"""
+        if self.shiftYNoiseType.get() == 1:
+            transformMatrix[1, 2] = np.random.normal(transformMatrix[0, 2], self.shiftYConstantError.get())
+        if self.shiftYNoiseType.get() == 5:
+            transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftYRandomErrorSigma.get())
+
+        """Angle modifications"""
+        angleModificated = False
+        if not self.angleMisalignment.get() == 0:
+            oldAngle = np.arccos(transformMatrix[0, 0])
+        if self.angleNoiseType.get() == 1:
+            newAngle = oldAngle + np.random.normal(oldAngle, self.angleConstantError.get())
+            angleModificated = True
+        if self.angleMisalignment.get() == 5:
+            newAngle = oldAngle + np.random.normal(oldAngle, self.angleRandomErrorSigma.get())
+            angleModificated = True
+
+        if angleModificated:
             transformMatrix[0, 0] = np.cos(newAngle)
             transformMatrix[0, 1] = - np.sin(newAngle)
             transformMatrix[1, 0] = np.sin(newAngle)
             transformMatrix[1, 1] = np.cos(newAngle)
-
-        """Shift in Y axis modifications"""
-
-        """Angle modifications"""
 
         return transformMatrix
 
