@@ -221,8 +221,8 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       default=0.0,
                       label='Error value',
                       condition='angleNoiseType==1',
-                      help='Constant angle to add in the Y axis for every image of the tilt-series. Angles are '
-                           'measured in radians.')
+                      help='Constant angle error to add for every image of the tilt-series. Angles are measured in '
+                           'radians.')
 
         form.addParam('angleIncrementalErrorInitial',
                       params.FloatParam,
@@ -439,7 +439,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                                                          self.angleSineErrorOffset.get())
             angleModified = True
 
-        if self.angleMisalignment.get() == 5:  # Random
+        if self.angleNoiseType.get() == 5:  # Random
             newAngle = oldAngle + np.random.normal(oldAngle, self.angleRandomErrorSigma.get())
             angleModified = True
 
