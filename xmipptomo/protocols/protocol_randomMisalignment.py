@@ -235,35 +235,35 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       default=0.0,
                       label='Error value',
-                      condition='angleNoiseType==1',
+                      condition='angleMisalignment==0 and angleNoiseType==1',
                       help='Constant angle to add in the Y axis for every image of the tilt-series')
 
         form.addParam('angleIncrementalErrorInitial',
                       params.FloatParam,
                       default=0.0,
                       label='Initial error value',
-                      condition='angleNoiseType==2',
+                      condition='angleMisalignment==0 and angleNoiseType==2',
                       help='Initial angle error value for the first image (lowest angle) of the tilt-series')
 
         form.addParam('angleIncrementalErrorFinal',
                       params.FloatParam,
                       default=0.0,
                       label='Final error value',
-                      condition='angleNoiseType==2',
+                      condition='angleMisalignment==0 and angleNoiseType==2',
                       help='Final angle error value for the last image (highest angle) of the tilt-series')
 
         form.addParam('angleSineErrorAmplitude',
                       params.FloatParam,
                       default=0.0,
                       label='Error amplitude',
-                      condition='angleNoiseType==3 or angleNoiseType==4',
+                      condition='angleMisalignment==0 and angleNoiseType==3 or angleNoiseType==4',
                       help='Maximum angle error value for the error function.')
 
         form.addParam('angleSineErrorPhase',
                       params.IntParam,
                       default=0,
                       label='Error phase',
-                      condition='angleNoiseType==3 or angleNoiseType==4',
+                      condition='angleMisalignment==0 and angleNoiseType==3 or angleNoiseType==4',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
                            'displaced')
@@ -272,7 +272,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       default=2.0,
                       label='Angle sigma',
-                      condition='angleNoiseType==5',
+                      condition='angleMisalignment==0 and angleNoiseType==5',
                       help='Sigma value for random error introduced in the angle')
 
         """ Options for misalignment interpolation"""
