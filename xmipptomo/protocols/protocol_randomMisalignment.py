@@ -52,7 +52,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries',
                       important=True,
-                      label='Input set of tilt-series')
+                      label='Input set of tilt-series.')
 
         """ Options to introduce misalignment in the X axis shift"""
         form.addParam('shiftXNoiseType',
@@ -63,37 +63,37 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce an specific type of noise in the shift alignment value in the X axis:\n'
-                           '- None: no noise is introduced in any image of the tilt-series\n'
-                           '- Constant: the same error value is introduced in every image of the tilt-series\n'
+                           '- None: no noise is introduced in any image of the tilt-series.\n'
+                           '- Constant: the same error value is introduced in every image of the tilt-series.\n'
                            '- Incremental: an incremental error is introduced in each image given an initial and final '
-                           'error for the first and last image of the tilt-series\n'
+                           'error for the first and last image of the tilt-series.\n'
                            '- Sine lobe: the introduced error presents a "half sine" shape, indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image\n'
+                           'of the maximum error and a phase to displace the error function a given number of image.\n'
                            '- Sine cycle: the error introduced presents a "full sine cycle", indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of images\n'
+                           'of the maximum error and a phase to displace the error function a given number of images.\n'
                            '- Random: a random error is introduced in every image of the tilt-series given a sigma '
-                           'value')
+                           'value.')
 
         form.addParam('shiftXConstantError',
                       params.FloatParam,
                       default=0.0,
                       label='Error value',
                       condition='shiftXNoiseType==1',
-                      help='Constant shift to add in the X axis for every image of the tilt-series')
+                      help='Constant shift to add in the X axis for every image of the tilt-series.')
 
         form.addParam('shiftXIncrementalErrorInitial',
                       params.FloatParam,
                       default=0.0,
                       label='Initial error value',
                       condition='shiftXNoiseType==2',
-                      help='Initial shift value in the X axis for the first image (lowest angle) of the tilt-series')
+                      help='Initial shift value in the X axis for the first image (lowest angle) of the tilt-series.')
 
         form.addParam('shiftXIncrementalErrorFinal',
                       params.FloatParam,
                       default=0.0,
                       label='Final error value',
                       condition='shiftXNoiseType==2',
-                      help='Final shift value in the X axis for the last image (highest angle) of the tilt-series')
+                      help='Final shift value in the X axis for the last image (highest angle) of the tilt-series.')
 
         form.addParam('shiftXSineErrorAmplitude',
                       params.FloatParam,
@@ -109,14 +109,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       condition='shiftXNoiseType==3 or shiftXNoiseType==4',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
-                           'displaced')
+                           'displaced.')
 
         form.addParam('shiftXRandomErrorSigma',
                       params.FloatParam,
                       default=2.0,
                       label='Shift sigma',
                       condition='shiftXNoiseType==5',
-                      help='Sigma value for random error introduced in the shift X')
+                      help='Sigma value for random error introduced in the shift X.')
 
         """ Options to introduce misalignment in the Y axis shift"""
         form.addParam('shiftYNoiseType',
@@ -127,37 +127,37 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce an specific type of noise in the shift alignment value in the Y axis:\n'
-                           '- None: no noise is introduced in any image of the tilt-series\n'
+                           '- None: no noise is introduced in any image of the tilt-series.\n'
                            '- Constant: the same error value is introduced in every image of the tilt-series\n'
                            '- Incremental: an incremental error is introduced in each image given an initial and final '
-                           'error for the first and last image of the tilt-series\n'
+                           'error for the first and last image of the tilt-series.\n'
                            '- Sine lobe: the introduced error presents a "half sine" shape, indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image\n'
+                           'of the maximum error and a phase to displace the error function a given number of image.\n'
                            '- Sine cycle: the error introduced presents a "full sine cycle", indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image\n'
+                           'of the maximum error and a phase to displace the error function a given number of image.\n'
                            '- Random: a random error is introduced in every image of the tilt-series given a sigma '
-                           'value')
+                           'value.')
 
         form.addParam('shiftYConstantError',
                       params.FloatParam,
                       default=0.0,
                       label='Error value',
                       condition='shiftYNoiseType==1',
-                      help='Constant shift to add in the Y axis for every image of the tilt-series')
+                      help='Constant shift to add in the Y axis for every image of the tilt-series.')
 
         form.addParam('shiftYIncrementalErrorInitial',
                       params.FloatParam,
                       default=0.0,
                       label='Initial error value',
                       condition='shiftYNoiseType==2',
-                      help='Initial shift value in the Y axis for the first image (lowest angle) of the tilt-series')
+                      help='Initial shift value in the Y axis for the first image (lowest angle) of the tilt-series.')
 
         form.addParam('shiftYIncrementalErrorFinal',
                       params.FloatParam,
                       default=0.0,
                       label='Final error value',
                       condition='shiftYNoiseType==2',
-                      help='Final shift value in the Y axis for the last image (highest angle) of the tilt-series')
+                      help='Final shift value in the Y axis for the last image (highest angle) of the tilt-series.')
 
         form.addParam('shiftYSineErrorAmplitude',
                       params.FloatParam,
@@ -173,14 +173,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       condition='shiftYNoiseType==3 or shiftYNoiseType==4',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
-                           'displaced')
+                           'displaced.')
 
         form.addParam('shiftYRandomErrorSigma',
                       params.FloatParam,
                       default=2.0,
                       label='Shift sigma',
                       condition='shiftYNoiseType==5',
-                      help='Sigma value for random error introduced in the shift Y')
+                      help='Sigma value for random error introduced in the shift Y.')
 
         """ Options to introduce misalignment in the angle"""
         form.addParam('angleNoiseType',
@@ -191,44 +191,47 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce an specific type of noise in the angle alignment value in the Y axis:\n'
-                           '- None: no noise is introduced in any image of the tilt-series\n'
+                           '- None: no noise is introduced in any image of the tilt-series.\n'
                            '- Constant: the same error value is introduced in every image of the tilt-series\n'
                            '- Incremental: an incremental error is introduced in each image given an initial and final '
-                           'error for the first and last image of the tilt-series\n'
+                           'error for the first and last image of the tilt-series.\n'
                            '- Sine lobe: the introduced error presents a "half sine" shape, indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image\n'
+                           'of the maximum error and a phase to displace the error function a given number of image.\n'
                            '- Sine cycle: the error introduced presents a "full sine cycle", indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image\n'
+                           'of the maximum error and a phase to displace the error function a given number of image.\n'
                            '- Random: a random error is introduced in every image of the tilt-series given a sigma '
-                           'value')
+                           'value.')
 
         form.addParam('angleConstantError',
                       params.FloatParam,
                       default=0.0,
                       label='Error value',
                       condition='angleNoiseType==1',
-                      help='Constant angle to add in the Y axis for every image of the tilt-series')
+                      help='Constant angle to add in the Y axis for every image of the tilt-series. Angles are '
+                           'measured in radians.')
 
         form.addParam('angleIncrementalErrorInitial',
                       params.FloatParam,
                       default=0.0,
                       label='Initial error value',
                       condition='angleNoiseType==2',
-                      help='Initial angle error value for the first image (lowest angle) of the tilt-series')
+                      help='Initial angle error value for the first image (lowest angle) of the tilt-series. Angles '
+                           'are measured in radians.')
 
         form.addParam('angleIncrementalErrorFinal',
                       params.FloatParam,
                       default=0.0,
                       label='Final error value',
                       condition='angleNoiseType==2',
-                      help='Final angle error value for the last image (highest angle) of the tilt-series')
+                      help='Final angle error value for the last image (highest angle) of the tilt-series. Angles '
+                           'are measured in radians.')
 
         form.addParam('angleSineErrorAmplitude',
                       params.FloatParam,
                       default=0.0,
                       label='Error amplitude',
                       condition='angleNoiseType==3 or angleNoiseType==4',
-                      help='Maximum angle error value for the error function.')
+                      help='Maximum angle error value for the error function. Angles are measured in radians.')
 
         form.addParam('angleSineErrorPhase',
                       params.IntParam,
@@ -237,14 +240,14 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       condition='angleNoiseType==3 or angleNoiseType==4',
                       help='Phase (displacement) of the error function. The number introduced corresponds to the '
                            'number of images from the tilt-series that the origin of the error function is going to be '
-                           'displaced')
+                           'displaced.')
 
         form.addParam('angleRandomErrorSigma',
                       params.FloatParam,
                       default=2.0,
                       label='Angle sigma',
                       condition='angleNoiseType==5',
-                      help='Sigma value for random error introduced in the angle')
+                      help='Sigma value for random error introduced in the angle. Angles are measured in radians')
 
         """ Options for misalignment interpolation"""
         form.addParam('computeAlignment', params.EnumParam,
@@ -327,27 +330,46 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
         """Shift in X axis modifications"""
         if self.shiftXNoiseType.get() == 1:  # Constant
             transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftXConstantError.get()
+        if self.shiftXNoiseType.get() == 2:  # Incremental
+            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+                                    self.getIncrementalNoiseValue(index,
+                                                                  size,
+                                                                  self.shiftXIncrementalErrorInitial.get(),
+                                                                  self.shiftXIncrementalErrorFinal.get())
         if self.shiftXNoiseType.get() == 5:  # Random
             transformMatrix[0, 2] = np.random.normal(transformMatrix[0, 2], self.shiftXRandomErrorSigma.get())
 
         """Shift in Y axis modifications"""
         if self.shiftYNoiseType.get() == 1:  # Constant
             transformMatrix[0, 2] = transformMatrix[0, 2] + self.shiftYConstantError.get()
+        if self.shiftYNoiseType.get() == 2:  # Incremental
+            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+                                    self.getIncrementalNoiseValue(index,
+                                                                  size,
+                                                                  self.shiftYIncrementalErrorInitial.get(),
+                                                                  self.shiftYIncrementalErrorFinal.get())
         if self.shiftYNoiseType.get() == 5:  # Random
             transformMatrix[1, 2] = np.random.normal(transformMatrix[1, 2], self.shiftYRandomErrorSigma.get())
 
         """Angle modifications"""
-        angleModificated = False
+        angleModified = False
         if not self.angleMisalignment.get() == 0:
             oldAngle = np.arccos(transformMatrix[0, 0])
         if self.angleNoiseType.get() == 1:  # Constant
             newAngle = oldAngle + self.angleConstantError.get()
-            angleModificated = True
+            angleModified = True
+        if self.angleNoiseType.get() == 2:  # Incremental
+            transformMatrix[0, 2] = transformMatrix[0, 2] + \
+                                    self.getIncrementalNoiseValue(index,
+                                                                  size,
+                                                                  self.angleIncrementalErrorInitial.get(),
+                                                                  self.angleIncrementalErrorFinal.get())
+            angleModified = True
         if self.angleMisalignment.get() == 5:  # Random
             newAngle = oldAngle + np.random.normal(oldAngle, self.angleRandomErrorSigma.get())
-            angleModificated = True
+            angleModified = True
 
-        if angleModificated:
+        if angleModified:
             transformMatrix[0, 0] = np.cos(newAngle)
             transformMatrix[0, 1] = - np.sin(newAngle)
             transformMatrix[1, 0] = np.sin(newAngle)
