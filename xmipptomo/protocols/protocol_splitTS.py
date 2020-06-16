@@ -34,7 +34,7 @@ from pwem.protocols import ProtPreprocessMicrographs
 from pwem.objects import Movie, Micrograph
 
 
-class XmippProtSplitFrames(ProtPreprocessMicrographs):
+class XmippProtSplitTiltSeries(ProtPreprocessMicrographs):
     """
     Wrapper protocol to Xmipp split Odd Even
     """
