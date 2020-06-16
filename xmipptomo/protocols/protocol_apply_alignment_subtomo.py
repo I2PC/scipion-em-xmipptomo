@@ -79,8 +79,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
             id = row.getValue(MDL_IMAGE)
             id = id.split('@')[0]
             id = id.strip('0')
-            alignmentToRow(self.inputSubtomograms.get().__getitem__(idList[int(id)-1]).getTransform(), rowOut,
-                           pwem.ALIGN_3D)
+            alignmentToRow(inputSt[(idList[int(id)-1])].getTransform(), rowOut, pwem.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms
