@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     Jose Luis Vilas Prieto (jlvilas@cnb.csic.es)
+# * Authors:     Federico P. de Isidro Gomez (fp.deisidro@cnb.csi.es) [1]
 # *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# * [1] Centro Nacional de Biotecnologia, CSIC, Spain
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -26,58 +26,51 @@
 
 from os.path import basename
 import pyworkflow.utils as pwutils
-from pyworkflow import VERSION_1_1
-from pyworkflow.protocol.params import (PointerParam, BooleanParam)
-
-from pwem.protocols import ProtPreprocessMicrographs
-
-from pwem.objects import Movie, Micrograph
+from pyworkflow.protocol.params import PointerParam
+from pwem.protocols import EMProtocol
+from tomo.protocols import ProtTomoBase
 
 
-class XmippProtSplitTiltSeries(ProtPreprocessMicrographs):
+class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
     """
     Wrapper protocol to Xmipp split Odd Even
     """
-    _label = 'split frames'
-    _lastUpdateVersion = VERSION_1_1
+    _label = 'split tilt-series'
 
     # --------------------------- DEFINE param functions ------------------------
-
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParam('inputMovies', PointerParam, pointerClass='SetOfMovies',
-                      label="Input movies", important=True,
-                      help='Select a set of movies to be split into two sets (odd and even).'
-                           'It means, the set of frames is split in two subsets.')
+        form.addParam('inputMovies',
+                      PointerParam,
+                      pointerClass='SetOfTiltSeries',
+                      label="Input tilt-series",
+                      important=True,
+                      help='Select a set of tilt-series to be split into two sets (odd and even).'
+                           'It means, the set of tilt-series is split in two subsets.')
 
-        form.addParam('sumFrames', BooleanParam,
-                      label="Sum Frames", important=False,
-                      help='Set yes to get a set of micrograms, or no to get a set of movies.')
-
-    # --------------------------- STEPS functions -------------------------------
-
+    # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('splittingStep')
+        for ts in self.inputSetOfTiltSeries.get():
+            self._insertFunctionStep('splitTiltSeries', ts.getObjId())
         self._insertFunctionStep('convertXmdToStackStep')
         self._insertFunctionStep('createOutputStep')
 
-    def splittingStep(self):
+    # --------------------------- STEPS functions -------------------------------
+    def splitTiltSeries(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
 
-        for movie in self.inputMovies.get():
-            fnMovie = movie.getFileName()
+        tsFileName = ts.getFileName()
 
-            fnMovieOdd = pwutils.removeExt(basename(fnMovie)) + "_odd.xmd"
-            fnMovieEven = pwutils.removeExt(basename(fnMovie)) + "_even.xmd"
+        tsFileNameOdd = pwutils.removeExt(basename(tsFileName)) + "_odd.xmd"
+        tsFileNameEven = pwutils.removeExt(basename(tsFileName)) + "_even.xmd"
 
-            args = '--img "%s" ' % fnMovie
-            args += '-o "%s" ' % self._getExtraPath(fnMovieOdd)
-            args += '-e %s ' % self._getExtraPath(fnMovieEven)
-            args += '--type frames '
-            if (self.sumFrames.get() is True):
-                args += '--sum_frames'
+        args = '--img "%s" ' % tsFileName
+        args += '-o "%s" ' % self._getExtraPath(tsFileNameOdd)
+        args += '-e %s ' % self._getExtraPath(tsFileNameEven)
+        args += '--type frames '
 
-            self.runJob('xmipp_image_odd_even', args)
+        self.runJob('xmipp_image_odd_even', args)
 
     def convertXmdToStackStep(self):
 
