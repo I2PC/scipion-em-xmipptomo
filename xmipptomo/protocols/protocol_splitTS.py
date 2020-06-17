@@ -24,7 +24,8 @@
 # *
 # **************************************************************************
 
-import os.path as path
+import os
+import pyworkflow.utils.path as path
 import pyworkflow.utils as pwutils
 from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
@@ -62,14 +63,15 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
 
         tsFileName = ts.getFirstItem().getFileName()
+        path.makePath(self._getExtraPath(tsId))
 
-        tsFileNameOdd = pwutils.removeExt(path.basename(tsFileName)) + "_odd.xmd"
-        tsFileNameEven = pwutils.removeExt(path.basename(tsFileName)) + "_even.xmd"
+        tsFileNameOdd = pwutils.removeExt(os.path.basename(tsFileName)) + "_odd.xmd"
+        tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
         paramsOddEven = {
             'inputImg': tsFileName,
-            'outputOdd': self._getExtraPath(tsFileNameOdd),
-            'outputEven': self._getExtraPath(tsFileNameEven),
+            'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
+            'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
             'type': "frames",
         }
 
@@ -82,24 +84,35 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
 
     def convertXmdToStackStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
 
         tsFileName = ts.getFirstItem().getFileName()
 
-        tsFileNameOdd = pwutils.removeExt(path.basename(tsFileName)) + "_odd.xmd"
-        tsFileNameEven = pwutils.removeExt(path.basename(tsFileName)) + "_even.xmd"
+        tsFileNameOdd = pwutils.removeExt(os.path.basename(tsFileName)) + "_odd.xmd"
+        tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
-        tsFileNameOddMrc = pwutils.removeExt(path.basename(tsFileNameOdd)) + ".mrc"
-        tsFileNameEvenMrc = pwutils.removeExt(path.basename(tsFileNameEven)) + ".mrc"
+        tsFileNameOddMrc = pwutils.removeExt(os.path.basename(tsFileNameOdd)) + ".mrc"
+        tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileNameEven)) + ".mrc"
 
-        args = '-i %s ' % self._getExtraPath(tsFileNameOdd)
-        args += '-o %s ' % self._getExtraPath(tsFileNameOddMrc)
+        paramsConvertOdd = {
+            'inputXmdOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
+            'outputMrcOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)),
+        }
 
-        self.runJob('xmipp_image_convert', args)
+        argsConvertOdd = "-i %(inputXmdOdd)s " \
+                         "-o %(outputMrcOdd)s "
 
-        args = '-i %s ' % self._getExtraPath(tsFileNameEven)
-        args += '-o %s ' % self._getExtraPath(tsFileNameEvenMrc)
+        self.runJob('xmipp_image_convert', argsConvertOdd % paramsConvertOdd)
 
-        self.runJob('xmipp_image_convert', args)
+        paramsConvertEven = {
+            'inputXmdEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
+            'outputMrcEven': self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)),
+        }
+
+        argsConvertEven = "-i %(inputXmdEven)s " \
+                          "-o %(outputMrcEven)s "
+
+        self.runJob('xmipp_image_convert', argsConvertEven % paramsConvertEven)
 
     def createOutputStep(self):
         oddSet = self._createSetOfMovies(suffix='odd')
@@ -108,8 +121,8 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         for movie in self.inputMovies.get():
             fnMovie = movie.getFileName()
 
-            fnMovieOddMrc = self._getExtraPath(pwutils.removeExt(path.basename(fnMovie)) + "_odd.mrc")
-            fnMovieEvenMrc = self._getExtraPath(pwutils.removeExt(path.basename(fnMovie)) + "_even.mrc")
+            fnMovieOddMrc = self._getExtraPath(pwutils.removeExt(os.path.basename(fnMovie)) + "_odd.mrc")
+            fnMovieEvenMrc = self._getExtraPath(pwutils.removeExt(os.path.basename(fnMovie)) + "_even.mrc")
 
             imgOutOdd = Movie()
             imgOutEven = Movie()
