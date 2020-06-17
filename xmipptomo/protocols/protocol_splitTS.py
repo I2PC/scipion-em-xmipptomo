@@ -115,41 +115,70 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         self.runJob('xmipp_image_convert', argsConvertEven % paramsConvertEven)
 
     def createOutputStep(self):
-        oddSet = self._createSetOfMovies(suffix='odd')
-        evenSet = self._createSetOfMovies(suffix='even')
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+        tsFileName = ts.getFirstItem().getFileName()
 
-        for movie in self.inputMovies.get():
-            fnMovie = movie.getFileName()
+        """Output even set"""
+        outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
+        tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + ".mrc"
 
-            fnMovieOddMrc = self._getExtraPath(pwutils.removeExt(os.path.basename(fnMovie)) + "_odd.mrc")
-            fnMovieEvenMrc = self._getExtraPath(pwutils.removeExt(os.path.basename(fnMovie)) + "_even.mrc")
+        newTs = tomoObj.TiltSeries(tsId=tsId)
+        newTs.copyInfo(ts)
+        outputOddSetOfTiltSeries.append(newTs)
 
-            imgOutOdd = Movie()
-            imgOutEven = Movie()
+        dimCounter = 0
+        for index, tiltImage in enumerate(ts):
+            if index % 2 == 0:
+                dimCounter += 1
+                newTi = tomoObj.TiltImage()
+                newTi.copyInfo(tiltImage, copyId=True)
+                newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
+                newTs.append(newTi)
+        newTs.write()
+        outputOddSetOfTiltSeries.update(newTs)
+        outputOddSetOfTiltSeries.write()
+        self._store()
 
-            imgOutOdd.setFileName(fnMovieOddMrc)
-            imgOutEven.setFileName(fnMovieEvenMrc)
+        """Output odd set"""
+        outputOddSetOfTiltSeries = self.getOutputOddSetOfTiltSeries()
+        tsFileNameOddMrc = pwutils.removeExt(os.path.basename(tsFileName)) + ".mrc"
 
-            imgOutOdd.setSamplingRate(movie.getSamplingRate())
-            imgOutEven.setSamplingRate(movie.getSamplingRate())
+        newTs = tomoObj.TiltSeries(tsId=tsId)
+        newTs.copyInfo(ts)
+        outputOddSetOfTiltSeries.append(newTs)
 
-            oddSet.append(imgOutOdd)
-            evenSet.append(imgOutEven)
+        dimCounter = 0
+        for index, tiltImage in enumerate(ts):
+            if index % 2 == 1:
+                dimCounter += 1
+                newTi = tomoObj.TiltImage()
+                newTi.copyInfo(tiltImage, copyId=True)
+                newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
+                newTs.append(newTi)
+        newTs.write()
+        outputOddSetOfTiltSeries.update(newTs)
+        outputOddSetOfTiltSeries.write()
+        self._store()
 
-        oddSet.copyInfo(self.inputMovies.get())
-        evenSet.copyInfo(self.inputMovies.get())
+    # --------------------------- UTILS functions ----------------------------
+    def getOutputEvenSetOfTiltSeries(self):
+        if not hasattr(self, "outputEvenSetOfTiltSeries"):
+            outputEvenSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Even')
+            outputEvenSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            self._defineOutputs(outputEvenSetOfTiltSeries=outputEvenSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputEvenSetOfTiltSeries)
+        return self.outputEvenSetOfTiltSeries
 
-        oddSet.setSamplingRate(self.inputMovies.get().getSamplingRate())
-        evenSet.setSamplingRate(self.inputMovies.get().getSamplingRate())
-
-        self._defineOutputs(oddMovie=oddSet)
-        self._defineOutputs(evenMovie=evenSet)
-
-        self._defineSourceRelation(self.inputMovies, oddSet)
-        self._defineSourceRelation(self.inputMovies, evenSet)
+    def getOutputOddSetOfTiltSeries(self):
+        if not hasattr(self, "outputOddSetOfTiltSeries"):
+            outputOddSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Odd')
+            outputOddSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            self._defineOutputs(outputOddSetOfTiltSeries=outputOddSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputOddSetOfTiltSeries)
+        return self.outputOddSetOfTiltSeries
 
     # --------------------------- INFO functions ------------------------------
-
     def _methods(self):
         messages = []
         if hasattr(self, 'resolution_Volume'):
