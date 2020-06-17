@@ -52,7 +52,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries',
                       important=True,
-                      label='Input set of tilt-series.')
+                      label='Input set of tilt-series')
 
         """ Options to introduce misalignment in the X axis shift"""
         form.addParam('shiftXNoiseType',
