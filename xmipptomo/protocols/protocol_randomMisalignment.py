@@ -34,12 +34,12 @@ import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 
 
-class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
+class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
     """
-    Introduce a random misalignment in the transformation matrix of a tilt-series
+    Introduce misalignment in the transformation matrix of a tilt-series
     """
 
-    _label = 'random tilt-series misalignment'
+    _label = 'misalign tilt-series '
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
@@ -52,7 +52,7 @@ class XmippProtRandomMisalignment(EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries',
                       important=True,
-                      label='Input set of tilt-series.')
+                      label='Input set of tilt-series')
 
         """ Options to introduce misalignment in the X axis shift"""
         form.addParam('shiftXNoiseType',
