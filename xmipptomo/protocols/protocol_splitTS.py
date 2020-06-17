@@ -30,6 +30,8 @@ import pyworkflow.utils as pwutils
 from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
+import tomo.objects as tomoObj
+
 
 
 class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
@@ -55,7 +57,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('splitTiltSeries', ts.getObjId())
             self._insertFunctionStep('convertXmdToStackStep', ts.getObjId())
-        self._insertFunctionStep('createOutputStep')
+            self._insertFunctionStep('createOutputStep', ts.getObjId())
 
     # --------------------------- STEPS functions -------------------------------
     def splitTiltSeries(self, tsObjId):
@@ -114,14 +116,14 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_image_convert', argsConvertEven % paramsConvertEven)
 
-    def createOutputStep(self):
+    def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
         tsFileName = ts.getFirstItem().getFileName()
 
         """Output even set"""
         outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
-        tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + ".mrc"
+        tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
 
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
@@ -142,7 +144,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
 
         """Output odd set"""
         outputOddSetOfTiltSeries = self.getOutputOddSetOfTiltSeries()
-        tsFileNameOddMrc = pwutils.removeExt(os.path.basename(tsFileName)) + ".mrc"
+        tsFileNameOddMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_odd.mrc"
 
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
@@ -166,6 +168,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         if not hasattr(self, "outputEvenSetOfTiltSeries"):
             outputEvenSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Even')
             outputEvenSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputEvenSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
             self._defineOutputs(outputEvenSetOfTiltSeries=outputEvenSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputEvenSetOfTiltSeries)
         return self.outputEvenSetOfTiltSeries
@@ -174,6 +177,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         if not hasattr(self, "outputOddSetOfTiltSeries"):
             outputOddSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Odd')
             outputOddSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputOddSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
             self._defineOutputs(outputOddSetOfTiltSeries=outputOddSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputOddSetOfTiltSeries)
         return self.outputOddSetOfTiltSeries
