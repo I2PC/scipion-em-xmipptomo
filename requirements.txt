@@ -1,2 +1,2 @@
-scipion-em-tomo
 scipion-em-xmipp
+scipion-em-tomo
