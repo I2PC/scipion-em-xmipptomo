@@ -33,7 +33,6 @@ from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
 
 
-
 class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
     """
     Wrapper protocol to Xmipp split Odd Even on tilt-series
@@ -184,11 +183,14 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
-        messages = []
-        if hasattr(self, 'resolution_Volume'):
-            messages.append(
-                'Information about the method/article in ')
-        return messages
+        methods = []
+        if hasattr(self, 'outputEvenSetOfTiltSeries'):
+            methods.append("%d Tilt-series have been splitted in its corresponding odd and even subsets.\n"
+                           % (self.outputOddSetOfTiltSeries.getSize()))
+
+        else:
+            methods.append("Output classes not ready yet.")
+        return methods
 
     def _summary(self):
         summary = []
@@ -201,7 +203,3 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         else:
             summary.append("Output classes not ready yet.")
         return summary
-
-
-    def _citations(self):
-        return ['']
