@@ -155,8 +155,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
 
             if TsSubtomo != TsTomo:
                 factor = TsSubtomo/TsTomo
-                args = "-i %s -o %s --scale %d" % (self._getExtraPath("reference%d.mrc" % classId),
-                                                   self._getExtraPath("reference%d.mrc" % classId), factor)
+                args = "-i %s -o %s --scale %d" % (ref, ref, factor)
                 self.runJob('xmipp_transform_geometry', args)
 
             if self.paintingType.get() == 0:
