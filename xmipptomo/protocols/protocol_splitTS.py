@@ -192,8 +192,16 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
 
     def _summary(self):
         summary = []
+        if hasattr(self, 'outputEvenSetOfTiltSeries'):
+            summary.append("Input Tilt-Series: %d.\nSets of even images: %d.\nSets of odd images: %d.\n"
+                           % (self.inputSetOfTiltSeries.get().getSize(),
+                              self.outputEvenSetOfTiltSeries.getSize(),
+                              self.outputOddSetOfTiltSeries.getSize()))
 
+        else:
+            summary.append("Output classes not ready yet.")
         return summary
+
 
     def _citations(self):
         return ['']
