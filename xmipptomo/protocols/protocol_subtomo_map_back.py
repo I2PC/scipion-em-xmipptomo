@@ -166,7 +166,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             elif self.paintingType.get() == 2:
                 painting = 'highlight %d' % self.constant.get()
             elif self.paintingType.get() == 3:
-                painting = 'copy_binary %d' % self.threshold.get()
+                painting = 'copy_binary %f' % self.threshold.get()
 
             tomogram = self._getExtraPath("tomogram_%d.mrc" % tomo.getObjId())
             args = " -i %s -o %s --geom %s --ref %s --method %s" % (tomogram, tomogram,
