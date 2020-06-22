@@ -74,7 +74,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
             'inputImg': tsFileName,
             'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
             'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
-            'type': "frames",
+            'type': "images",
         }
 
         argsOddEven = "--img %(inputImg)s " \
@@ -125,20 +125,20 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
         tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
 
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(ts)
-        outputOddSetOfTiltSeries.append(newTs)
+        evenTs = tomoObj.TiltSeries(tsId=tsId)
+        evenTs.copyInfo(ts)
+        outputOddSetOfTiltSeries.append(evenTs)
 
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
-            if index % 2 == 0:
+            if (index+1) % 2 == 0:
                 dimCounter += 1
                 newTi = tomoObj.TiltImage()
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
-                newTs.append(newTi)
-        newTs.write()
-        outputOddSetOfTiltSeries.update(newTs)
+                evenTs.append(newTi)
+        evenTs.write()
+        outputOddSetOfTiltSeries.update(evenTs)
         outputOddSetOfTiltSeries.write()
         self._store()
 
@@ -146,20 +146,20 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         outputOddSetOfTiltSeries = self.getOutputOddSetOfTiltSeries()
         tsFileNameOddMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_odd.mrc"
 
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(ts)
-        outputOddSetOfTiltSeries.append(newTs)
+        oddTs = tomoObj.TiltSeries(tsId=tsId)
+        oddTs.copyInfo(ts)
+        outputOddSetOfTiltSeries.append(oddTs)
 
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
-            if index % 2 == 1:
+            if (index+1) % 2 == 1:
                 dimCounter += 1
                 newTi = tomoObj.TiltImage()
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
-                newTs.append(newTi)
-        newTs.write()
-        outputOddSetOfTiltSeries.update(newTs)
+                oddTs.append(newTi)
+        oddTs.write()
+        outputOddSetOfTiltSeries.update(oddTs)
         outputOddSetOfTiltSeries.write()
         self._store()
 
