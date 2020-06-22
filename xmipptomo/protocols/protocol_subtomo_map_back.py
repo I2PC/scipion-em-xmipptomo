@@ -26,6 +26,8 @@
 # *
 # **************************************************************************
 
+from os.path import basename
+
 from pwem import ALIGN_3D
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
@@ -138,7 +140,8 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                 ref = self.inputRef.get().getFileName()
 
             for subtomo in inputSet.iterItems():
-                if subtomo.getCoordinate3D().getVolId() == tomo.getObjId():
+                if subtomo.getCoordinate3D().getVolId() == tomo.getObjId() \
+                        or basename(subtomo.getVolName()) == tomo.getBaseName().partition('_')[2]:
                     nRow = md.Row()
                     nRow.setValue(lib.MDL_ITEM_ID, int(subtomo.getObjId()))
                     nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
