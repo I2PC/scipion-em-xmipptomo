@@ -26,6 +26,8 @@
 # *
 # **************************************************************************
 
+from os.path import basename
+
 from pwem import ALIGN_3D
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
@@ -51,9 +53,21 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input subtomograms')
+        form.addParam('selection', EnumParam,
+                      choices=['Class', 'Subtomograms'], default=0, display=EnumParam.DISPLAY_HLIST,
+                      label='Select input type',
+                      help='Class: input is a class generated previously in Scipion.\nSubtomograms: input is a set of'
+                           ' subtomograms previously aligned.')
         form.addParam('inputClasses', PointerParam, pointerClass="SetOfClassesSubTomograms", label='Class',
+                      condition='selection==0', allowsNull=True,
                       help="Subtomogram class from which the coordinates of the subtomograms and the reference will be "
                            "used. It should be a SetOfClassesSubTomograms with just 1 item.")
+        form.addParam('inputSubtomos', PointerParam, pointerClass="SetOfSubTomograms", label='Subtomograms',
+                      condition='selection==1', allowsNull=True,
+                      help="Subtomograms to be mapped back, they should have alignment and coordinates.")
+        form.addParam('inputRef', PointerParam, pointerClass="SubTomogram, AverageSubTomogram", label='Reference',
+                      condition='selection==1', allowsNull=True,
+                      help="Subtomogram reference, average, representative or initial model of the subtomograms.")
         form.addParam('inputTomograms', PointerParam, pointerClass="SetOfTomograms",
                       label='Original tomograms', help="Original tomograms from which the subtomograms were extracted")
         form.addParam('invertContrast', BooleanParam, default=False, label='Invert reference contrast',
@@ -80,8 +94,11 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('convertInput')
-        for subtomoClass in self.inputClasses.get():
-            self._insertFunctionStep('runMapBack', subtomoClass.getObjId())
+        if self.selection == 0:
+            for subtomoClass in self.inputClasses.get():
+                self._insertFunctionStep('runMapBack', subtomoClass.getObjId())
+        else:
+            self._insertFunctionStep('runMapBack', 0)
         self._insertFunctionStep('createOutput')
 
     # --------------------------- STEPS functions -------------------------------
@@ -90,24 +107,41 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             img = ImageHandler()
             fnTomo = self._getExtraPath('tomogram_%d.mrc' % tomo.getObjId())
             img.convert(tomo, fnTomo)
-            for classSubt in self.inputClasses.get().iterItems():
-                cId = classSubt.getFirstItem().getClassId()
-                fnRef = self._getExtraPath('reference%d.mrc' % cId)
-                img.convert(classSubt.getRepresentative(), fnRef)
+            if self.selection == 0:
+                for classSubt in self.inputClasses.get().iterItems():
+                    cId = classSubt.getFirstItem().getClassId()
+                    fnRef = self._getExtraPath('reference%d.mrc' % cId)
+                    img.convert(classSubt.getRepresentative(), fnRef)
+                    if self.invertContrast.get() == True:
+                        self.runJob("xmipp_image_operate", " -i %s  --mult -1" % fnRef)
+            else:
                 if self.invertContrast.get() == True:
-                    self.runJob("xmipp_image_operate", " -i %s  --mult -1" % fnRef)
+                    self.runJob("xmipp_image_operate", " -i %s  --mult -1" % self.inputRef.get().getFileName())
+
             if self.paintingType.get() == 0 or self.paintingType.get() == 3:
                 if self.removeBackground.get() == True:
                     self.runJob("xmipp_image_operate", " -i %s  --mult 0" % fnTomo)
 
     def runMapBack(self, classId):
         for tomo in self.inputTomograms.get().iterItems():
-            TsSubtomo = self.inputClasses.get().getSamplingRate()
+            if self.selection == 0:
+                TsSubtomo = self.inputClasses.get().getSamplingRate()
+            else:
+                TsSubtomo = self.inputRef.get().getSamplingRate()
             TsTomo = tomo.getSamplingRate()
             scaleFactor = TsSubtomo/TsTomo
             mdGeometry = lib.MetaData()
-            for subtomo in self.inputClasses.get().getFirstItem().iterItems():
-                if subtomo.getCoordinate3D().getVolId() == tomo.getObjId():
+
+            if self.selection == 0:
+                inputSet = self.inputClasses.get().getFirstItem()
+                ref = self._getExtraPath("reference%d.mrc" % classId)
+            else:
+                inputSet = self.inputSubtomos.get()
+                ref = self.inputRef.get().getFileName()
+
+            for subtomo in inputSet.iterItems():
+                if subtomo.getCoordinate3D().getVolId() == tomo.getObjId() \
+                        or basename(subtomo.getVolName()) == tomo.getBaseName().partition('_')[2]:
                     nRow = md.Row()
                     nRow.setValue(lib.MDL_ITEM_ID, int(subtomo.getObjId()))
                     nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
@@ -119,10 +153,9 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             fnGeometry = self._getExtraPath("geometry%d.xmd" % classId)
             mdGeometry.write(fnGeometry)
 
-            if self.inputClasses.get().getSamplingRate() != tomo.getSamplingRate():
-                factor = self.inputClasses.get().getSamplingRate()/tomo.getSamplingRate()
-                args = "-i %s -o %s --scale %d" % (self._getExtraPath("reference%d.mrc" % classId),
-                                                   self._getExtraPath("reference%d.mrc" % classId), factor)
+            if TsSubtomo != TsTomo:
+                factor = TsSubtomo/TsTomo
+                args = "-i %s -o %s --scale %d" % (ref, ref, factor)
                 self.runJob('xmipp_transform_geometry', args)
 
             if self.paintingType.get() == 0:
@@ -132,13 +165,12 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             elif self.paintingType.get() == 2:
                 painting = 'highlight %d' % self.constant.get()
             elif self.paintingType.get() == 3:
-                painting = 'copy_binary %d' % self.threshold.get()
+                painting = 'copy_binary %f' % self.threshold.get()
 
             tomogram = self._getExtraPath("tomogram_%d.mrc" % tomo.getObjId())
             args = " -i %s -o %s --geom %s --ref %s --method %s" % (tomogram, tomogram,
                                                                     self._getExtraPath("geometry%d.xmd" % classId),
-                                                                    self._getExtraPath("reference%d.mrc" % classId),
-                                                                    painting)
+                                                                    ref, painting)
             self.runJob("xmipp_tomo_map_back", args)
 
     def createOutput(self):
@@ -151,26 +183,51 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             outputTomos.append(tomo)
         self._defineOutputs(outputTomograms=outputTomos)
         self._defineSourceRelation(self.inputTomograms, outputTomos)
-        self._defineSourceRelation(self.inputClasses, outputTomos)
+        if self.selection == 0:
+            self._defineSourceRelation(self.inputClasses, outputTomos)
 
     # --------------------------- INFO functions --------------------------------
     def _validate(self):
         validateMsgs = []
-        for subtomo in self.inputClasses.get().getFirstItem().iterItems():
-            if not subtomo.hasCoordinate3D():
-                validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
-                break
+        if self.selection == 0:
+            for subtomo in self.inputClasses.get().getFirstItem().iterItems():
+                if not subtomo.hasCoordinate3D():
+                    validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
+                    break
+                if not subtomo.hasTransform():
+                    validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
+                    break
+        else:
+            for subtomo in self.inputSubtomos.get().iterItems():
+                if not subtomo.hasCoordinate3D():
+                    validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
+                                        'coordinates.')
+                    break
+                if not subtomo.hasTransform():
+                    validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with '
+                                        'alignment.')
+                    break
         return validateMsgs
 
     def _summary(self):
         summary = []
-        summary.append("%d subtomogram reference mapped back %d times to original tomograms" %
-                       (len(self.inputClasses.get()), len(self.inputClasses.get().getFirstItem())))
+        if self.selection == 0:
+            refSize = len(self.inputClasses.get())
+            setSize = len(self.inputClasses.get().getFirstItem())
+        else:
+            refSize = 1
+            setSize = len(self.inputSubtomos.get())
+        summary.append("%d subtomogram reference mapped back %d times to original tomograms" % (refSize, setSize))
         return summary
 
     def _methods(self):
         methods = []
+        if self.selection == 0:
+            refSize = len(self.inputClasses.get())
+            setSize = len(self.inputClasses.get().getFirstItem())
+        else:
+            refSize = 1
+            setSize = len(self.inputSubtomos.get())
         methods.append("References from %d subtomogram classes mapped back %d times to original tomograms %s" %
-                       (len(self.inputClasses.get()), len(self.inputClasses.get().getFirstItem()),
-                        self.getObjectTag('inputTomograms')))
+                       (refSize, setSize, self.getObjectTag('inputTomograms')))
         return methods

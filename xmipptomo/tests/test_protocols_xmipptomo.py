@@ -243,12 +243,40 @@ class TestXmipptomoMapback(BaseTest):
         self.launchProtocol(mapback)
         self.assertIsNotNone(mapback.outputTomograms,
                              "There was a problem with tomograms output")
-        return mapback
+
+        mapback2 = self.newProtocol(XmippProtSubtomoMapBack,
+                                   selection=1,
+                                   inputSubtomos=protMltomo.outputSubtomograms,
+                                   inputRef=protMltomo,
+                                   inputTomograms=protImportTomogram.outputTomograms)
+        mapback2.inputRef.setExtended("outputSubtomograms.1")
+        self.launchProtocol(mapback2)
+        self.assertIsNotNone(mapback2.outputTomograms,
+                             "There was a problem with tomograms output")
+        return mapback, mapback2
 
     def test_mapback(self):
-        mapback = self._mapback()
+        mapback, mapback2 = self._mapback()
         self.assertTrue(getattr(mapback, 'outputTomograms'))
-        return mapback
+        self.assertTrue(getattr(mapback2, 'outputTomograms'))
+        return mapback, mapback2
+
+    # def _mapback_subtomos(self):
+        # protImportTomogram, protMltomo = self._runPreviousProtocols()
+        # mapback = self.newProtocol(XmippProtSubtomoMapBack,
+        #                            selection=1,
+        #                            inputSubtomos=protMltomo.outputSubtomograms,
+        #                            inputTomograms=protImportTomogram.outputTomograms)
+        # mapback.inputRef.setExtended("outputSubtomograms.1")
+        # self.launchProtocol(mapback)
+        # self.assertIsNotNone(mapback.outputTomograms,
+        #                      "There was a problem with tomograms output")
+        # return mapback
+
+    # def test_mapback_subtomos(self):
+    #     mapback = self._mapback_subtomos()
+    #     self.assertTrue(getattr(mapback, 'outputTomograms'))
+    #     return mapback
 
 
 class TestXmipptomoPhantom(BaseTest):
