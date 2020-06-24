@@ -62,17 +62,18 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeConnectedComponentsStep(self):
         inputCoors = self.inputCoordinates.get()
-        tomoList = []
         coorSetList = []
+        tomoList = []
 
         # Create a separate setOfCoordinates for each tomogram
-        for coor in inputCoors.iterItems(orderBy='_volName'):
+        for coor in inputCoors.iterCoordinates():
             tomoName = coor.getVolName()
             if tomoName not in tomoList:
                 tomoList.append(tomoName)
                 tomocoorset = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), '_' + basename(tomoName))
                 coorSetList.append(tomocoorset)
-            tomocoorset.append(coor)
+            idx = tomoList.index(tomoName)
+            coorSetList[idx].append(coor)
 
         # For each setOfCoordinates, perform "connected components" logic
         outputsetIndex = 0
