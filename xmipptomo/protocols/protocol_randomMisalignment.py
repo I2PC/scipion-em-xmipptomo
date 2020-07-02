@@ -59,7 +59,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                       params.EnumParam,
                       choices=['None', 'Constant', 'Incremental', 'Sine lobe', 'Sine cycle', 'Random'],
                       default=0,
-                      label='Shift misalignment type',
+                      label='Shift X misalignment type',
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce an specific type of noise in the shift alignment value in the X axis:\n'
@@ -130,7 +130,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                       params.EnumParam,
                       choices=['None', 'Constant', 'Incremental', 'Sine lobe', 'Sine cycle', 'Random'],
                       default=0,
-                      label='Shift misalignment type',
+                      label='Shift Y misalignment type',
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce an specific type of noise in the shift alignment value in the Y axis:\n'
