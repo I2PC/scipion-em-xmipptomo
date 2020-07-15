@@ -65,8 +65,8 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         form.addParam('inputSubtomos', PointerParam, pointerClass="SetOfSubTomograms", label='Subtomograms',
                       condition='selection==1', allowsNull=True,
                       help="Subtomograms to be mapped back, they should have alignment and coordinates.")
-        form.addParam('inputRef', PointerParam, pointerClass="SubTomogram, AverageSubTomogram", label='Reference',
-                      condition='selection==1', allowsNull=True,
+        form.addParam('inputRef', PointerParam, pointerClass="Volume, SubTomogram, AverageSubTomogram",
+                      label='Reference', condition='selection==1', allowsNull=True,
                       help="Subtomogram reference, average, representative or initial model of the subtomograms.")
         form.addParam('inputTomograms', PointerParam, pointerClass="SetOfTomograms",
                       label='Original tomograms', help="Original tomograms from which the subtomograms were extracted")
