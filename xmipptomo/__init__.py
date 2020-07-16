@@ -27,7 +27,7 @@
 import xmipp3
 
 _logo = "xmipp_logo.png"
-_references = ['you2019']
+_references = ['delaRosaTrevin2013']
 
 
 class Plugin(xmipp3.Plugin):
