@@ -28,7 +28,7 @@ import xmipp3
 
 _logo = "xmipp_logo.png"
 _references = ['delaRosaTrevin2013']
-
+__version__ = "3.0.0b1"
 
 class Plugin(xmipp3.Plugin):
     @classmethod
