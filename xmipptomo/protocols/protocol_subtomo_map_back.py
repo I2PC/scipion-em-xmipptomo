@@ -27,7 +27,7 @@
 # **************************************************************************
 
 from os.path import basename
-
+import numpy as np
 from pwem import ALIGN_3D
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
@@ -147,6 +147,9 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                     nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
                     nRow.setValue(lib.MDL_YCOOR, int(subtomo.getCoordinate3D().getY()*scaleFactor))
                     nRow.setValue(lib.MDL_ZCOOR, int(subtomo.getCoordinate3D().getZ()*scaleFactor))
+                    # Compute inverse matrix
+                    A = subtomo.getTransform().getMatrix()
+                    subtomo.getTransform().setMatrix(np.linalg.inv(A))
                     # Convert transform matrix to Euler Angles (rot, tilt, psi)
                     alignmentToRow(subtomo.getTransform(), nRow, ALIGN_3D)
                     nRow.addToMd(mdGeometry)
