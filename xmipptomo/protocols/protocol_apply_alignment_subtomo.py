@@ -59,7 +59,14 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self, outputFn):
-        writeSetOfVolumes(self.inputSubtomograms.get(), outputFn, alignType=pwem.ALIGN_3D)
+        S = self._createSetOfSubTomograms()
+        inputSet = self.inputSubtomograms.get()
+        S.setSamplingRate(inputSet.getSamplingRate())
+        for subtomo in self.inputSubtomograms.get():
+            s = subtomo.clone()
+            s.setFileName(subtomo.getFileName() + ':mrc')
+            S.append(s)
+        writeSetOfVolumes(S, outputFn, alignType=pwem.ALIGN_3D)
         return [outputFn]
 
     def applyAlignmentStep(self, inputFn):
