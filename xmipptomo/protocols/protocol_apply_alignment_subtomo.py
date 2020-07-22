@@ -62,11 +62,13 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         S = self._createSetOfSubTomograms()
         inputSet = self.inputSubtomograms.get()
         S.setSamplingRate(inputSet.getSamplingRate())
-        for subtomo in self.inputSubtomograms.get():
-            s = subtomo.clone()
-            s.setFileName(subtomo.getFileName() + ':mrc')
-            S.append(s)
-        writeSetOfVolumes(S, outputFn, alignType=pwem.ALIGN_3D)
+        if inputSet.getFirstItem().getFileName().endswith('.mrc') or \
+                inputSet.getFirstItem().getFileName().endswith('.map'):
+            for subtomo in self.inputSubtomograms.get():
+                s = subtomo.clone()
+                s.setFileName(subtomo.getFileName() + ':mrc')
+                S.append(s)
+            writeSetOfVolumes(S, outputFn, alignType=pwem.ALIGN_3D)
         return [outputFn]
 
     def applyAlignmentStep(self, inputFn):
