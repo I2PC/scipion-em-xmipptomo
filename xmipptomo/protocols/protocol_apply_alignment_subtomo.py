@@ -59,11 +59,11 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self, outputFn):
-        S = self._createSetOfSubTomograms()
         inputSet = self.inputSubtomograms.get()
-        S.setSamplingRate(inputSet.getSamplingRate())
         if inputSet.getFirstItem().getFileName().endswith('.mrc') or \
                 inputSet.getFirstItem().getFileName().endswith('.map'):
+            S = self._createSetOfSubTomograms()
+            S.setSamplingRate(inputSet.getSamplingRate())
             for subtomo in self.inputSubtomograms.get():
                 s = subtomo.clone()
                 s.setFileName(subtomo.getFileName() + ':mrc')
