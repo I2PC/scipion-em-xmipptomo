@@ -69,6 +69,8 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
                 s.setFileName(subtomo.getFileName() + ':mrc')
                 S.append(s)
             writeSetOfVolumes(S, outputFn, alignType=pwem.ALIGN_3D)
+        else:
+            writeSetOfVolumes(inputSet, outputFn, alignType=pwem.ALIGN_3D)
         return [outputFn]
 
     def applyAlignmentStep(self, inputFn):
