@@ -141,7 +141,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
 
             for subtomo in inputSet.iterItems():
                 if subtomo.getCoordinate3D().getVolId() == tomo.getObjId() \
-                        or basename(subtomo.getVolName()) == tomo.getBaseName().partition('_')[2]:
+                        or basename(subtomo.getVolName()) == tomo.getBaseName().partition('import_')[0]:
                     nRow = md.Row()
                     nRow.setValue(lib.MDL_ITEM_ID, int(subtomo.getObjId()))
                     nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
