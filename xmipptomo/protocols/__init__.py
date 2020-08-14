@@ -32,6 +32,6 @@ from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_cltomo import XmippProtCLTomo
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
-from .protocol_randomMisalignment import XmippProtMisalignTiltSeries
+from .protocol_misalignTS import XmippProtMisalignTiltSeries
 from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_flexalign import XmippProtTsFlexAlign
