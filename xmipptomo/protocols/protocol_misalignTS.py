@@ -58,8 +58,8 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('shiftXNoiseToggle',
                       params.EnumParam,
                       choices=['Yes', 'No'],
-                      default=0,
-                      label='Misalignment in shift X?',
+                      default=1,
+                      label='Introduce misalignment in shift X?',
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce noise in the shift alignment value in the X axis. Characterize the noise '
@@ -72,7 +72,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                            'normal distribution.'
                            'These parameters characterize the following behaviours:\n'
                            '- Constant (a0): an offset error (a0) is introduced in every image of the tilt-series.\n'
-                           '- Incremental (a1): a constant incremental error (a1) is propagated thorugh the '
+                           '- Incremental (a1): a constant incremental error (a1) is propagated through the '
                            'tilt-series.\n'
                            '- Sine lobe (a2, a3): the introduced error presents a half sine shape, characterized by '
                            'the error amplitude (a2) and the phase to displace the error function a given number of '
@@ -134,75 +134,83 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                              help='Sigma value for the random error introduced in the shift X.')
 
         """ Options to introduce misalignment in the Y axis shift"""
-        form.addParam('shiftYNoiseType',
+        form.addParam('shiftYNoiseToggle',
                       params.EnumParam,
-                      choices=['None', 'Constant', 'Incremental', 'Sine lobe', 'Sine cycle', 'Random'],
-                      default=0,
-                      label='Shift Y misalignment type',
+                      choices=['Yes', 'No'],
+                      default=1,
+                      label='Introduce misalignment in shift Y?',
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
-                      help='Introduce an specific type of noise in the shift alignment value in the Y axis:\n'
-                           '- None: no noise is introduced in any image of the tilt-series.\n'
-                           '- Constant: the same error value is introduced in every image of the tilt-series\n'
-                           '- Incremental: an incremental error is introduced in each image given an initial and final '
-                           'error for the first and last image of the tilt-series.\n'
-                           '- Sine lobe: the introduced error presents a "half sine" shape, indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image.\n'
-                           '- Sine cycle: the error introduced presents a "full sine cycle", indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image.\n'
-                           '- Random: a random error is introduced in every image of the tilt-series given a sigma '
-                           'value.')
+                      help='Introduce noise in the shift alignment value in the Y axis. Characterize the noise '
+                           'behaviour through the parameters in the following formula:\n'
+                           '\n'
+                           'dY = b0 + b1 * i + b2 * sin((i + b3) / S * pi) + b4 * sin((i + b5) / S * 2 * pi) '
+                           '+ N(0,b6)\n'
+                           '\n'
+                           'Being i the index position of the image inside the tilt-series, S the size of it and N a '
+                           'normal distribution.'
+                           'These parameters characterize the following behaviours:\n'
+                           '- Constant (b0): an offset error (b0) is introduced in every image of the tilt-series.\n'
+                           '- Incremental (b1): a constant incremental error (b1) is propagated through the '
+                           'tilt-series.\n'
+                           '- Sine lobe (b2, b3): the introduced error presents a half sine shape, characterized by '
+                           'the error amplitude (b2) and the phase to displace the error function a given number of '
+                           'images inside the tilt-series (b3).\n'
+                           '- Sine cycle (b4, b5): the introduced error presents a full sine cycle shape, '
+                           'characterized by the error amplitude (b4) and the phase to displace the error function a '
+                           'given number of images inside the tilt-series (b5).\n'
+                           '- Random (b6): a random error is introduced in every image of the tilt-series given a '
+                           'sigma value (b6).\n')
 
-        form.addParam('shiftYConstantError',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error value',
-                      condition='shiftYNoiseType==1',
-                      help='Constant shift to add in the Y axis for every image of the tilt-series.')
+        groupShiftY = form.addGroup('Misalignment parameters in shift Y',
+                                    condition='shiftYNoiseToggle==0')
 
-        form.addParam('shiftYIncrementalErrorInitial',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Initial error value',
-                      condition='shiftYNoiseType==2',
-                      help='Initial shift value in the Y axis for the first image (lowest angle) of the tilt-series.')
+        groupShiftY.addParam('b0param',
+                             params.FloatParam,
+                             default=0.0,
+                             label='Offset error (b0)',
+                             help='Offset shift error introduced in the Y axis for every image of the tilt-series.')
 
-        form.addParam('shiftYIncrementalErrorFinal',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Final error value',
-                      condition='shiftYNoiseType==2',
-                      help='Final shift value in the Y axis for the last image (highest angle) of the tilt-series.')
+        groupShiftY.addParam('b1param',
+                             params.FloatParam,
+                             default=0.0,
+                             label='Incremental error (b1)',
+                             help='Incremental shift error introduced in the Y axis for every image of the '
+                                  'tilt-series.')
 
-        form.addParam('shiftYSineErrorAmplitude',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error amplitude',
-                      condition='shiftYNoiseType==3 or shiftYNoiseType==4',
-                      help='Maximum shift value in the Y axis for the error function.')
+        groupShiftY.addParam('b2param',
+                             params.FloatParam,
+                             default=0.0,
+                             label='Sine lobe error amplitude (b2)',
+                             help='Maximum amplitude of the sine lobe error function introduced in the Y axis.')
 
-        form.addParam('shiftYSineErrorPhase',
-                      params.IntParam,
-                      default=0,
-                      label='Error phase',
-                      condition='shiftYNoiseType==3 or shiftYNoiseType==4',
-                      help='Phase (displacement) of the error function. The number introduced corresponds to the '
-                           'number of images from the tilt-series that the origin of the error function is going to be '
-                           'displaced.')
+        groupShiftY.addParam('b3param',
+                             params.IntParam,
+                             default=0,
+                             label='Sine lobe error phase (b3)',
+                             help='Phase (displacement) of the sine lobe error function. The introduced number '
+                                  'corresponds to the number of images from the tilt-series that the origin of the '
+                                  'error function will be displaced.')
 
-        form.addParam('shiftYSineErrorOffset',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error offset',
-                      condition='shiftYNoiseType==3 or shiftYNoiseType==4',
-                      help='Offset of the error function.')
+        groupShiftY.addParam('b4param',
+                             params.FloatParam,
+                             default=0.0,
+                             label='Sine error amplitude (b4)',
+                             help='Maximum amplitude of the sine error function introduced in the Y axis.')
 
-        form.addParam('shiftYRandomErrorSigma',
-                      params.FloatParam,
-                      default=2.0,
-                      label='Shift sigma',
-                      condition='shiftYNoiseType==5',
-                      help='Sigma value for random error introduced in the shift Y.')
+        groupShiftY.addParam('b5param',
+                             params.IntParam,
+                             default=0,
+                             label='Sine error phase (b5)',
+                             help='Phase (displacement) of the sine error function. The introduced number corresponds '
+                                  'to the number of images from the tilt-series that the origin of the error function '
+                                  'will be displaced.')
+
+        groupShiftY.addParam('b6param',
+                             params.FloatParam,
+                             default=0.0,
+                             label='Random error sigma (b6)',
+                             help='Sigma value for the random error introduced in the shift Y.')
 
         """ Options to introduce misalignment in the angle"""
         form.addParam('angleNoiseType',
