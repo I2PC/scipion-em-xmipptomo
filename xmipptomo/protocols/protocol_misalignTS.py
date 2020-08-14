@@ -213,78 +213,84 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                              help='Sigma value for the random error introduced in the shift Y.')
 
         """ Options to introduce misalignment in the angle"""
-        form.addParam('angleNoiseType',
+        form.addParam('angleNoiseToggle',
                       params.EnumParam,
-                      choices=['None', 'Constant', 'Incremental', 'Sine lobe', 'Sine cycle', 'Random'],
-                      default=0,
-                      label='Angle misalignment type',
+                      choices=['Yes', 'No'],
+                      default=1,
+                      label='Introduce misalignment in angle?',
                       important=True,
                       display=params.EnumParam.DISPLAY_HLIST,
-                      help='Introduce an specific type of noise in the angle alignment value in the Y axis:\n'
-                           '- None: no noise is introduced in any image of the tilt-series.\n'
-                           '- Constant: the same error value is introduced in every image of the tilt-series\n'
-                           '- Incremental: an incremental error is introduced in each image given an initial and final '
-                           'error for the first and last image of the tilt-series.\n'
-                           '- Sine lobe: the introduced error presents a "half sine" shape, indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image.\n'
-                           '- Sine cycle: the error introduced presents a "full sine cycle", indicating the amplitude '
-                           'of the maximum error and a phase to displace the error function a given number of image.\n'
-                           '- Random: a random error is introduced in every image of the tilt-series given a sigma '
-                           'value.')
+                      help='Introduce noise in the angle alignment value. Characterize the noise behaviour through the '
+                           'parameters in the following formula:\n'
+                           '\n'
+                           'dA = c0 + c1 * i + c2 * sin((i + c3) / S * pi) + c4 * sin((i + c5) / S * 2 * pi) '
+                           '+ N(0,c6)\n'
+                           '\n'
+                           'Being i the index position of the image inside the tilt-series, S the size of it and N a '
+                           'normal distribution.'
+                           'These parameters characterize the following behaviours:\n'
+                           '- Constant (c0): an offset error (c0) is introduced in every image of the tilt-series.\n'
+                           '- Incremental (c1): a constant incremental error (c1) is propagated through the '
+                           'tilt-series.\n'
+                           '- Sine lobe (c2, c3): the introduced error presents a half sine shape, characterized by '
+                           'the error amplitude (c2) and the phase to displace the error function a given number of '
+                           'images inside the tilt-series (c3).\n'
+                           '- Sine cycle (c4, c5): the introduced error presents a full sine cycle shape, '
+                           'characterized by the error amplitude (c4) and the phase to displace the error function a '
+                           'given number of images inside the tilt-series (c5).\n'
+                           '- Random (c6): a random error is introduced in every image of the tilt-series given a '
+                           'sigma value (c6).\n')
 
-        form.addParam('angleConstantError',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error value',
-                      condition='angleNoiseType==1',
-                      help='Constant angle error to add for every image of the tilt-series. Angles are measured in '
-                           'radians.')
+        groupAngle = form.addGroup('Misalignment parameters in shift Y',
+                                   condition='angleNoiseToggle==0')
 
-        form.addParam('angleIncrementalErrorInitial',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Initial error value',
-                      condition='angleNoiseType==2',
-                      help='Initial angle error value for the first image (lowest angle) of the tilt-series. Angles '
-                           'are measured in radians.')
+        groupAngle.addParam('c0param',
+                            params.FloatParam,
+                            default=0.0,
+                            label='Offset error (c0)',
+                            help='Constant angle error to add for every image of the tilt-series. Angles are measured '
+                                 'in radians.')
 
-        form.addParam('angleIncrementalErrorFinal',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Final error value',
-                      condition='angleNoiseType==2',
-                      help='Final angle error value for the last image (highest angle) of the tilt-series. Angles '
-                           'are measured in radians.')
+        groupAngle.addParam('c1param',
+                            params.FloatParam,
+                            default=0.0,
+                            label='Incremental error (c1)',
+                            help='Initial angle error value for the first image (lowest angle) of the tilt-series. '
+                                 'Angles are measured in radians.')
 
-        form.addParam('angleSineErrorAmplitude',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error amplitude',
-                      condition='angleNoiseType==3 or angleNoiseType==4',
-                      help='Maximum angle error value for the error function. Angles are measured in radians.')
+        groupAngle.addParam('c2param',
+                            params.FloatParam,
+                            default=0.0,
+                            label='Sine lobe error amplitude (c2)',
+                            help='Maximum amplitude of the sine lobe error function introduced in the angle.')
 
-        form.addParam('angleSineErrorPhase',
-                      params.IntParam,
-                      default=0,
-                      label='Error phase',
-                      condition='angleNoiseType==3 or angleNoiseType==4',
-                      help='Phase (displacement) of the error function. The number introduced corresponds to the '
-                           'number of images from the tilt-series that the origin of the error function is going to be '
-                           'displaced.')
+        groupAngle.addParam('c3param',
+                            params.IntParam,
+                            default=0,
+                            label='Sine lobe error phase (c3)',
+                            help='Phase (displacement) of the sine lobe error function. The introduced number '
+                                 'corresponds to the number of images from the tilt-series that the origin of the '
+                                 'error function will be displaced.')
 
-        form.addParam('angleSineErrorOffset',
-                      params.FloatParam,
-                      default=0.0,
-                      label='Error offset',
-                      condition='angleNoiseType==3 or angleNoiseType==4',
-                      help='Offset of the error function.')
+        groupAngle.addParam('c4param',
+                            params.FloatParam,
+                            default=0.0,
+                            label='Sine error amplitude (c4)',
+                            help='Maximum amplitude of the sine error function introduced in the angle.')
 
-        form.addParam('angleRandomErrorSigma',
-                      params.FloatParam,
-                      default=2.0,
-                      label='Angle sigma',
-                      condition='angleNoiseType==5',
-                      help='Sigma value for random error introduced in the angle. Angles are measured in radians')
+        groupAngle.addParam('c5param',
+                            params.IntParam,
+                            default=0,
+                            label='Sine error phase (c5)',
+                            help='Phase (displacement) of the sine error function. The introduced number corresponds '
+                                 'to the number of images from the tilt-series that the origin of the error function '
+                                 'will be displaced.')
+
+        groupAngle.addParam('c6param',
+                            params.FloatParam,
+                            default=0.0,
+                            label='Random error sigma (c6)',
+                            help='Sigma value for random error introduced in the angle. Angles are measured in radians')
 
         """ Options for misalignment interpolation"""
         form.addParam('computeAlignment', params.EnumParam,
