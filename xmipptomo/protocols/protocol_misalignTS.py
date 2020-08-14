@@ -307,6 +307,9 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('introduceRandomMisalignment', ts.getObjId())
 
+            if self.computeAlignment.get() == 0:
+                self._insertFunctionStep('interpolateTiltSeries', ts.getObjId())
+
     # --------------------------- STEPS functions ----------------------------
     def introduceRandomMisalignment(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -341,33 +344,35 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         self._store()
 
-        # TODO: separate in different step
-        if self.computeAlignment.get() == 0:
-            outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
+    def interpolateTiltSeries(self, tsObjId):
+        missAliTs = self.outputMisalignedSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
 
-            extraPrefix = self._getExtraPath(tsId)
-            path.makePath(extraPrefix)
-            outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
+        outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
 
-            """Apply the transformation form the input tilt-series"""
-            missAliTs.applyTransform(outputTsFileName)
+        extraPrefix = self._getExtraPath(tsId)
+        path.makePath(extraPrefix)
+        outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
 
-            missAliInterTs = tomoObj.TiltSeries(tsId=tsId)
-            missAliInterTs.copyInfo(ts)
-            outputInterpolatedSetOfTiltSeries.append(missAliInterTs)
+        """Apply the transformation form the input tilt-series"""
+        missAliTs.applyTransform(outputTsFileName)
 
-            for index, tiltImage in enumerate(ts):
-                missAliInterTi = tomoObj.TiltImage()
-                missAliInterTi.copyInfo(tiltImage, copyId=True)
-                missAliInterTi.setLocation(index + 1, outputTsFileName)
-                missAliInterTs.append(missAliInterTi)
+        missAliInterTs = tomoObj.TiltSeries(tsId=tsId)
+        missAliInterTs.copyInfo(ts)
+        outputInterpolatedSetOfTiltSeries.append(missAliInterTs)
 
-            missAliInterTs.write()
+        for index, tiltImage in enumerate(missAliTs):
+            missAliInterTi = tomoObj.TiltImage()
+            missAliInterTi.copyInfo(tiltImage, copyId=True)
+            missAliInterTi.setLocation(index + 1, outputTsFileName)
+            missAliInterTs.append(missAliInterTi)
 
-            outputInterpolatedSetOfTiltSeries.update(missAliInterTs)
-            outputInterpolatedSetOfTiltSeries.write()
+        missAliInterTs.write()
 
-            self._store()
+        outputInterpolatedSetOfTiltSeries.update(missAliInterTs)
+        outputInterpolatedSetOfTiltSeries.write()
+
+        self._store()
 
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix, index, size):
