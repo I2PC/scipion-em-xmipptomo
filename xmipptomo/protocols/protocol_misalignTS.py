@@ -26,6 +26,7 @@
 
 import os
 import numpy as np
+import math
 import pwem.objects as data
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -249,20 +250,21 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                             default=0.0,
                             label='Offset error (c0)',
                             help='Constant angle error to add for every image of the tilt-series. Angles are measured '
-                                 'in radians.')
+                                 'in degrees.')
 
         groupAngle.addParam('c1param',
                             params.FloatParam,
                             default=0.0,
                             label='Incremental error (c1)',
                             help='Initial angle error value for the first image (lowest angle) of the tilt-series. '
-                                 'Angles are measured in radians.')
+                                 'Angles are measured in degrees.')
 
         groupAngle.addParam('c2param',
                             params.FloatParam,
                             default=0.0,
                             label='Sine lobe error amplitude (c2)',
-                            help='Maximum amplitude of the sine lobe error function introduced in the angle.')
+                            help='Maximum amplitude of the sine lobe error function introduced in the angle. Angles '
+                                 'are measured in degrees.')
 
         groupAngle.addParam('c3param',
                             params.IntParam,
@@ -276,7 +278,8 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                             params.FloatParam,
                             default=0.0,
                             label='Sine error amplitude (c4)',
-                            help='Maximum amplitude of the sine error function introduced in the angle.')
+                            help='Maximum amplitude of the sine error function introduced in the angle. Angles are '
+                                 'measured in degrees.')
 
         groupAngle.addParam('c5param',
                             params.IntParam,
@@ -290,7 +293,8 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                             params.FloatParam,
                             default=0.0,
                             label='Random error sigma (c6)',
-                            help='Sigma value for random error introduced in the angle. Angles are measured in radians')
+                            help='Sigma value for random error introduced in the angle. Angles are measured in '
+                                 'degrees.')
 
         """ Options for misalignment interpolation"""
         form.addParam('computeAlignment', params.EnumParam,
@@ -412,7 +416,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             if self.c6param.get() != 0:
                 incrementAngle += np.random.normal(oldAngle, self.c6param.get())
 
-            newAngle = oldAngle + incrementAngle
+            newAngle = oldAngle + math.radians(incrementAngle)
 
             transformMatrix[0, 0] = np.cos(newAngle)
             transformMatrix[0, 1] = - np.sin(newAngle)
