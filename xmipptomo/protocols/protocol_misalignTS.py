@@ -396,21 +396,22 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                               self.b4param.get() * np.sin((index + self.b5param.get()) / size * 2 * np.pi)
 
             if self.b6param.get() != 0:
-                incrementShiftY += np.random.normal(transformMatrix[0, 2], self.b6param.get())
+                incrementShiftY += np.random.normal(transformMatrix[1, 2], self.b6param.get())
 
             transformMatrix[1, 2] += incrementShiftY
 
         """Angle modifications"""
         if self.angleNoiseToggle.get() == 0:
+            oldAngle = np.arccos(transformMatrix[0, 0])
+
             incrementAngle = self.c0param.get() + \
                              self.c1param.get() * index + \
                              self.c2param.get() * abs(np.sin((index + self.c3param.get()) / size * np.pi)) + \
                              self.c4param.get() * np.sin((index + self.c5param.get()) / size * 2 * np.pi)
 
             if self.c6param.get() != 0:
-                incrementAngle += np.random.normal(transformMatrix[0, 2], self.c6param.get())
+                incrementAngle += np.random.normal(oldAngle, self.c6param.get())
 
-            oldAngle = np.arccos(transformMatrix[0, 0])
             newAngle = oldAngle + incrementAngle
 
             transformMatrix[0, 0] = np.cos(newAngle)
