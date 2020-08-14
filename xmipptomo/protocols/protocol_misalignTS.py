@@ -372,37 +372,40 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix, index, size):
         """Shift in X axis modifications"""
-        incrementShiftX = self.a0param.get() + \
-                          self.a1param.get() * index + \
-                          self.a2param.get() * abs(np.sin((index + self.a3param.get()) / size * np.pi)) + \
-                          self.a4param.get() * np.sin((index + self.a5.param.get()) / size * 2 * np.pi) + \
-                          np.random.normal(transformMatrix[0, 2], self.a6param.get())
+        if self.shiftXNoiseToggle.get() == 0:
+            incrementShiftX = self.a0param.get() + \
+                              self.a1param.get() * index + \
+                              self.a2param.get() * abs(np.sin((index + self.a3param.get()) / size * np.pi)) + \
+                              self.a4param.get() * np.sin((index + self.a5.param.get()) / size * 2 * np.pi) + \
+                              np.random.normal(transformMatrix[0, 2], self.a6param.get())
 
-        transformMatrix[0, 2] += incrementShiftX
+            transformMatrix[0, 2] += incrementShiftX
 
         """Shift in Y axis modifications"""
-        incrementShiftY = self.b0param.get() + \
-                          self.b1param.get() * index + \
-                          self.b2param.get() * abs(np.sin((index + self.b3param.get()) / size * np.pi)) + \
-                          self.b4param.get() * np.sin((index + self.b5.param.get()) / size * 2 * np.pi) + \
-                          np.random.normal(transformMatrix[0, 2], self.b6param.get())
+        if self.shiftYNoiseToggle.get() == 0:
+            incrementShiftY = self.b0param.get() + \
+                              self.b1param.get() * index + \
+                              self.b2param.get() * abs(np.sin((index + self.b3param.get()) / size * np.pi)) + \
+                              self.b4param.get() * np.sin((index + self.b5.param.get()) / size * 2 * np.pi) + \
+                              np.random.normal(transformMatrix[0, 2], self.b6param.get())
 
-        transformMatrix[1, 2] += incrementShiftY
+            transformMatrix[1, 2] += incrementShiftY
 
         """Angle modifications"""
-        incrementAngle = self.c0param.get() + \
-                         self.c1param.get() * index + \
-                         self.c2param.get() * abs(np.sin((index + self.c3param.get()) / size * np.pi)) + \
-                         self.c4param.get() * np.sin((index + self.c5.param.get()) / size * 2 * np.pi) + \
-                         np.random.normal(transformMatrix[0, 2], self.c6param.get())
+        if self.angleNoiseToggle.get() == 0:
+            incrementAngle = self.c0param.get() + \
+                             self.c1param.get() * index + \
+                             self.c2param.get() * abs(np.sin((index + self.c3param.get()) / size * np.pi)) + \
+                             self.c4param.get() * np.sin((index + self.c5.param.get()) / size * 2 * np.pi) + \
+                             np.random.normal(transformMatrix[0, 2], self.c6param.get())
 
-        oldAngle = np.arccos(transformMatrix[0, 0])
-        newAngle = oldAngle + incrementAngle
+            oldAngle = np.arccos(transformMatrix[0, 0])
+            newAngle = oldAngle + incrementAngle
 
-        transformMatrix[0, 0] = np.cos(newAngle)
-        transformMatrix[0, 1] = - np.sin(newAngle)
-        transformMatrix[1, 0] = np.sin(newAngle)
-        transformMatrix[1, 1] = np.cos(newAngle)
+            transformMatrix[0, 0] = np.cos(newAngle)
+            transformMatrix[0, 1] = - np.sin(newAngle)
+            transformMatrix[1, 0] = np.sin(newAngle)
+            transformMatrix[1, 1] = np.cos(newAngle)
 
         return transformMatrix
 
