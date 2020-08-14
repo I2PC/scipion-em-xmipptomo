@@ -241,7 +241,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                            '- Random (c6): a random error is introduced in every image of the tilt-series given a '
                            'sigma value (c6).\n')
 
-        groupAngle = form.addGroup('Misalignment parameters in shift Y',
+        groupAngle = form.addGroup('Misalignment parameters in angle',
                                    condition='angleNoiseToggle==0')
 
         groupAngle.addParam('c0param',
@@ -345,8 +345,8 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         self._store()
 
     def interpolateTiltSeries(self, tsObjId):
-        missAliTs = self.outputMisalignedSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
+        missAliTs = self.outputMisalignedSetOfTiltSeries[tsObjId]
+        tsId = missAliTs.getTsId()
 
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
 
@@ -358,7 +358,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         missAliTs.applyTransform(outputTsFileName)
 
         missAliInterTs = tomoObj.TiltSeries(tsId=tsId)
-        missAliInterTs.copyInfo(ts)
+        missAliInterTs.copyInfo(missAliTs)
         outputInterpolatedSetOfTiltSeries.append(missAliInterTs)
 
         for index, tiltImage in enumerate(missAliTs):
