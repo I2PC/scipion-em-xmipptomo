@@ -381,8 +381,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             incrementShiftX = self.a0param.get() + \
                               self.a1param.get() * index + \
                               self.a2param.get() * abs(np.sin((index + self.a3param.get()) / size * np.pi)) + \
-                              self.a4param.get() * np.sin((index + self.a5.param.get()) / size * 2 * np.pi) + \
-                              np.random.normal(transformMatrix[0, 2], self.a6param.get())
+                              self.a4param.get() * np.sin((index + self.a5param.get()) / size * 2 * np.pi)
+
+            if self.a6param.get() != 0:
+                incrementShiftX += np.random.normal(transformMatrix[0, 2], self.a6param.get())
 
             transformMatrix[0, 2] += incrementShiftX
 
@@ -391,8 +393,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             incrementShiftY = self.b0param.get() + \
                               self.b1param.get() * index + \
                               self.b2param.get() * abs(np.sin((index + self.b3param.get()) / size * np.pi)) + \
-                              self.b4param.get() * np.sin((index + self.b5.param.get()) / size * 2 * np.pi) + \
-                              np.random.normal(transformMatrix[0, 2], self.b6param.get())
+                              self.b4param.get() * np.sin((index + self.b5param.get()) / size * 2 * np.pi)
+
+            if self.b6param.get() != 0:
+                incrementShiftY += np.random.normal(transformMatrix[0, 2], self.b6param.get())
 
             transformMatrix[1, 2] += incrementShiftY
 
@@ -401,8 +405,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             incrementAngle = self.c0param.get() + \
                              self.c1param.get() * index + \
                              self.c2param.get() * abs(np.sin((index + self.c3param.get()) / size * np.pi)) + \
-                             self.c4param.get() * np.sin((index + self.c5.param.get()) / size * 2 * np.pi) + \
-                             np.random.normal(transformMatrix[0, 2], self.c6param.get())
+                             self.c4param.get() * np.sin((index + self.c5param.get()) / size * 2 * np.pi)
+
+            if self.c6param.get() != 0:
+                incrementAngle += np.random.normal(transformMatrix[0, 2], self.c6param.get())
 
             oldAngle = np.arccos(transformMatrix[0, 0])
             newAngle = oldAngle + incrementAngle
