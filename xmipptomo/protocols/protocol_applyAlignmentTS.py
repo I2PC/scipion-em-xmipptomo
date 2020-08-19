@@ -50,69 +50,31 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
                       important=True,
                       label='Input set of tilt-series')
 
-        form.addParam('binning', params.FloatParam,
-                      default=1.0,
-                      label='Binning',
-                      help='Binning to be applied to the interpolated tilt-series. '
-                           'Must be a integer bigger than 1')
-
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         for ts in self.inputSetOfTiltSeries.get():
-            self._insertFunctionStep('convertInputStep', ts.getObjId())
-            self._insertFunctionStep('generateOutputStackStep', ts.getObjId())
+            self._insertFunctionStep('applyAlignmentStep', ts.getObjId())
 
     # --------------------------- STEPS functions ----------------------------
-    def convertInputStep(self, tsObjId):
+    def applyAlignmentStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
         extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
-        path.makePath(tmpPrefix)
         path.makePath(extraPrefix)
-        inputTsFileName = ts.getFirstItem().getLocation()[1]
-        outputTsFileName = os.path.join(tmpPrefix, "%s.st" % tsId)
+        outputTsFileName = os.path.join(extraPrefix, "%s.mrc" % tsId)
 
-        """Create link to input stack"""
-        path.createLink(inputTsFileName, outputTsFileName)
+        ts.applyTransform(outputTsFileName)
 
-    def generateOutputStackStep(self, tsObjId):
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
-
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
-
-        extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
-
-        if ts.getFirstItem().hasTransform():
-            paramsAlignment = {
-                'input': os.path.join(tmpPrefix, '%s.st' % tsId),
-                'output': os.path.join(extraPrefix, '%s.st' % tsId),
-                'xform': os.path.join(extraPrefix, "%s.prexg" % tsId),
-                'bin': int(self.binning.get()),
-                'imagebinned': 1.0}
-
-            argsAlignment = "-input %(input)s " \
-                            "-output %(output)s " \
-                            "-xform %(xform)s " \
-                            "-bin %(bin)d " \
-                            "-imagebinned %(imagebinned)s"
-            Plugin.runImod(self, 'newstack', argsAlignment % paramsAlignment)
 
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
         outputInterpolatedSetOfTiltSeries.append(newTs)
 
-        if self.binning > 1:
-            newTs.setSamplingRate(ts.getSamplingRate() * int(self.binning.get()))
-
         for index, tiltImage in enumerate(ts):
             newTi = tomoObj.TiltImage()
             newTi.copyInfo(tiltImage, copyId=True)
-            newTi.setLocation(index + 1, (os.path.join(extraPrefix, '%s.st' % tsId)))
-            if self.binning > 1:
-                newTi.setSamplingRate(tiltImage.getSamplingRate() * int(self.binning.get()))
+            newTi.setLocation(index + 1, outputTsFileName)
             newTs.append(newTi)
 
         ih = ImageHandler()
@@ -131,10 +93,6 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
             outputInterpolatedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Interpolated')
             outputInterpolatedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputInterpolatedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            if self.binning > 1:
-                samplingRate = self.inputSetOfTiltSeries.get().getSamplingRate()
-                samplingRate *= self.binning.get()
-                outputInterpolatedSetOfTiltSeries.setSamplingRate(samplingRate)
             self._defineOutputs(outputInterpolatedSetOfTiltSeries=outputInterpolatedSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputInterpolatedSetOfTiltSeries)
         return self.outputInterpolatedSetOfTiltSeries
