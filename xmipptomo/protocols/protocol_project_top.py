@@ -29,7 +29,7 @@ from pwem.emlib.image import ImageHandler
 from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform
 from pwem.protocols import ProtAnalysis3D
-from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
+from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
 from tomo.objects import SubTomogram
 
 
@@ -47,6 +47,9 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                                                   ' of tomograms or a set of volumes, ')
         form.addParam('dirParam', EnumParam, choices=['X', 'Y', 'Z'], default=2, display=EnumParam.DISPLAY_HLIST,
                       label='Projection direction')
+        form.addParam('radAvg', BooleanParam, default=False, label='Compute radial average?',
+                      help='Compute the radial average of the input volumes and from them, '
+                           'it computes their projections in the desired direction')
         form.addParam('rangeParam', EnumParam, choices=['All', 'Range'], default=0, display=EnumParam.DISPLAY_HLIST,
                       label='Range of slices', help='Range of slices used to compute the projection, where 0 is the '
                                                     'central slice.')
@@ -68,8 +71,12 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             cropParam = self.cropParam.get()
 
         for item in input.iterItems():
-            vol = Volume()
             idx = item.getObjId()
+            if self.radAvg.get():
+                fnRadAvg = self._getExtraPath("radial_avg_%d.stk" % idx)
+                self.runJob('xmipp_image_operate', '-i %s -o %s --radial_avg' % (item.getFileName(), fnRadAvg))
+                item.setLocation(fnRadAvg)
+            vol = Volume()
             vol.setLocation('%d@%s' % (item.getLocation()))
             vol = ImageHandler().read(vol.getLocation())
             volData = vol.getData()
