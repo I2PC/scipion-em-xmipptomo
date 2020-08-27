@@ -34,7 +34,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     motion correction. It is used mainly for testing purposes.
     """
     _label = 'tiltseries FlexAlign'
-    tomographySplitFrames = True
+    _splitEvenOddFrames = True
     
     def _defineParams(self, form):
         ProtTsCorrectMotion._defineParams(self, form)
