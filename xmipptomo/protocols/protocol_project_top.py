@@ -26,7 +26,7 @@
 # **************************************************************************
 import numpy as np
 from pwem.emlib.image import ImageHandler
-from pwem.emlib import lib
+from pwem.emlib import lib, Image
 from pwem.objects import Particle, Volume, Coordinate, Transform
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
@@ -71,38 +71,42 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             cropParam = self.cropParam.get()
 
         for item in input.iterItems():
-            idx = item.getObjId()
-            if self.radAvg.get():
-                fnRadAvg = self._getExtraPath("radial_avg_%d.stk" % idx)
-                self.runJob('xmipp_image_operate', '-i %s -o %s --radial_avg' % (item.getFileName(), fnRadAvg))
-                item.setLocation(fnRadAvg)
             vol = Volume()
             vol.setLocation('%d@%s' % (item.getLocation()))
             vol = ImageHandler().read(vol.getLocation())
-            volData = vol.getData()
-            proj = np.empty([x, y])
-            img = ImageHandler().createImage()
+            idx = item.getObjId()
             fnProj = self._getExtraPath("projection%d.stk" % idx)
-            lib.createEmptyFile(fnProj, x, y, z, 1)
-            if dir == 0:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
-                for zi in range(z):
-                    for yi in range(y):
-                        proj[zi, yi] = np.sum(volData[zi, yi, :])
-            elif dir == 1:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
-                for zi in range(z):
+
+            if self.radAvg.get():
+                img = Image()
+                img.radialAverageAxis(vol)
+                proj = np.empty([x, y])
+                img.setData(proj)
+
+            else:
+                volData = vol.getData()
+                proj = np.empty([x, y])
+                lib.createEmptyFile(fnProj, x, y, z, 1)
+                if dir == 0:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
+                    for zi in range(z):
+                        for yi in range(y):
+                            proj[zi, yi] = np.sum(volData[zi, yi, :])
+                elif dir == 1:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
+                    for zi in range(z):
+                        for xi in range(x):
+                            proj[zi, xi] = np.sum(volData[zi, :, xi])
+                elif dir == 2:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
                     for xi in range(x):
-                        proj[zi, xi] = np.sum(volData[zi, :, xi])
-            elif dir == 2:
-                if self.rangeParam.get() == 1:
-                    volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
-                for xi in range(x):
-                    for yi in range(y):
-                        proj[xi, yi] = np.sum(volData[:, yi, xi])
-            img.setData(proj)
+                        for yi in range(y):
+                            proj[xi, yi] = np.sum(volData[:, yi, xi])
+                img = ImageHandler().createImage()
+                img.setData(proj)
             img.write(fnProj)
 
     def createOutputStep(self):
