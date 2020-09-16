@@ -59,7 +59,65 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
-        pass
+        """ Fit ellipsoid in the form Ax^2 + By^2 + Cz^2 + 2Dxy + 2Exz + 2Fyz + 2Gx + 2Hy + 2Iz + J = 0
+        and A + B + C = 3 constraint removing one extra parameter. """
+
+        # From matlab function "Fit Ellipsoid"
+        for coord in self.inputCoordinates.get():
+            x = coord.getX()
+            y = coord.getY()
+            z = coord.getZ()
+
+            D = np.array([x*x + y*y - 2*z*z, x*x + z*z - 2*y*y, 2*x*y, 2*x*z, 2*y*z, 2*x, 2*y, 2*z, 1 + 0*x])
+
+            # Solve the normal system of equations
+            d2 = x*x + y*y + z*z  # The RHS of the llsq problem (y's)
+            cD = D.conj().transpose()
+            a = cD*D
+            b = cD*d2
+            u = np.linalg.solve(a, b)  # Solution to the normal equations (solve or lstsq?)
+
+            # Find the ellipsoid parameters
+            # Convert back to the conventional algebraic form
+            v = np.empty(4)
+            v[1] = u[1] + u[2] - 1
+            v[2] = u[1] - 2 * u[2] - 1
+            v[3] = u[2] - 2 * u[1] - 1
+            v[4:10] = u[3:9]
+            v = v.conj().transpose()
+
+            # Form the algebraic form of the ellipsoid
+            A = np.array([[v(1), v(4), v(5), v(7)],
+                          [v(4), v(2), v(6), v(8)],
+                          [v(5), v(6), v(3), v(9)],
+                          [v(7), v(8), v(9), v(10)]])
+
+            # Find the center of the ellipsoid
+            center = np.array(np.linalg.lstsq(-A[1:3, 1:3], v[7:9]))
+
+            # Form the corresponding translation matrix
+            T = np.eye(4)
+            T[4, 1:3] = center.conj().transpose()
+
+            # Translate to the center
+            R = T * A * T.conj().transpose()
+
+            # Solve the eigenproblem
+            [evals, evecs] = np.linalg.eig(R[1:3, 1:3] / -R[4, 4])
+            radii = np.sqrt(1/np.diag(np.abs(evals)))
+            sgns = np.sign(np.diag(evals))
+            radii = radii*sgns
+
+            # Calculate difference of the fitted points from the actual data normalized by the conic radii
+            d = np.array([x-center[1], y-center[2], z-center[3]])  # shift data to origin
+            d = d * evecs  # Rotate to cardinal axes of the conic
+            d = [d[:, 1] / radii[1], d[:, 2] / radii[2], d[:, 3] / radii[3]]  # normalize to the conic radii
+            chi2 = np.sum(np.abs(1 - np.sum(d**2 * np.tile(sgns.conj().transpose(), (np.shape(d), 2)))))
+
+            if np.abs(v[-1]) > 1e-6:
+                v = -v / v[-1]  # Normalize to the more conventional form with constant term = -1
+            else:
+                v = -np.sign(v[-1]) * v
 
     def createOutputStep(self):
         outSet = self._createSetOfMeshes()
@@ -78,6 +136,12 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         self._defineSourceRelation(self.inputTomos.get(), outSet)
 
     # --------------------------- INFO functions --------------------------------
+    def _validate(self):
+        validateMsgs = []
+        if self.inputCoordinates.get().getSize() < 9:
+            validateMsgs.append('Set of coordinates must have at least 9 points to fit a unique ellipsoid')
+        return validateMsgs
+
     def _summary(self):
         summary = []
         if not os.listdir(self._getExtraPath()):
