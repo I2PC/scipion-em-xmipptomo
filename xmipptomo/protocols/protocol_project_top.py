@@ -25,8 +25,6 @@
 # *
 # **************************************************************************
 import numpy as np
-from pwem.emlib.image import ImageHandler
-from pwem.emlib import lib, Image
 from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform, String
@@ -78,29 +76,34 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         for i, subtomo in enumerate(input.iterItems()):
             vol = Volume()
             vol.setLocation('%d@%s' % (subtomo.getLocation()))
+            print('-------vol loc----', vol.getLocation())
             vol = ih().read(vol.getLocation())
             volData = vol.getData()
             proj = np.empty([x, y])
             img = ih().createImage()
+            if self.radAvg.get():
+                img = vol.radialAverageAxis()
 
-            if dir == 0:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
-                for zi in range(z):
-                    for yi in range(y):
-                        proj[zi, yi] = np.sum(volData[zi, yi, :])
-            elif dir == 1:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
-                for zi in range(z):
+            else:
+
+                if dir == 0:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
+                    for zi in range(z):
+                        for yi in range(y):
+                            proj[zi, yi] = np.sum(volData[zi, yi, :])
+                elif dir == 1:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
+                    for zi in range(z):
+                        for xi in range(x):
+                            proj[zi, xi] = np.sum(volData[zi, :, xi])
+                elif dir == 2:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
                     for xi in range(x):
-                        proj[zi, xi] = np.sum(volData[zi, :, xi])
-            elif dir == 2:
-                if self.rangeParam.get() == 1:
-                    volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
-                for xi in range(x):
-                    for yi in range(y):
-                        proj[xi, yi] = np.sum(volData[:, yi, xi])
+                        for yi in range(y):
+                            proj[xi, yi] = np.sum(volData[:, yi, xi])
 
             img.setData(proj)
             img.write('%d@%s' % (i+1, fnProj))
@@ -135,7 +138,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
         vols = self.input.get()
-        return ["Projection of %d volumes with dimensions %s obtained with xmipp_phantom_project"
+        return ["Projection of %d volumes with dimensions %s obtained."
                 % (vols.getSize(), vols.getDimensions())]
 
     def _summary(self):
