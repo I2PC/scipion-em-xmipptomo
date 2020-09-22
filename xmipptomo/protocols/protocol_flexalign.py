@@ -23,7 +23,6 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
 from tomo.protocols import ProtTsCorrectMotion
 from xmipp3.protocols import XmippProtMovieCorr
 from pathlib import Path
@@ -34,7 +33,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     motion correction. It is used mainly for testing purposes.
     """
     _label = 'tiltseries FlexAlign'
-    _splitEvenOddFrames = True
+    evenOddCapable = True
     
     def _defineParams(self, form):
         ProtTsCorrectMotion._defineParams(self, form)
@@ -49,5 +48,20 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
         dir = self._getOutputMovieFolder(tiltImageM)
         Path(dir).mkdir(parents=True, exist_ok=True)
         self.inputMovies = self.inputTiltSeriesM
+
+        # Get actual user decision about keeping aligned movies
+        doSaveMovie = self.doSaveMovie.get()
+
+        # If need to do even/odd
+        if self._doSplitEvenOdd():
+            self.doSaveMovie.set(True)
+
         self._processMovie(tiltImageM)
+
+        import os
+        print("PABLO: ", os.path.exists("Runs/000209_XmippProtTsFlexAlign/extra/TS_0_40.mrc"))
+
+        # Restore user decision about saving movies
+        self.doSaveMovie.set(doSaveMovie)
+
         self.inputMovies = None
