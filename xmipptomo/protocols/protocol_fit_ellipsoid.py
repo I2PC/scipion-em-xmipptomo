@@ -75,7 +75,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             cD = D.conj().transpose()
             a = cD*D
             b = cD*d2
-            u = np.linalg.lstsq(a, b, rcond=None)[0]  # Solution to the normal equations
+            u = np.linalg.pinv(D)*  # Solution to the normal equations
             u = u.flatten('F')  # Flats matrix u as in Matlab to use same indexes
 
             # Find the ellipsoid parameters
@@ -105,6 +105,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             R = T * A * cT
 
             # Solve the eigenproblem
+            print("----------A-----", A)
+            print("----------T-----", T)
+            print("----------R-----", R)
             [evals, evecs] = np.linalg.eig(R[0:2, 0:2] / -R[3, 3])
             radii = np.sqrt(1/np.diag(np.abs(evals)))
             sgns = np.sign(np.diag(evals))
