@@ -68,50 +68,52 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             y = coord.getY()
             z = coord.getZ()
 
-            D = np.array([x*x + y*y - 2*z*z, x*x + z*z - 2*y*y, 2*x*y, 2*x*z, 2*y*z, 2*x, 2*y, 2*z, 1 + 0*x])
+            D = np.array([[x*x + y*y - 2*z*z, x*x + z*z - 2*y*y, 2*x*y], [2*x*z, 2*y*z, 2*x], [2*y, 2*z, 1 + 0*x]])  # efg: write as 3d matrix
 
             # Solve the normal system of equations
             d2 = x*x + y*y + z*z  # The RHS of the llsq problem (y's)
             cD = D.conj().transpose()
             a = cD*D
             b = cD*d2
-            u = np.linalg.solve(a, b)  # Solution to the normal equations (solve or lstsq?)
+            u = np.linalg.lstsq(a, b, rcond=None)[0]  # Solution to the normal equations
+            u = u.flatten('F')  # Flats matrix u as in Matlab to use same indexes
 
             # Find the ellipsoid parameters
             # Convert back to the conventional algebraic form
-            v = np.empty(4)
-            v[1] = u[1] + u[2] - 1
-            v[2] = u[1] - 2 * u[2] - 1
-            v[3] = u[2] - 2 * u[1] - 1
-            v[4:10] = u[3:9]
+            v = np.empty(10)
+            v[0] = u[0] + u[1] - 1  # unique indexing for matrix in matlab
+            v[1] = u[0] - 2 * u[1] - 1
+            v[2] = u[1] - 2 * u[0] - 1
+            v[3:9] = u[2:8]
             v = v.conj().transpose()
 
             # Form the algebraic form of the ellipsoid
-            A = np.array([[v(1), v(4), v(5), v(7)],
-                          [v(4), v(2), v(6), v(8)],
-                          [v(5), v(6), v(3), v(9)],
-                          [v(7), v(8), v(9), v(10)]])
+            A = np.array([[v[0], v[3], v[4], v[6]],
+                          [v[3], v[1], v[5], v[7]],
+                          [v[4], v[5], v[2], v[8]],
+                          [v[6], v[7], v[8], v[9]]])
 
             # Find the center of the ellipsoid
-            center = np.array(np.linalg.lstsq(-A[1:3, 1:3], v[7:9]))
+            center = np.array(np.linalg.lstsq(-A[0:2, 0:2], v[6:8], rcond=None))[0]
 
             # Form the corresponding translation matrix
             T = np.eye(4)
-            T[4, 1:3] = center.conj().transpose()
+            T[3, 0:2] = center.conj().transpose()
+            cT = T.conj().transpose()
 
             # Translate to the center
-            R = T * A * T.conj().transpose()
+            R = T * A * cT
 
             # Solve the eigenproblem
-            [evals, evecs] = np.linalg.eig(R[1:3, 1:3] / -R[4, 4])
+            [evals, evecs] = np.linalg.eig(R[0:2, 0:2] / -R[3, 3])
             radii = np.sqrt(1/np.diag(np.abs(evals)))
             sgns = np.sign(np.diag(evals))
             radii = radii*sgns
 
             # Calculate difference of the fitted points from the actual data normalized by the conic radii
-            d = np.array([x-center[1], y-center[2], z-center[3]])  # shift data to origin
+            d = np.array([x-center[0], y-center[1], z-center[2]])  # shift data to origin
             d = d * evecs  # Rotate to cardinal axes of the conic
-            d = [d[:, 1] / radii[1], d[:, 2] / radii[2], d[:, 3] / radii[3]]  # normalize to the conic radii
+            d = [d[:, 0] / radii[0], d[:, 1] / radii[1], d[:, 2] / radii[2]]  # normalize to the conic radii
             chi2 = np.sum(np.abs(1 - np.sum(d**2 * np.tile(sgns.conj().transpose(), (np.shape(d), 2)))))
 
             if np.abs(v[-1]) > 1e-6:
