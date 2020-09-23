@@ -25,9 +25,9 @@
 # *
 # **************************************************************************
 import numpy as np
-from pwem.emlib.image import ImageHandler
+from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
-from pwem.objects import Particle, Volume, Coordinate, Transform
+from pwem.objects import Particle, Volume, Coordinate, Transform, String
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
 from tomo.objects import SubTomogram
@@ -67,16 +67,17 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         if self.rangeParam.get() == 1:
             cropParam = self.cropParam.get()
 
-        for item in input.iterItems():
+        fnProj = self._getExtraPath("projections.mrcs")
+        lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
+
+        for i, subtomo in enumerate(input.iterItems()):
             vol = Volume()
-            idx = item.getObjId()
-            vol.setLocation('%d@%s' % (item.getLocation()))
-            vol = ImageHandler().read(vol.getLocation())
+            vol.setLocation('%d@%s' % (subtomo.getLocation()))
+            vol = ih().read(vol.getLocation())
             volData = vol.getData()
             proj = np.empty([x, y])
-            img = ImageHandler().createImage()
-            fnProj = self._getExtraPath("projection%d.stk" % idx)
-            lib.createEmptyFile(fnProj, x, y, z, 1)
+            img = ih().createImage()
+
             if dir == 0:
                 if self.rangeParam.get() == 1:
                     volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
@@ -95,29 +96,30 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 for xi in range(x):
                     for yi in range(y):
                         proj[xi, yi] = np.sum(volData[:, yi, xi])
+
             img.setData(proj)
-            img.write(fnProj)
+            img.write('%d@%s' % (i+1, fnProj))
 
     def createOutputStep(self):
         input = self.input.get()
         imgSetOut = self._createSetOfParticles()
         imgSetOut.setSamplingRate(input.getSamplingRate())
         imgSetOut.setAlignmentProj()
-        for item in input.iterItems():
-            idx = item.getObjId()
-            fnProj = self._getExtraPath("projection%d.stk" % idx)
+        for i, subtomo in enumerate(input.iterItems()):
+            idx = subtomo.getObjId()
             p = Particle()
-            p.setLocation(fnProj)
-            if type(item) == SubTomogram:
-                if item.hasCoordinate3D():
+            p.setLocation(ih._convertToLocation((i+1, self._getExtraPath("projections.mrcs"))))
+            p._subtomogramID = String(idx)
+            if type(subtomo) == SubTomogram:
+                if subtomo.hasCoordinate3D():
                     coord = Coordinate()
-                    coord.setX(item.getCoordinate3D().getX())
-                    coord.setY(item.getCoordinate3D().getY())
+                    coord.setX(subtomo.getCoordinate3D().getX())
+                    coord.setY(subtomo.getCoordinate3D().getY())
                     p.setCoordinate(coord)
-                p.setClassId(item.getClassId())
-            if item.hasTransform():
+                p.setClassId(subtomo.getClassId())
+            if subtomo.hasTransform():
                 transform = Transform()
-                transform.setMatrix(item.getTransform().getMatrix())
+                transform.setMatrix(subtomo.getTransform().getMatrix())
                 p.setTransform(transform)
             imgSetOut.append(p)
 
