@@ -59,10 +59,8 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
-        """ Fit ellipsoid in the form Ax^2 + By^2 + Cz^2 + 2Dxy + 2Exz + 2Fyz + 2Gx + 2Hy + 2Iz + J = 0
-        and A + B + C = 3 constraint removing one extra parameter. """
 
-        # From matlab function "Fit Ellipsoid"
+
         incoords = self.inputCoordinates.get()
         x = np.empty(incoords.getSize())
         y = np.empty(incoords.getSize())
