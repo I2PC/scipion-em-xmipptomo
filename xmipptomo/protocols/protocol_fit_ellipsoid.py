@@ -33,7 +33,7 @@ import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Mesh
-
+from xmipp3.utils import fit_ellipsoid
 
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     """ This protocol adjust a SetOfCoordinates to an ellipsoid (for example, a vesicle), defining a region of interest
@@ -63,66 +63,17 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         and A + B + C = 3 constraint removing one extra parameter. """
 
         # From matlab function "Fit Ellipsoid"
-        for coord in self.inputCoordinates.get():
-            x = coord.getX()
-            y = coord.getY()
-            z = coord.getZ()
+        incoords = self.inputCoordinates.get()
+        x = np.empty(incoords.getSize())
+        y = np.empty(incoords.getSize())
+        z = np.empty(incoords.getSize())
 
-            D = np.array([[x*x + y*y - 2*z*z, x*x + z*z - 2*y*y, 2*x*y], [2*x*z, 2*y*z, 2*x], [2*y, 2*z, 1 + 0*x]])  # efg: write as 3d matrix
+        for i, coord in enumerate(incoords):
+            x[i] = coord.getX()
+            y[i] = coord.getY()
+            z[i] = coord.getZ()
 
-            # Solve the normal system of equations
-            d2 = x*x + y*y + z*z  # The RHS of the llsq problem (y's)
-            cD = D.conj().transpose()
-            a = cD*D
-            b = cD*d2
-            u = np.linalg.pinv(D)*  # Solution to the normal equations
-            u = u.flatten('F')  # Flats matrix u as in Matlab to use same indexes
-
-            # Find the ellipsoid parameters
-            # Convert back to the conventional algebraic form
-            v = np.empty(10)
-            v[0] = u[0] + u[1] - 1  # unique indexing for matrix in matlab
-            v[1] = u[0] - 2 * u[1] - 1
-            v[2] = u[1] - 2 * u[0] - 1
-            v[3:9] = u[2:8]
-            v = v.conj().transpose()
-
-            # Form the algebraic form of the ellipsoid
-            A = np.array([[v[0], v[3], v[4], v[6]],
-                          [v[3], v[1], v[5], v[7]],
-                          [v[4], v[5], v[2], v[8]],
-                          [v[6], v[7], v[8], v[9]]])
-
-            # Find the center of the ellipsoid
-            center = np.array(np.linalg.lstsq(-A[0:2, 0:2], v[6:8], rcond=None))[0]
-
-            # Form the corresponding translation matrix
-            T = np.eye(4)
-            T[3, 0:2] = center.conj().transpose()
-            cT = T.conj().transpose()
-
-            # Translate to the center
-            R = T * A * cT
-
-            # Solve the eigenproblem
-            print("----------A-----", A)
-            print("----------T-----", T)
-            print("----------R-----", R)
-            [evals, evecs] = np.linalg.eig(R[0:2, 0:2] / -R[3, 3])
-            radii = np.sqrt(1/np.diag(np.abs(evals)))
-            sgns = np.sign(np.diag(evals))
-            radii = radii*sgns
-
-            # Calculate difference of the fitted points from the actual data normalized by the conic radii
-            d = np.array([x-center[0], y-center[1], z-center[2]])  # shift data to origin
-            d = d * evecs  # Rotate to cardinal axes of the conic
-            d = [d[:, 0] / radii[0], d[:, 1] / radii[1], d[:, 2] / radii[2]]  # normalize to the conic radii
-            chi2 = np.sum(np.abs(1 - np.sum(d**2 * np.tile(sgns.conj().transpose(), (np.shape(d), 2)))))
-
-            if np.abs(v[-1]) > 1e-6:
-                v = -v / v[-1]  # Normalize to the more conventional form with constant term = -1
-            else:
-                v = -np.sign(v[-1]) * v
+        [center, radii, evecs, v, chi2] = fit_ellipsoid(x, y, z)
 
     def createOutputStep(self):
         outSet = self._createSetOfMeshes()
