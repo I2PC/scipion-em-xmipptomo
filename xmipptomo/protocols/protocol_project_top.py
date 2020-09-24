@@ -45,14 +45,14 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         form.addParam('input', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
                       label='Input Volumes', help='This protocol can *not* work with .em files *if* the input is a set'
                                                   ' of tomograms or a set of volumes, ')
-        form.addParam('dirParam', EnumParam, choices=['X', 'Y', 'Z'], default=2, display=EnumParam.DISPLAY_HLIST,
-                      label='Projection direction')
         form.addParam('radAvg', BooleanParam, default=False, label='Compute radial average?',
-                      help='Compute the radial average of the input volumes and from them, '
+                      help='Compute the radial average with respect to Z of the input volumes and from them, '
                            'it computes their projections in the desired direction')
+        form.addParam('dirParam', EnumParam, choices=['X', 'Y', 'Z'], default=2, display=EnumParam.DISPLAY_HLIST,
+                      label='Projection direction', condition='radAvg == False')
         form.addParam('rangeParam', EnumParam, choices=['All', 'Range'], default=0, display=EnumParam.DISPLAY_HLIST,
-                      label='Range of slices', help='Range of slices used to compute the projection, where 0 is the '
-                                                    'central slice.')
+                      label='Range of slices', condition='radAvg == False',
+                      help='Range of slices used to compute the projection, where 0 is the central slice.')
         form.addParam('cropParam', IntParam, default=10, label='Slices', condition="rangeParam == 1",
                       help='Crop this amount of voxels in each side of the selected direction.')
 
@@ -76,16 +76,13 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         for i, subtomo in enumerate(input.iterItems()):
             vol = Volume()
             vol.setLocation('%d@%s' % (subtomo.getLocation()))
-            print('-------vol loc----', vol.getLocation())
             vol = ih().read(vol.getLocation())
-            volData = vol.getData()
-            proj = np.empty([x, y])
             img = ih().createImage()
             if self.radAvg.get():
                 img = vol.radialAverageAxis()
-
             else:
-
+                volData = vol.getData()
+                proj = np.empty([x, y])
                 if dir == 0:
                     if self.rangeParam.get() == 1:
                         volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
@@ -104,8 +101,8 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                     for xi in range(x):
                         for yi in range(y):
                             proj[xi, yi] = np.sum(volData[:, yi, xi])
+                img.setData(proj)
 
-            img.setData(proj)
             img.write('%d@%s' % (i+1, fnProj))
 
     def createOutputStep(self):
