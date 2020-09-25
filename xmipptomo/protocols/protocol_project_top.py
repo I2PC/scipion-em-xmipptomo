@@ -132,6 +132,17 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         self._defineOutputs(outputParticles=imgSetOut)
         self._defineSourceRelation(self.input, imgSetOut)
 
+        if self.radAvg.get():
+            avgFile = self._getExtraPath("average.xmp")
+            imgh = ih()
+            avgImage = imgh.computeAverage(imgSetOut)
+            avgImage.write(avgFile)
+            avg = Particle()
+            avg.setLocation(1, avgFile)
+            avg.copyInfo(imgSetOut)
+            self._defineOutputs(outputAverage=avg)
+            self._defineSourceRelation(self.input, avg)
+
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
         vols = self.input.get()
