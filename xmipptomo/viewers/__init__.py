@@ -24,4 +24,4 @@
 # *
 # **************************************************************************
 
-from .viewer_cltomo import XmippCLTomoViewer
+from .viewer_cltomo import XmippCLTomoViewer, XmippProtTsFlexAlignViewer
