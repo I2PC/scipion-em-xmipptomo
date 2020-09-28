@@ -140,6 +140,9 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                 ref = self.inputRef.get().getFileName()
 
             for subtomo in inputSet.iterItems():
+                fn = subtomo.getFileName()
+                if fn.endswith('.mrc'):
+                    fn += ':mrc'
                 if subtomo.getCoordinate3D().getVolId() == tomo.getObjId() \
                         or basename(subtomo.getVolName()) == tomo.getBaseName().partition('import_')[0]:
                     nRow = md.Row()
