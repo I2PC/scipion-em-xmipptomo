@@ -59,8 +59,6 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
-
-
         incoords = self.inputCoordinates.get()
         x = np.empty(incoords.getSize())
         y = np.empty(incoords.getSize())
