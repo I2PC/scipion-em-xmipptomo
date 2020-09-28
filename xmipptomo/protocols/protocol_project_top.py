@@ -74,8 +74,14 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
 
         for i, subtomo in enumerate(input.iterItems()):
+            fn = subtomo.getLocation()
+            if fn[1].endswith('.mrc'):
+                fn = list(fn)
+                fn[1] += ':mrc'
+                fn = tuple(fn)
+
             vol = Volume()
-            vol.setLocation('%d@%s' % (subtomo.getLocation()))
+            vol.setLocation('%d@%s' % fn)
             vol = ih().read(vol.getLocation())
             img = ih().createImage()
             if self.radAvg.get():
