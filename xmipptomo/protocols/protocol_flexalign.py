@@ -58,9 +58,6 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
 
         self._processMovie(tiltImageM)
 
-        import os
-        print("PABLO: ", os.path.exists("Runs/000209_XmippProtTsFlexAlign/extra/TS_0_40.mrc"))
-
         # Restore user decision about saving movies
         self.doSaveMovie.set(doSaveMovie)
 
