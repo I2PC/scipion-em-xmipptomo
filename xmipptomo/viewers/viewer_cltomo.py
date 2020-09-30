@@ -30,12 +30,13 @@ visualization program.
 
 import glob
 
-from pyworkflow.em import *
+from pwem.viewers import DataView
 from pyworkflow.gui.text import *
-from pyworkflow.protocol.params import LabelParam
-from pyworkflow.gui.dialog import showError, showWarning
+from pyworkflow.protocol.params import (LabelParam, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER, WEB_DJANGO
 
+from tomo.viewers import TSMotionCorrectionViewer
+from xmipptomo.protocols import XmippProtTsFlexAlign
 from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo
 
 
@@ -43,7 +44,7 @@ class XmippCLTomoViewer(ProtocolViewer):
     """ Visualization of the CLTomo results. """
     _label = 'viewer cltomo'
     _targets = [XmippProtCLTomo]
-    _environments = [DESKTOP_TKINTER, WEB_DJANGO]
+    _environments = [DESKTOP_TKINTER]
 
     def _defineParams(self, form):
         form.addSection(label='Visualization')
@@ -73,7 +74,7 @@ class XmippCLTomoViewer(ProtocolViewer):
                     listOfLevels = []
                     try:
                         listOfLevels = self._getListFromRangeString(self.showSeveralLevels.get())
-                    except Exception, ex:
+                    except Exception:
                         errors.append('Invalid levels range.')
 
                     # lastLevel = int(re.search('level_(\d\d)',lastLevelFile).group(1))
@@ -87,3 +88,6 @@ class XmippCLTomoViewer(ProtocolViewer):
             self.errorList(errors, views)
 
         return views
+
+class XmippProtTsFlexAlignViewer(TSMotionCorrectionViewer):
+    _targets = [XmippProtTsFlexAlign]

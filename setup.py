@@ -27,14 +27,18 @@ with open('requirements.txt') as f:
 setup(
     name='scipion-em-xmipptomo',  # Required
     version=__version__,  # Required
-    description='Scipion plugin template.',  # Required
+    description='Scipion plugin to deal with xmipp tomography protocols.',  # Required
+
     long_description=long_description,  # Optional
-    url='https://github.com/scipion-em/scipion-em-template',  # Optional
-    author='you',  # Optional
-    author_email='you@yourinstitution.email',  # Optional
-    keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
+    url='https://github.com/i2pc/scipion-em-xmipptomo',  # Optional
+    author='I2PC',  # Optional
+    author_email='scipion@cnb.csic.es',  # Optional
+    keywords='scipion cryoem imageprocessing tomography scipion-3.0',  # Optional
     packages=find_packages(),
     install_requires=[requirements],
+    entry_points={  # Optional
+       'pyworkflow.plugin': 'xmipptomo = xmipptomo',
+    },
     package_data={  # Optional
        'xmipptomo': ['xmipp_logo.png', 'protocols.conf'],
     }

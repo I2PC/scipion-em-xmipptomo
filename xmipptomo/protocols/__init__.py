@@ -26,9 +26,13 @@
 
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
 from .protocol_apply_alignment_subtomo import XmippProtApplyTransformSubtomo
-from .protocol_undo_alignment_subtomo import XmippProtUndoAlignSubtomo
 from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_cltomo import XmippProtCLTomo
+from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
+from .protocol_misalignTS import XmippProtMisalignTiltSeries
+from .protocol_splitTS import XmippProtSplitTiltSeries
+from .protocol_flexalign import XmippProtTsFlexAlign
+from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS

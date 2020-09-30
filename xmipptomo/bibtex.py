@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     you (you@yourinstitution.email)
+# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
-# * your institution
+# *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -26,18 +26,18 @@
 # **************************************************************************
 
 """
-@article{you2019,
-title = "Title of your paper ",
-journal = "...",
-volume = "...",
-number = ".",
-pages = "1 - 6",
-year = "2019",
-issn = "0000-1111",
-doi = "http://dx.doi.org/xxxxx/xxxxx",
-url = "http://www.url",
-author = "you and your team",
-keywords = "Single particle analysis Tomography",
+@article{delaRosaTrevin2013,
+title = "Xmipp 3.0: An improved software suite for image processing in electron microscopy ",
+journal = "JSB",
+volume = "184",
+number = "2",
+pages = "321 - 328",
+year = "2013",
+issn = "1047-8477",
+doi = "http://dx.doi.org/10.1016/j.jsb.2013.09.015",
+url = "http://www.sciencedirect.com/science/article/pii/S1047847713002566",
+author = "de la Rosa-Trevín, J.M.  and Oton, J. and R. Marabini and A. Zaldívar and J. Vargas and J.M. Carazo and Sorzano, C.O.S.",
+keywords = "Electron microscopy, Single particles analysis, Image processing, Software package "
 }
 
 """

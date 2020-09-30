@@ -24,16 +24,13 @@
 # *
 # **************************************************************************
 
-import pyworkflow.em
 import xmipp3
 
 _logo = "xmipp_logo.png"
-_references = ['you2019']
-__version__ = "3.0.0b1"
+_references = ['delaRosaTrevin2013']
+__version__ = "3.0.6"
 
 class Plugin(xmipp3.Plugin):
     @classmethod
     def defineBinaries(cls, env):
         pass
-
-pyworkflow.em.Domain.registerPlugin(__name__)

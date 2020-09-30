@@ -23,14 +23,13 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
 
-from pyworkflow.em import *
-
-from xmippLib import MetaData
+from pwem.protocols import ProtClassify3D
+from pyworkflow.protocol import (IntParam, PointerParam, LEVEL_ADVANCED, BooleanParam, StringParam, FloatParam)
+from pyworkflow.utils import Environ
 from xmipp3 import Plugin
-from xmipp3.constants import *
-from xmipp3.convert import writeSetOfVolumes, readSetOfClassesVol, readSetOfVolumes
-
+from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
 class XmippProtCLTomo(ProtClassify3D):
     """ Averages a set of subtomograms taking into account the missing edge. """
@@ -94,20 +93,19 @@ class XmippProtCLTomo(ProtClassify3D):
     def runCLTomo(self):
         fnVols = self._getPath('input_volumes.xmd')
         writeSetOfVolumes(self.inputVolumes.get(), fnVols)
-        params = ' -i ' + fnVols + \
-                 ' --oroot ' + self._getExtraPath("results") + \
-                 ' --iter ' + str(self.numberOfIterations.get()) + \
-                 ' --nref ' + str(self.numberOfReferences.get()) + \
-                 ' --sym ' + self.symmetry.get() + \
-                 ' --maxFreq ' + str(self.maximumResolution.get()) + \
-                 ' --sparsity ' + str(self.sparsity.get() / 100.0) + \
-                 ' --DWTsparsity ' + str(self.dwtSparsity.get() / 100.0) + \
-                 ' --maxShiftX ' + str(self.maxShiftX.get()) + \
-                 ' --maxShiftY ' + str(self.maxShiftY.get()) + \
-                 ' --maxShiftZ ' + str(self.maxShiftZ.get()) + \
-                 ' --maxRot ' + str(self.maxRot.get()) + \
-                 ' --maxTilt ' + str(self.maxTilt.get()) + \
-                 ' --maxPsi ' + str(self.maxPsi.get())
+        params = (' -i ' + fnVols + ' --oroot ' + self._getExtraPath("results") +
+                 ' --iter ' + str(self.numberOfIterations.get()) +
+                 ' --nref ' + str(self.numberOfReferences.get()) +
+                 ' --sym ' + self.symmetry.get() +
+                 ' --maxFreq ' + str(self.maximumResolution.get()) +
+                 ' --sparsity ' + str(self.sparsity.get() / 100.0) +
+                 ' --DWTsparsity ' + str(self.dwtSparsity.get() / 100.0) +
+                 ' --maxShiftX ' + str(self.maxShiftX.get()) +
+                 ' --maxShiftY ' + str(self.maxShiftY.get()) +
+                 ' --maxShiftZ ' + str(self.maxShiftZ.get()) +
+                 ' --maxRot ' + str(self.maxRot.get()) +
+                 ' --maxTilt ' + str(self.maxTilt.get()) +
+                 ' --maxPsi ' + str(self.maxPsi.get()))
         if self.doGenerateInitial.get():
             params += ' --nref0 ' + str(self.numberOfReferences0.get())
             if self.randomizeOrientation.get():
@@ -186,7 +184,8 @@ class XmippProtCLTomo(ProtClassify3D):
     # --------------------------- UTILS functions --------------------------------------------
     def getCLTomoEnviron(self):
         env = Plugin.getEnviron()
-        env.set('PYTHONPATH', os.path.join(os.environ['SCIPION_HOME'], 'software', 'lib', 'python2.7', 'site-packages',
-                                           'sh_alignment'),
+        env.set('PYTHONPATH', os.path.join(os.environ['SCIPION_HOME'],
+                                           'software', 'lib', 'python2.7',
+                                           'site-packages', 'sh_alignment'),
                 Environ.BEGIN)
         return env

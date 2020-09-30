@@ -29,13 +29,15 @@
 from os.path import basename
 import numpy as np
 from pyworkflow.object import Set
-from pyworkflow.em.protocol import EMProtocol
+import pwem
+from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
 
 
 class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
-    """ This protocol takes a set of coordinates and identifies connected components among the picked particles."""
+    """ This protocol takes a set of coordinates and identifies connected
+    components among the picked particles."""
 
     _label = 'connected components'
 
@@ -52,7 +54,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                                                                       'connected component. Wizard returns three times '
                                                                       'the box size of the input coordinates.')
 
-    # --------------------------- INSERT steps functions --------------------------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep('computeConnectedComponentsStep')
         self._insertFunctionStep('createOutputStep')
@@ -60,17 +62,18 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeConnectedComponentsStep(self):
         inputCoors = self.inputCoordinates.get()
-        tomoList = []
         coorSetList = []
+        tomoList = []
 
         # Create a separate setOfCoordinates for each tomogram
-        for coor in inputCoors.iterItems(orderBy='_volName'):
+        for coor in inputCoors.iterCoordinates():
             tomoName = coor.getVolName()
             if tomoName not in tomoList:
                 tomoList.append(tomoName)
                 tomocoorset = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), '_' + basename(tomoName))
                 coorSetList.append(tomocoorset)
-            tomocoorset.append(coor)
+            idx = tomoList.index(tomoName)
+            coorSetList[idx].append(coor)
 
         # For each setOfCoordinates, perform "connected components" logic
         outputsetIndex = 0

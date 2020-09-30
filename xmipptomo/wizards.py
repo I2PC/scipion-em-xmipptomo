@@ -26,7 +26,8 @@
 # **************************************************************************
 
 from pyworkflow.wizard import Wizard
-from protocols import XmippProtConnectedComponents
+from .protocols import XmippProtConnectedComponents
+
 
 class XmippConnectedCompWizard(Wizard):
     _targets = ([(XmippProtConnectedComponents, ['distance'])])
