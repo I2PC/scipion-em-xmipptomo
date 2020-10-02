@@ -48,12 +48,8 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input coordinates')
-        # form.addParam('inputCoordinates', PointerParam, label="Coordinates",
-        #               pointerClass='SetOfCoordinates3D', help='Select the coordinates.')
-        form.addParam('inputMeshes', PointerParam, label="Input vesicles",
-                      pointerClass='SetOfMeshes', help='Select the vesicles (SetOfMeshes)')
-        # form.addParam('inputTomos', PointerParam, label="Tomograms",
-        #               pointerClass='SetOfTomograms', help='Select tomograms.')
+        form.addParam('inputSubtomos', PointerParam, pointerClass="SetOfSubTomograms",
+                      label='Subtomograms', help='Subtomograms in vesicles')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -62,20 +58,33 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
+        inputSubtomos = self.inputSubtomos.get()
+        coorSetList = []
+        tomoList = []
 
-        for mesh in self.inputMeshes.get().iterItems():
-            incoords = mesh.getMesh()
-            x = np.empty(len(incoords))
-            y = np.empty(len(incoords))
-            z = np.empty(len(incoords))
+        # Split input particles by tomograms
+        # TEST IT WITH PARTICLES FROM DIFF TOMOS
+        for subtomo in inputSubtomos.iterItems():
+            tomoName = subtomo.getVolName()
+            if tomoName not in tomoList:
+                tomoList.append(tomoName)
+                tomocoorset = self._createSetOfSubTomograms('_' + os.path.basename(tomoName))
+                coorSetList.append(tomocoorset)
+            idx = tomoList.index(tomoName)
+            coorSetList[idx].append(subtomo)
 
-            for i, coord in enumerate(incoords):
-                print("-----------", coord)
-                x[i] = coord[0]
-                y[i] = coord[1]
-                z[i] = coord[2]
+        # Split input particles in each tomo by vesicles
+        for coorSet in coorSetList:
+            x = []
+            y = []
+            z = []
+            for subtomo in coorSet.iterItems():
+                coord = subtomo.getCoordinate3D()
+                x.append(coord.getX())
+                y.append(coord.getY())
+                z.append(coord.getZ())
 
-            [center, radii, evecs, v, chi2] = fit_ellipsoid(x, y, z)
+            [center, radii, evecs, v, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
             algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0" ' \
                       % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
             print("Center: ", center)
@@ -83,10 +92,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             print("Evecs: ", evecs)
             print("Chi2: ", chi2)
             # print("----------v-----", v)
-            print("Algebraic description of the ellipsoid: %f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z "
-                  "+ 2*%f*x + 2*%f*y + 2*%f*z + %f = 0" % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9]))
-
-            mesh.
+            print("Algebraic description of the ellipsoid: %s" % algDesc)
 
     def createOutputStep(self):
         pass
@@ -106,11 +112,13 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         # self._defineSourceRelation(self.inputTomos.get(), outSet)
 
     # --------------------------- INFO functions --------------------------------
-    # def _validate(self):
-    #     validateMsgs = []
-    #     if self.inputCoordinates.get().getSize() < 9:
-    #         validateMsgs.append('Set of coordinates must have at least 9 points to fit a unique ellipsoid')
-    #     return validateMsgs
+    def _validate(self):
+        validateMsgs = []
+        if self.inputSubtomos.get().getSize() < 9:
+            validateMsgs.append('At least 9 subtomograms are required to fit a unique ellipsoid')
+        if not self.inputSubtomos.get().getFirstItem().hasCoordinate3D():
+            validateMsgs.append('Subtomograms should have coordinates')
+        return validateMsgs
 
     def _summary(self):
         summary = []
