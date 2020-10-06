@@ -37,8 +37,8 @@ from xmipp3.utils import fit_ellipsoid
 
 
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
-    """ This protocol adjust a SetOfCoordinates to an ellipsoid (for example, a vesicle), defining a region of interest
-    (ROI) as output."""
+    """ This protocol adjust a SetOfSubtomograms (with coordinates), to a vesicle (ellipsoid), defining regions of
+    interest (SetOfMeshes) for each vesicle as output."""
 
     _label = 'fit vesicles'
 
@@ -47,11 +47,11 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input coordinates')
+        form.addSection(label='Input')
         form.addParam('inputSubtomos', PointerParam, pointerClass="SetOfSubTomograms",
                       label='Subtomograms', help='Subtomograms in vesicles, they should come from Pyseg.')
-        form.addParam('inputTomos', PointerParam, label="Input Tomograms", pointerClass='SetOfTomograms',
-                      help='Select tomograms.')
+        form.addParam('inputTomos', PointerParam, label="Tomograms", pointerClass='SetOfTomograms',
+                      help='Select tomograms from which subtomograms come.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -93,7 +93,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 y.append(coord.getY())
                 z.append(coord.getZ())
 
-            [center, radii, evecs, v, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
+            [center, radii, evecs, v, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))  # TODO: Review func
             algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0' \
                       % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
             adjEllipsoid = Ellipsoid()
@@ -104,9 +104,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             print("Algebraic description of the ellipsoid: %s" % algDesc)
 
             fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
-                                           str(vesicleList.index(vesicle)) + '.txt')
+                                           self._getVesicleId(subtomo.getFileName()) + '.txt')
             fhVesicle = open(fnVesicle, 'w')
-            #  Compute more points in the ellipsoid and write them into a txt file
+            #  TODO: Compute more points in the ellipsoid and write them into a txt file
             fhVesicle.write('1,1,1,%d\n' % vesicleList.index(vesicle))
             fhVesicle.write('2,2,2,%d\n' % vesicleList.index(vesicle))
             #
