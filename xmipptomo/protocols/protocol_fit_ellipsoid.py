@@ -28,6 +28,8 @@
 
 from os import path, listdir
 import numpy as np
+import random
+import math
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
@@ -106,10 +108,27 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
                                            self._getVesicleId(subtomo.getFileName()) + '.txt')
             fhVesicle = open(fnVesicle, 'w')
-            #  TODO: Compute more points in the ellipsoid and write them into a txt file
-            fhVesicle.write('1,1,1,%d\n' % vesicleList.index(vesicle))
-            fhVesicle.write('2,2,2,%d\n' % vesicleList.index(vesicle))
-            #
+            radii = np.diag(radii)
+
+            print('--------floorx--------', center[0]-radii[0])
+            print('--------ceilx--------', center[0]+radii[0])
+            print('--------center--------', center)
+            print('--------radii-------MUST BE > 0!!!!----', radii)
+            print('--------floory--------', center[1]-radii[1])
+            print('--------ceily--------', center[1]+radii[1])
+
+            for xcoor in np.linspace((center[0]-radii[0]), (center[0]+radii[0])):  # Default num of samples = 50
+                ycoor = random.uniform((center[1]-radii[1]), (center[1]+radii[1]))
+                zcoor = np.sqrt((1 - (xcoor**2/radii[0]**2) - (ycoor**2/radii[1]**2)) * radii[2])
+                zcoorn = zcoor * (-1)  # write coors for +-z => num samples linspace * 2 = 100 now for each vesicle
+                fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoor, vesicleList.index(vesicle)))
+                fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoorn, vesicleList.index(vesicle)))
+
+                print('--------x--------', xcoor)
+                print('--------y--------', ycoor)
+                print('--------z--------', zcoor)
+                print('-------- -z -------', zcoorn)
+
             fhVesicle.close()
             data = np.loadtxt(fnVesicle, delimiter=',')
             groups = np.unique(data[:, 3]).astype(int)

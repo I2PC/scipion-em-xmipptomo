@@ -27,7 +27,7 @@
 # **************************************************************************
 
 from os import path
-from pyworkflow.protocol.params import PointerParam, BooleanParam
+from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, EnumParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
@@ -53,10 +53,15 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
         #               label='Remove particles in the top and bottom of the vesicle',
         #               help='Remove the particles that have been picked from the top and bottom parts because they '
         #                    'had a different view.')
+        # form.addParam('tilt', IntParam, default=60, label='Maximun allowed tilt',
+        #               help='Remove the particles that have been picked from the top and bottom with a tilt bigger
+        #               than the one specified in here.')
         # form.addParam('mwDir', BooleanParam, default=True,
         #               label='Remove particles in the missing wedge direction',
         #               help='Remove the particles that are in the missing wedge direction because they are highly '
         #                    'affected by the missing wedge.')
+        # form.addParam('mwDir', EnumParam, default=True, label='Missing wedge direction',
+        #               help='Missing wedge direction of the tomograms.')
         # form.addParam('normalDir', BooleanParam, default=True,
         #               label='Remove particles if they are not perpendicular to the membrane of the vesicle',
         #               help='Remove the particles that have a normal direction not equal to the normal direction of '
@@ -80,6 +85,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                     if self._getVesicleId(subtomo) == pathV[1]:
                         normSubtomo = self._getNormalSubtomo(subtomo)  # Compute subtomo normal
                         normVesicle = self._getNormalVesicle(mesh, subtomo)  # Compute vesicle normal
+                        # if self.normalDir:
                         if normSubtomo == normVesicle:
                             self.outSet.append(subtomo)  # If both normals are equal => subtomo in outSet
 
