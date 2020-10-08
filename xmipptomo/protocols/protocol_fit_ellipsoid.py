@@ -95,39 +95,24 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 y.append(coord.getY())
                 z.append(coord.getZ())
 
-            [center, radii, evecs, v, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))  # TODO: Review func
+            [center, radii, v, _, _] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
             algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0' \
                       % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
             adjEllipsoid = Ellipsoid()
             adjEllipsoid.setAlgebraicDesc(algDesc)
             adjEllipsoid.setCenter(str(center))
             adjEllipsoid.setRadii(str(radii))
-
-            print("Algebraic description of the ellipsoid: %s" % algDesc)
+            print(algDesc)
 
             fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
                                            self._getVesicleId(subtomo.getFileName()) + '.txt')
             fhVesicle = open(fnVesicle, 'w')
-            radii = np.diag(radii)
-
-            print('--------floorx--------', center[0]-radii[0])
-            print('--------ceilx--------', center[0]+radii[0])
-            print('--------center--------', center)
-            print('--------radii-------MUST BE > 0!!!!----', radii)
-            print('--------floory--------', center[1]-radii[1])
-            print('--------ceily--------', center[1]+radii[1])
-
             for xcoor in np.linspace((center[0]-radii[0]), (center[0]+radii[0])):  # Default num of samples = 50
                 ycoor = random.uniform((center[1]-radii[1]), (center[1]+radii[1]))
                 zcoor = np.sqrt((1 - (xcoor**2/radii[0]**2) - (ycoor**2/radii[1]**2)) * radii[2])
                 zcoorn = zcoor * (-1)  # write coors for +-z => num samples linspace * 2 = 100 now for each vesicle
                 fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoor, vesicleList.index(vesicle)))
                 fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoorn, vesicleList.index(vesicle)))
-
-                print('--------x--------', xcoor)
-                print('--------y--------', ycoor)
-                print('--------z--------', zcoor)
-                print('-------- -z -------', zcoorn)
 
             fhVesicle.close()
             data = np.loadtxt(fnVesicle, delimiter=',')
