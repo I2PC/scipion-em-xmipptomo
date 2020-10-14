@@ -35,6 +35,8 @@ from pyworkflow.gui.text import *
 from pyworkflow.protocol.params import (LabelParam, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER, WEB_DJANGO
 
+from tomo.viewers import TSMotionCorrectionViewer
+from xmipptomo.protocols import XmippProtTsFlexAlign
 from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo
 
 
@@ -42,7 +44,7 @@ class XmippCLTomoViewer(ProtocolViewer):
     """ Visualization of the CLTomo results. """
     _label = 'viewer cltomo'
     _targets = [XmippProtCLTomo]
-    _environments = [DESKTOP_TKINTER, WEB_DJANGO]
+    _environments = [DESKTOP_TKINTER]
 
     def _defineParams(self, form):
         form.addSection(label='Visualization')
@@ -86,3 +88,6 @@ class XmippCLTomoViewer(ProtocolViewer):
             self.errorList(errors, views)
 
         return views
+
+class XmippProtTsFlexAlignViewer(TSMotionCorrectionViewer):
+    _targets = [XmippProtTsFlexAlign]
