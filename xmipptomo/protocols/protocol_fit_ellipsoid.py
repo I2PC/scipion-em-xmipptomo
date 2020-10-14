@@ -156,6 +156,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions --------------------------------------------
     def _getVesicleId(self, subtomoName):
-        vesicleId = subtomoName.split('tid_')[1]
-        vesicleId = vesicleId.split('.')[0]
+        # vesicleId = subtomoName.split('tid_')[1]
+        # vesicleId = vesicleId.split('.')[0]
+        vesicleId = '1'
         return vesicleId
