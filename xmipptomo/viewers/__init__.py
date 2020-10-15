@@ -25,3 +25,4 @@
 # **************************************************************************
 
 from .viewer_cltomo import XmippCLTomoViewer
+from .viewer_phantoms import ViewerProtPhantoms
