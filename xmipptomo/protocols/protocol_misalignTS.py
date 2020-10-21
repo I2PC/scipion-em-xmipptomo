@@ -27,6 +27,7 @@
 import os
 import numpy as np
 import math
+import csv
 import pwem.objects as data
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -333,7 +334,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                 transformMat = ti.getTransform().getMatrix()
             else:
                 transformMat = np.identity(3)
-            newTransformMat = self.modifyTransformMatrix(transformMat, index, ts.getSize())
+            newTransformMat = self.modifyTransformMatrix(transformMat, index, ts.getSize(), tsId)
 
             newTransform = data.Transform()
             newTransform.setMatrix(newTransformMat)
@@ -355,7 +356,6 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
 
         extraPrefix = self._getExtraPath(tsId)
-        path.makePath(extraPrefix)
         outputTsFileName = os.path.join(extraPrefix, "%s_missAli.st" % tsId)
 
         """Apply the transformation form the input tilt-series"""
@@ -379,7 +379,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
-    def modifyTransformMatrix(self, transformMatrix, index, size):
+    def modifyTransformMatrix(self, transformMatrix, index, size, tsId):
         """Shift in X axis modifications"""
         if self.shiftXNoiseToggle.get() == 0:
             incrementShiftX = self.a0param.get() + \
@@ -422,6 +422,32 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             transformMatrix[0, 1] = - np.sin(newAngle)
             transformMatrix[1, 0] = np.sin(newAngle)
             transformMatrix[1, 1] = np.cos(newAngle)
+
+        fileName = "TM_" + tsId + ".xf"
+        extraPrefix = self._getExtraPath(tsId)
+        path.makePath(extraPrefix)
+        filePath = os.path.join(extraPrefix, fileName)
+
+        if 'incrementShiftX' not in locals():
+            incrementShiftX = 0
+        if 'incrementShiftY' not in locals():
+            incrementShiftY = 0
+        if 'incrementAngle' not in locals():
+            incrementAngle = 0
+
+        vector = [np.cos(math.radians(incrementAngle)),
+                  np.sin(math.radians(incrementAngle)),
+                  - np.sin(math.radians(incrementAngle)),
+                  np.cos(math.radians(incrementAngle)),
+                  incrementShiftX,
+                  incrementShiftY]
+
+        mode = "a" if os.path.exists(filePath) else "w"
+
+        with open(filePath, mode) as f:
+            writer = csv.writer(f, delimiter='\t')
+
+            writer.writerow(vector)
 
         return transformMatrix
 
