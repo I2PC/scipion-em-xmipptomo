@@ -79,7 +79,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 fn = list(fn)
                 fn[1] += ':mrc'
                 fn = tuple(fn)
-
+                subtomo.setFileName(fn[1])
             vol = Volume()
             vol.setLocation('%d@%s' % fn)
             vol = ih().read(vol.getLocation())
