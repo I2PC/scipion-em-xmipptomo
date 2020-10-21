@@ -29,7 +29,6 @@
 from os import path, listdir
 import numpy as np
 import random
-import math
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
@@ -63,68 +62,65 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
         inputSubtomos = self.inputSubtomos.get()
-        vesicleList = []
-        self.tomoList = []
-        vesicleIdList = []
-
-        # Split input particles by tomograms and by vesicles in each tomogram
-        for subtomo in inputSubtomos.iterItems():
-            tomoName = subtomo.getVolName()
-            subtomoName = subtomo.getFileName()
-            vesicleId = self._getVesicleId(subtomoName)
-            if tomoName not in self.tomoList:
-                self.tomoList.append(tomoName)
-            if vesicleId not in vesicleIdList:
-                vesicleIdList.append(vesicleId)
-                vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(path.basename(tomoName)) +
-                                                        '_vesicle_' + vesicleId)
-                vesicleList.append(vesicle)
-            idx = vesicleIdList.index(vesicleId)
-            vesicleList[idx].append(subtomo)
-
+        inputTomos = self.inputTomos.get()
         self.outSet = self._createSetOfMeshes(suffix='_allVesicles')
 
-        # For each vesicle:
-        for vesicle in vesicleList:
-            x = []
-            y = []
-            z = []
-            for subtomo in vesicle.iterItems():
-                coord = subtomo.getCoordinate3D()
-                x.append(coord.getX())
-                y.append(coord.getY())
-                z.append(coord.getZ())
+        for tomo in inputTomos.iterItems():
+            vesicleList = []
+            vesicleIdList = []
+            tomoName = path.basename(tomo.getFileName())
 
-            [center, radii, v, _, _] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
-            algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0' \
-                      % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
-            adjEllipsoid = Ellipsoid()
-            adjEllipsoid.setAlgebraicDesc(algDesc)
-            adjEllipsoid.setCenter(str(center))
-            adjEllipsoid.setRadii(str(radii))
-            print(algDesc)
+            # Split input particles by tomograms and by vesicles in each tomogram
+            for subtomo in inputSubtomos.iterItems():
+                if not tomoName == path.basename(subtomo.getVolName()):
+                    continue
+                vesicleId = self._getVesicleId(subtomo)
+                if vesicleId not in vesicleIdList:
+                    vesicleIdList.append(vesicleId)
+                    vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
+                                                            '_vesicle_' + vesicleId)
+                    vesicleList.append(vesicle)
+                idx = vesicleIdList.index(vesicleId)
+                vesicleList[idx].append(subtomo)
 
-            fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
-                                           self._getVesicleId(subtomo.getFileName()) + '.txt')
-            fhVesicle = open(fnVesicle, 'w')
-            for xcoor in np.linspace((center[0]-radii[0]), (center[0]+radii[0])):  # Default num of samples = 50
-                ycoor = random.uniform((center[1]-radii[1]), (center[1]+radii[1]))
-                zcoor = np.sqrt((1 - (xcoor**2/radii[0]**2) - (ycoor**2/radii[1]**2)) * radii[2])
-                zcoorn = zcoor * (-1)  # write coors for +-z => num samples linspace * 2 = 100 now for each vesicle
-                fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoor, vesicleList.index(vesicle)))
-                fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoorn, vesicleList.index(vesicle)))
+            # For each vesicle:
+            for vesicle in vesicleList:
+                x = []
+                y = []
+                z = []
+                for subtomo in vesicle.iterItems():
+                    coord = subtomo.getCoordinate3D()
+                    x.append(coord.getX())
+                    y.append(coord.getY())
+                    z.append(coord.getZ())
 
-            fhVesicle.close()
-            data = np.loadtxt(fnVesicle, delimiter=',')
-            groups = np.unique(data[:, 3]).astype(int)
-            for group in groups:
-                mesh = Mesh(group=group, path=fnVesicle)  # Group = vesicle in this case
-                mesh.setDescription(adjEllipsoid)
-                for tomo in self.inputTomos.get().iterItems():
-                    if pwutlis.removeBaseExt(fnVesicle[:-4].split('_vesicle')[0]) == \
-                            pwutlis.removeBaseExt(tomo.getFileName()):
-                        mesh.setVolume(tomo.clone())
-                self.outSet.append(mesh)
+                [center, radii, v, _, _] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
+                algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0' \
+                          % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
+                adjEllipsoid = Ellipsoid()
+                adjEllipsoid.setAlgebraicDesc(algDesc)
+                adjEllipsoid.setCenter(str(center))
+                adjEllipsoid.setRadii(str(radii))
+                print(algDesc)
+
+                fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
+                                               self._getVesicleId(subtomo) + '.txt')
+                fhVesicle = open(fnVesicle, 'w')
+                for xcoor in np.linspace((center[0]-radii[0]), (center[0]+radii[0])):  # Default num of samples = 50
+                    ycoor = random.uniform((center[1]-radii[1]), (center[1]+radii[1]))
+                    zcoor = np.sqrt((1 - (xcoor**2/radii[0]**2) - (ycoor**2/radii[1]**2)) * radii[2])
+                    zcoorn = zcoor * (-1)  # write coors for +-z => num samples linspace * 2 = 100 now for each vesicle
+                    fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoor, vesicleList.index(vesicle)))
+                    fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoorn, vesicleList.index(vesicle)))
+
+                fhVesicle.close()
+                data = np.loadtxt(fnVesicle, delimiter=',')
+                groups = np.unique(data[:, 3]).astype(int)
+                for group in groups:
+                    mesh = Mesh(group=group, path=fnVesicle)  # Group = vesicle in this case
+                    mesh.setDescription(adjEllipsoid)
+                    mesh.setVolume(tomo.clone())
+                    self.outSet.append(mesh)
 
     def createOutputStep(self):
         self.outSet.setVolumes(self.inputTomos.get())
@@ -155,8 +151,15 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 self.outputMeshes.getSize()]
 
     # --------------------------- UTILS functions --------------------------------------------
-    def _getVesicleId(self, subtomoName):
-        # vesicleId = subtomoName.split('tid_')[1]
-        # vesicleId = vesicleId.split('.')[0]
-        vesicleId = '1'
+    def _getVesicleId(self, subtomo):
+        if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):  # Particles from Pyseg
+            vesicleId = str(subtomo.getCoordinate3D()._vesicleId)
+        else:
+            # vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg
+
+            # just for testing
+            vesicleId = subtomo.getFileName()
+            vesicleId = vesicleId.split('Crop')[1]
+            vesicleId = vesicleId.split('/')[0]
+
         return vesicleId
