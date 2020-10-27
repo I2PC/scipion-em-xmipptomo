@@ -113,7 +113,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 for i, r1 in enumerate(result):
                     for j, r2 in enumerate(r1):
                         for k, r3 in enumerate(r2):
-                            if round(r3, 1) == 0.0:
+                            print(r3)
+                            if round(r3, 2) == 0.00:
+                                print(r3)
                                 fhVesicle.write('%f,%f,%f,%d\n' % (xgrid[i], ygrid[j], zgrid[k],
                                                                    vesicleList.index(vesicle)))
                 fhVesicle.close()
@@ -158,11 +160,12 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):  # Particles from Pyseg
             vesicleId = str(subtomo.getCoordinate3D()._vesicleId)
         else:
-            vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
+            # vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
             # just for testing
-            # vesicleId = subtomo.getFileName()
-            # vesicleId = vesicleId.split('Crop')[1]
-            # vesicleId = vesicleId.split('/')[0]
+            vesicleId = subtomo.getFileName()
+            vesicleId = vesicleId.split('Crop')[1]
+            vesicleId = vesicleId.split('/')[0]
+            print(vesicleId)
         return vesicleId
 
     def _evaluateQuadric(self, v, x, y, z):
