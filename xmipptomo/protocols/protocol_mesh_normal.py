@@ -27,10 +27,12 @@
 # **************************************************************************
 
 from os import path
+import numpy as np
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, EnumParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
+from tomo.utils import delaunayTriangulation, computeNormals
 
 
 class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
@@ -86,7 +88,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                         normSubtomo = self._getNormalSubtomo(subtomo)  # Compute subtomo normal
                         normVesicle = self._getNormalVesicle(mesh, subtomo)  # Compute vesicle normal
                         # if self.normalDir:
-                        if normSubtomo == normVesicle:
+                        if normSubtomo.all() == normVesicle.all():
                             self.outSet.append(subtomo)  # If both normals are equal => subtomo in outSet
 
     def createOutputStep(self):
@@ -145,10 +147,13 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
 
     def _getNormalSubtomo(self, subtomo):
         tfMatrix = subtomo.getTransform().getMatrix()
-        normSubtomo = 1  # TODO: Extract normal dir info from transform matrix!
+        normSubtomo = tfMatrix[2, :]
+        # normSubtomo = 1  # TODO: Extract normal dir info from transform matrix!
         return normSubtomo
 
     def _getNormalVesicle(self, mesh, subtomo):
         coord = subtomo.getCoordinate3D()
-        normVesicle = 1  # TODO: Compute normal dir in subtomo coord!
+        triangulation = delaunayTriangulation(mesh.getMesh())
+        normals = computeNormals(triangulation)
+        normVesicle = np.array([1, 1, 1])  # TODO: Compute normal dir in subtomo coord!
         return normVesicle

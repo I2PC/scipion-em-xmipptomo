@@ -28,13 +28,12 @@
 
 from os import path, listdir
 import numpy as np
-import random
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Mesh, Ellipsoid
-from xmipp3.utils import fit_ellipsoid
+from tomo.utils import fit_ellipsoid
 
 
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
@@ -63,7 +62,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     def fitEllipsoidStep(self):
         inputSubtomos = self.inputSubtomos.get()
         inputTomos = self.inputTomos.get()
-        self.outSet = self._createSetOfMeshes(suffix='_allVesicles')
+        self.outSet = self._createSetOfMeshes()
 
         for tomo in inputTomos.iterItems():
             vesicleList = []
@@ -95,24 +94,28 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                     z.append(coord.getZ())
 
                 [center, radii, v, _, _] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
-                algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f = 0' \
-                          % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
+                algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f ' \
+                          '= 0' % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
                 adjEllipsoid = Ellipsoid()
                 adjEllipsoid.setAlgebraicDesc(algDesc)
                 adjEllipsoid.setCenter(str(center))
                 adjEllipsoid.setRadii(str(radii))
-                print(algDesc)
+                # print(algDesc)
 
                 fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
                                                self._getVesicleId(subtomo) + '.txt')
                 fhVesicle = open(fnVesicle, 'w')
-                for xcoor in np.linspace((center[0]-radii[0]), (center[0]+radii[0])):  # Default num of samples = 50
-                    ycoor = random.uniform((center[1]-radii[1]), (center[1]+radii[1]))
-                    zcoor = np.sqrt((1 - (xcoor**2/radii[0]**2) - (ycoor**2/radii[1]**2)) * radii[2])
-                    zcoorn = zcoor * (-1)  # write coors for +-z => num samples linspace * 2 = 100 now for each vesicle
-                    fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoor, vesicleList.index(vesicle)))
-                    fhVesicle.write('%f,%f,%f,%d\n' % (xcoor, ycoor, zcoorn, vesicleList.index(vesicle)))
-
+                maxrad = max(abs(radii[0]), abs(radii[1]), abs(radii[2]))
+                xgrid = np.linspace((center[0]-maxrad), (center[0]+maxrad), 100)
+                ygrid = np.linspace((center[1]-maxrad), (center[1]+maxrad), 100)
+                zgrid = np.linspace((center[2]-maxrad), (center[2]+maxrad), 100)
+                result = self._evaluateQuadric(v, xgrid[:, None, None], ygrid[None, :, None], zgrid[None, None, :])
+                for i, r1 in enumerate(result):
+                    for j, r2 in enumerate(r1):
+                        for k, r3 in enumerate(r2):
+                            if round(r3, 1) == 0.0:
+                                fhVesicle.write('%f,%f,%f,%d\n' % (xgrid[i], ygrid[j], zgrid[k],
+                                                                   vesicleList.index(vesicle)))
                 fhVesicle.close()
                 data = np.loadtxt(fnVesicle, delimiter=',')
                 groups = np.unique(data[:, 3]).astype(int)
@@ -121,9 +124,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                     mesh.setDescription(adjEllipsoid)
                     mesh.setVolume(tomo.clone())
                     self.outSet.append(mesh)
+        self.outSet.setVolumes(inputTomos)
 
     def createOutputStep(self):
-        self.outSet.setVolumes(self.inputTomos.get())
         self._defineOutputs(outputMeshes=self.outSet)
         self._defineSourceRelation(self.inputTomos.get(), self.outSet)
 
@@ -155,11 +158,13 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):  # Particles from Pyseg
             vesicleId = str(subtomo.getCoordinate3D()._vesicleId)
         else:
-            # vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg
-
+            vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
             # just for testing
-            vesicleId = subtomo.getFileName()
-            vesicleId = vesicleId.split('Crop')[1]
-            vesicleId = vesicleId.split('/')[0]
-
+            # vesicleId = subtomo.getFileName()
+            # vesicleId = vesicleId.split('Crop')[1]
+            # vesicleId = vesicleId.split('/')[0]
         return vesicleId
+
+    def _evaluateQuadric(self, v, x, y, z):
+        return v[0]*x*x + v[1]*y*y + v[2]*z*z + 2*v[3]*x*y + 2*v[4]*x*z + 2*v[5]*y*z + 2*v[6]*x + 2*v[7]*y + 2*v[8]*z +\
+               v[9]
