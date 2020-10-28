@@ -123,6 +123,16 @@ class TestXmipptomoProtProjectZ(BaseTest):
                              "There was a problem with particles output")
         return proj
 
+    def _createRadAvgZ(self):
+        protImport = self._runPreviousProtocols()
+        proj = self.newProtocol(XmippProtSubtomoProject,
+                                input=protImport.outputSubTomograms,
+                                radAvg=True)
+        self.launchProtocol(proj)
+        self.assertIsNotNone(proj.outputParticles,
+                             "There was a problem with particles output")
+        return proj
+
     def test_top(self):
         projection = self._createProjZ()
         outputParticles = getattr(projection, 'outputParticles')
@@ -137,6 +147,12 @@ class TestXmipptomoProtProjectZ(BaseTest):
 
     def test_top_range(self):
         projection = self._createProjZ_range()
+        outputParticles = getattr(projection, 'outputParticles')
+        self.assertTrue(outputParticles)
+        return projection
+
+    def test_top_radAvg(self):
+        projection = self._createRadAvgZ()
         outputParticles = getattr(projection, 'outputParticles')
         self.assertTrue(outputParticles)
         return projection
