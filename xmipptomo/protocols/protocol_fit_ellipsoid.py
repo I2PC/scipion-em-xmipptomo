@@ -33,7 +33,7 @@ import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Mesh, Ellipsoid
-from tomo.utils import fit_ellipsoid
+from tomo.utils import fit_ellipsoid, generatePointCloud
 
 
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
@@ -68,6 +68,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             vesicleList = []
             vesicleIdList = []
             tomoName = path.basename(tomo.getFileName())
+            tomoDim = [float(d) for d in tomo.getDim()]
 
             # Split input particles by tomograms and by vesicles in each tomogram
             for subtomo in inputSubtomos.iterItems():
@@ -89,35 +90,31 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 z = []
                 for subtomo in vesicle.iterItems():
                     coord = subtomo.getCoordinate3D()
-                    x.append(coord.getX())
-                    y.append(coord.getY())
-                    z.append(coord.getZ())
+                    x.append(float(coord.getX())/tomoDim[0])
+                    y.append(float(coord.getY())/tomoDim[1])
+                    z.append(float(coord.getZ())/tomoDim[2])
 
-                [center, radii, v, _, _] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
+                [center, radii, v, _, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
                 algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f ' \
                           '= 0' % (v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9])
                 adjEllipsoid = Ellipsoid()
                 adjEllipsoid.setAlgebraicDesc(algDesc)
                 adjEllipsoid.setCenter(str(center))
                 adjEllipsoid.setRadii(str(radii))
-                # print(algDesc)
+                print(algDesc)
+                print('Chi2: ', chi2)
 
                 fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
                                                self._getVesicleId(subtomo) + '.txt')
+
+                pointCloud = generatePointCloud(v, tomo.getDim())
+                if not pointCloud:
+                    raise Exception("It does not seem like any output is produced!")
+
                 fhVesicle = open(fnVesicle, 'w')
-                maxrad = max(abs(radii[0]), abs(radii[1]), abs(radii[2]))
-                xgrid = np.linspace((center[0]-maxrad), (center[0]+maxrad), 100)
-                ygrid = np.linspace((center[1]-maxrad), (center[1]+maxrad), 100)
-                zgrid = np.linspace((center[2]-maxrad), (center[2]+maxrad), 100)
-                result = self._evaluateQuadric(v, xgrid[:, None, None], ygrid[None, :, None], zgrid[None, None, :])
-                for i, r1 in enumerate(result):
-                    for j, r2 in enumerate(r1):
-                        for k, r3 in enumerate(r2):
-                            print(r3)
-                            if round(r3, 2) == 0.00:
-                                print(r3)
-                                fhVesicle.write('%f,%f,%f,%d\n' % (xgrid[i], ygrid[j], zgrid[k],
-                                                                   vesicleList.index(vesicle)))
+                for point in pointCloud:
+                    fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], vesicleList.index(vesicle)))
+
                 fhVesicle.close()
                 data = np.loadtxt(fnVesicle, delimiter=',')
                 groups = np.unique(data[:, 3]).astype(int)
@@ -160,12 +157,11 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):  # Particles from Pyseg
             vesicleId = str(subtomo.getCoordinate3D()._vesicleId)
         else:
-            # vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
+            vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
             # just for testing
-            vesicleId = subtomo.getFileName()
-            vesicleId = vesicleId.split('Crop')[1]
-            vesicleId = vesicleId.split('/')[0]
-            print(vesicleId)
+            # vesicleId = subtomo.getFileName()
+            # vesicleId = vesicleId.split('Crop')[1]
+            # vesicleId = vesicleId.split('/')[0]
         return vesicleId
 
     def _evaluateQuadric(self, v, x, y, z):
