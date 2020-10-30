@@ -1,8 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:    Carlos Oscar Sorzano (coss@cnb.csic.es)
-# *             Tomas Majtner (tmajtner@cnb.csic.es)  -- streaming version
-# *             David Herreros Calero (dherreros@cnb.csic.es) -- Tomo version
+# * Authors:    David Herreros Calero (dherreros@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
