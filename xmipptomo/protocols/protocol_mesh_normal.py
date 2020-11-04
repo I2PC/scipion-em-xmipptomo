@@ -32,7 +32,7 @@ from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, Enu
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-from tomo.utils import delaunayTriangulation, computeNormals
+from tomo.utils import delaunayTriangulation, computeNormals, normalFromMatrix
 
 
 class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
@@ -82,14 +82,13 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
         for subtomo in self.inputSubtomos.get():
             # For each subtomo find its vesicle (mesh)
             for mesh in self.inputMeshes.get().iterItems():
+                normalsList = self._getNormalVesicleList(mesh)
                 pathV = pwutlis.removeBaseExt(path.basename(mesh.getPath())).split('_vesicle_')
                 if pwutlis.removeBaseExt(path.basename(subtomo.getVolName())) == pathV[0]:
                     if self._getVesicleId(subtomo) == pathV[1]:
-                        normSubtomo = self._getNormalSubtomo(subtomo)  # Compute subtomo normal
-                        normVesicle = self._getNormalVesicle(mesh, subtomo)  # Compute vesicle normal
-                        # if self.normalDir:
-                        if normSubtomo.all() == normVesicle.all():
-                            self.outSet.append(subtomo)  # If both normals are equal => subtomo in outSet
+                        normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo) # Find vesicle normal in subtomo coord
+                        if normSubtomo.all() == normVesicle.all():  # TODO: add margen?
+                            self.outSet.append(subtomo)
 
     def createOutputStep(self):
         self._defineOutputs(outputset=self.outSet)
@@ -143,17 +142,23 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
     def _getVesicleId(self, subtomo):
         vesicleId = subtomo.getFileName().split('tid_')[1]
         vesicleId = vesicleId.split('.')[0]
+        # vesicleId = 1
         return vesicleId
 
-    def _getNormalSubtomo(self, subtomo):
-        tfMatrix = subtomo.getTransform().getMatrix()
-        normSubtomo = tfMatrix[2, :]
-        # normSubtomo = 1  # TODO: Extract normal dir info from transform matrix!
-        return normSubtomo
-
-    def _getNormalVesicle(self, mesh, subtomo):
-        coord = subtomo.getCoordinate3D()
+    def _getNormalVesicleList(self, mesh):
         triangulation = delaunayTriangulation(mesh.getMesh())
-        normals = computeNormals(triangulation)
-        normVesicle = np.array([1, 1, 1])  # TODO: Compute normal dir in subtomo coord!
-        return normVesicle
+        normalsList = computeNormals(triangulation, associateCoords=True)
+        return normalsList
+
+    def _getNormalVesicle(self, normalsList, subtomo):
+        normSubtomo = normalFromMatrix(subtomo.getTransform().getMatrix())
+        coord = subtomo.getCoordinate3D()
+        coors = np.asarray([coord.getX(), coord.getY(), coord.getZ()])
+        points, normals = zip(*normalsList)
+        points = np.asarray(points)
+        idx = np.argmin(np.sum((points - coors) ** 2, axis=1))
+        # print('---coord---', coors)
+        # print('---point---', points[idx])
+        # print('---normalS---', normSubtomo)
+        # print('---normalV---', normals[idx])
+        return normSubtomo, normals[idx]
