@@ -38,7 +38,8 @@ from xmipp3.convert import (openMd, readPosCoordinates, rowToCoordinate,
                             rowFromMd)
 
 from tomo.protocols import ProtTomoPicking
-from tomo.utils import delaunayTriangulation, extractVesicles
+from tomo3D.utils import delaunayTriangulation
+from tomo.utils import extractVesicles
 
 
 class XmippProtScoreCoordinates(ProtTomoPicking):
