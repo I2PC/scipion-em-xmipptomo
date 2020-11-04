@@ -28,7 +28,7 @@
 
 from os import path
 import numpy as np
-from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, EnumParam
+from pyworkflow.protocol.params import PointerParam, FloatParam, LEVEL_ADVANCED, BooleanParam, IntParam, EnumParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
@@ -51,6 +51,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                       label='Subtomograms', help='SetOfSubtomograms to filter.')
         form.addParam('inputMeshes', PointerParam, label="Vesicles", pointerClass='SetOfMeshes',
                       help='Select the vesicles in which the subtomograms are.')
+        form.addParam('tol', FloatParam, default=0.1, label='Tolerance', expertLevel=LEVEL_ADVANCED,
+                      help='Tolerance for normal comparisson')
         # form.addParam('topBottom', BooleanParam, default=True,
         #               label='Remove particles in the top and bottom of the vesicle',
         #               help='Remove the particles that have been picked from the top and bottom parts because they '
@@ -78,8 +80,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
     def computeNormalStep(self):
         self.outSet = self._createSetOfSubTomograms()
         self.outSet.copyInfo(self.inputSubtomos.get())
-        eps = 0.1
-
+        tol = self.tol.get()
         for subtomo in self.inputSubtomos.get():
             for mesh in self.inputMeshes.get().iterItems():
                 pathV = pwutlis.removeBaseExt(path.basename(mesh.getPath())).split('_vesicle_')
@@ -87,8 +88,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                     if self._getVesicleId(subtomo) == pathV[1]:
                         normalsList = self._getNormalVesicleList(mesh)
                         normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo)
-                        if abs(normSubtomo[0]-normVesicle[0]) < eps and abs(normSubtomo[1]-normVesicle[1]) < eps \
-                                and abs(normSubtomo[2]-normVesicle[2]) < eps:
+                        if abs(normSubtomo[0]-normVesicle[0]) < tol and abs(normSubtomo[1]-normVesicle[1]) < tol \
+                                and abs(normSubtomo[2]-normVesicle[2]) < tol:
                             self.outSet.append(subtomo)
 
     def createOutputStep(self):
@@ -122,6 +123,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
             # summary.append("Filter criteria:\nTop/Bottom %s\nMW direction %s\nNormal direction %s" %
             #                (topBottom, mwDir, normalDir))
             summary.append("Remove particles in normal direction")
+            summary.append("Tolerance: %0.2f" % self.tol.get())
         return summary
 
     def _methods(self):
