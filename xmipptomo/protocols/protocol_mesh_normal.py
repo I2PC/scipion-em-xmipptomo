@@ -78,6 +78,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
     def computeNormalStep(self):
         self.outSet = self._createSetOfSubTomograms()
         self.outSet.copyInfo(self.inputSubtomos.get())
+        eps = 0.1
 
         for subtomo in self.inputSubtomos.get():
             for mesh in self.inputMeshes.get().iterItems():
@@ -86,7 +87,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                     if self._getVesicleId(subtomo) == pathV[1]:
                         normalsList = self._getNormalVesicleList(mesh)
                         normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo)
-                        if normSubtomo[0] == normVesicle[0] and normSubtomo[1] == normVesicle[1] and normSubtomo[2] == normVesicle[2]:
+                        if abs(normSubtomo[0]-normVesicle[0]) < eps and abs(normSubtomo[1]-normVesicle[1]) < eps \
+                                and abs(normSubtomo[2]-normVesicle[2]) < eps:
                             self.outSet.append(subtomo)
 
     def createOutputStep(self):
@@ -139,9 +141,11 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions --------------------------------------------
     def _getVesicleId(self, subtomo):
-        vesicleId = subtomo.getFileName().split('tid_')[1]
-        vesicleId = vesicleId.split('.')[0]
-        # vesicleId = 1
+        if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):
+            vesicleId = subtomo.getFileName().split('tid_')[1]
+            vesicleId = vesicleId.split('.')[0]
+        else:  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
+            vesicleId = 1
         return vesicleId
 
     def _getNormalVesicleList(self, mesh):
@@ -156,8 +160,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
         points, normals = zip(*normalsList)
         points = np.asarray(points)
         idx = np.argmin(np.sum((points - coors) ** 2, axis=1))
-        # print('---coord---', coors)
-        # print('---point---', points[idx])
-        # print('---normalS---', normSubtomo)
-        # print('---normalV---', normals[idx])
+        print('---coord---', coors)
+        print('---point---', points[idx])
+        print('---normalS---', normSubtomo)
+        print('---normalV---', normals[idx])
         return normSubtomo, normals[idx]
