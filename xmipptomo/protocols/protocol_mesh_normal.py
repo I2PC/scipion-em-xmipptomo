@@ -80,14 +80,13 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
         self.outSet.copyInfo(self.inputSubtomos.get())
 
         for subtomo in self.inputSubtomos.get():
-            # For each subtomo find its vesicle (mesh)
             for mesh in self.inputMeshes.get().iterItems():
-                normalsList = self._getNormalVesicleList(mesh)
                 pathV = pwutlis.removeBaseExt(path.basename(mesh.getPath())).split('_vesicle_')
                 if pwutlis.removeBaseExt(path.basename(subtomo.getVolName())) == pathV[0]:
                     if self._getVesicleId(subtomo) == pathV[1]:
-                        normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo) # Find vesicle normal in subtomo coord
-                        if normSubtomo.all() == normVesicle.all():  # TODO: add margen?
+                        normalsList = self._getNormalVesicleList(mesh)
+                        normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo)
+                        if normSubtomo[0] == normVesicle[0] and normSubtomo[1] == normVesicle[1] and normSubtomo[2] == normVesicle[2]:
                             self.outSet.append(subtomo)
 
     def createOutputStep(self):
