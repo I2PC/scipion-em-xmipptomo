@@ -78,7 +78,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 if vesicleId not in vesicleIdList:
                     vesicleIdList.append(vesicleId)
                     vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
-                                                            '_vesicle_' + vesicleId)
+                                                            '_vesicle_' + str(vesicleId))
                     vesicleList.append(vesicle)
                 idx = vesicleIdList.index(vesicleId)
                 vesicleList[idx].append(subtomo)
@@ -105,7 +105,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 print('Chi2: ', chi2)
 
                 fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
-                                               self._getVesicleId(subtomo) + '.txt')
+                                               str(self._getVesicleId(subtomo)) + '.txt')
 
                 pointCloud = generatePointCloud(v, tomo.getDim())
                 if not pointCloud:
@@ -154,8 +154,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions --------------------------------------------
     def _getVesicleId(self, subtomo):
-        if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):  # Particles from Pyseg
-            vesicleId = str(subtomo.getCoordinate3D()._vesicleId)
+        coor = subtomo.getCoordinate3D()
+        if coor.hasGroupId():  # Particles from Pyseg
+            vesicleId = coor.getGroupId()
         else:
             vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
             # just for testing

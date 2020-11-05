@@ -51,8 +51,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
                       label='Subtomograms', help='SetOfSubtomograms to filter.')
         form.addParam('inputMeshes', PointerParam, label="Vesicles", pointerClass='SetOfMeshes',
                       help='Select the vesicles in which the subtomograms are.')
-        form.addParam('tol', FloatParam, default=0.1, label='Tolerance', expertLevel=LEVEL_ADVANCED,
-                      help='Tolerance for normal comparisson')
+        form.addParam('tol', FloatParam, default=5, label='Tolerance in degrees', expertLevel=LEVEL_ADVANCED,
+                      help='Tolerance (in degrees) when comparing between particle and mesh normal directions.')
         # form.addParam('topBottom', BooleanParam, default=True,
         #               label='Remove particles in the top and bottom of the vesicle',
         #               help='Remove the particles that have been picked from the top and bottom parts because they '
@@ -80,12 +80,13 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
     def computeNormalStep(self):
         self.outSet = self._createSetOfSubTomograms()
         self.outSet.copyInfo(self.inputSubtomos.get())
-        tol = self.tol.get()
+        tol = self.tol.get()*np.pi/180
+        print('tol', tol)
         for subtomo in self.inputSubtomos.get():
             for mesh in self.inputMeshes.get().iterItems():
                 pathV = pwutlis.removeBaseExt(path.basename(mesh.getPath())).split('_vesicle_')
                 if pwutlis.removeBaseExt(path.basename(subtomo.getVolName())) == pathV[0]:
-                    if self._getVesicleId(subtomo) == pathV[1]:
+                    if str(self._getVesicleId(subtomo)) == pathV[1]:
                         normalsList = self._getNormalVesicleList(mesh)
                         normSubtomo, normVesicle = self._getNormalVesicle(normalsList, subtomo)
                         if abs(normSubtomo[0]-normVesicle[0]) < tol and abs(normSubtomo[1]-normVesicle[1]) < tol \
@@ -123,7 +124,7 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
             # summary.append("Filter criteria:\nTop/Bottom %s\nMW direction %s\nNormal direction %s" %
             #                (topBottom, mwDir, normalDir))
             summary.append("Remove particles in normal direction")
-            summary.append("Tolerance: %0.2f" % self.tol.get())
+            summary.append("Tolerance: %0.2fº" % self.tol.get())
         return summary
 
     def _methods(self):
@@ -143,9 +144,9 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions --------------------------------------------
     def _getVesicleId(self, subtomo):
-        if subtomo.getCoordinate3D().hasAttribute('_vesicleId'):
-            vesicleId = subtomo.getFileName().split('tid_')[1]
-            vesicleId = vesicleId.split('.')[0]
+        c = subtomo.getCoordinate3D()
+        if c.hasGroupId():
+            vesicleId = c.getGroupId()
         else:  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
             vesicleId = 1
         return vesicleId
@@ -162,8 +163,8 @@ class XmippProtFilterbyNormal(EMProtocol, ProtTomoBase):
         points, normals = zip(*normalsList)
         points = np.asarray(points)
         idx = np.argmin(np.sum((points - coors) ** 2, axis=1))
-        print('---coord---', coors)
-        print('---point---', points[idx])
-        print('---normalS---', normSubtomo)
-        print('---normalV---', normals[idx])
+        # print('---coord---', coors)
+        # print('---point---', points[idx])
+        # print('---normalS---', normSubtomo)
+        # print('---normalV---', normals[idx])
         return normSubtomo, normals[idx]
