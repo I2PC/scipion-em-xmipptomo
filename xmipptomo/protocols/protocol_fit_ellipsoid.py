@@ -155,14 +155,10 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     # --------------------------- UTILS functions --------------------------------------------
     def _getVesicleId(self, subtomo):
         coor = subtomo.getCoordinate3D()
-        if coor.hasGroupId():  # Particles from Pyseg
+        if coor.hasGroupId():
             vesicleId = coor.getGroupId()
         else:
             vesicleId = '1'  # For now it works with several vesicles in the same tomo just for Pyseg subtomos
-            # just for testing
-            # vesicleId = subtomo.getFileName()
-            # vesicleId = vesicleId.split('Crop')[1]
-            # vesicleId = vesicleId.split('/')[0]
         return vesicleId
 
     def _evaluateQuadric(self, v, x, y, z):
