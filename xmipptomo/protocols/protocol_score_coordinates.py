@@ -92,13 +92,21 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         self.scoreOutliers = {}
         # threshold = np.exp(-self.outliersThreshold.get())
         self.scoreOutliers = []
+        distribution = []
         for tomoName in self.tomoNames:
             for idv, vesicle in enumerate(self.tomo_vesicles[tomoName]['vesicles']):
                 tree = cKDTree(vesicle)
                 for idp, point in enumerate(vesicle):
-                    distance, _ = tree.query(point, k=2)
-                    self.scoreOutliers.append((self.tomo_vesicles[tomoName]['ids'][idv][idp],
-                                                         np.exp(-distance[1])))
+                    distance, _ = tree.query(point, k=10)
+                    median_1 = np.abs(distance[1:] - np.median(distance[1:]))
+                    median_2 = np.median(median_1)
+                    distribution.append(median_2)
+                    self.scoreOutliers.append([self.tomo_vesicles[tomoName]['ids'][idv][idp], 0])
+
+        distribution = np.asarray(distribution)
+        z_scores = (distribution - np.mean(distribution)) / np.std(distribution)
+        for idn in range(len(self.scoreOutliers)):
+            self.scoreOutliers[idn][1] = z_scores[idn]
 
     def detectCarbonCloseness(self, coordinates):
         self.scoreCarbon = {}
@@ -120,23 +128,23 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 if posMd.getValue(md.MDL_ENABLED, objId) == 0:
                     posMd.setValue(md.MDL_ENABLED, 1, objId)
                 coord = rowToCoordinate(rowFromMd(posMd, objId))
-                self.scoreCarbon.append((posMd.getValue(md.MDL_ITEM_ID, objId),
-                                         coord._xmipp_goodRegionScore.get()))
+                self.scoreCarbon.append([posMd.getValue(md.MDL_ITEM_ID, objId),
+                                         coord._xmipp_goodRegionScore.get()])
 
     def createOutputStep(self, coordinates):
         outSet = self._createSetOfCoordinates3D(coordinates)
         outSet.setPrecedents(coordinates.getPrecedents())
         outSet.setBoxSize(coordinates.getBoxSize())
         outSet.setSamplingRate(coordinates.getSamplingRate())
-        scoreCarbon = dict(self.scoreCarbon)
-        scoreOutliers = dict(self.scoreOutliers)
+        scoreCarbon = dict(self.scoreCarbon) if self.carbon.get() else None
+        scoreOutliers = dict(self.scoreOutliers) if self.outliers.get() else None
 
         for coord in coordinates.iterCoordinates():
             newCoord = coord.clone()
             newCoord.setBoxSize(outSet.getBoxSize())
             newCoord.setVolume(coord.getVolume())
-            scoreCoordOutlier = scoreOutliers[coord.getObjId()]
-            scoreCoordCarbon = scoreCarbon[coord.getObjId()]
+            scoreCoordOutlier = scoreOutliers[coord.getObjId()] if scoreOutliers else None
+            scoreCoordCarbon = scoreCarbon[coord.getObjId()] if scoreCarbon else None
             if self.filter.get():
                 if self.outliers.get() and self.outliersThreshold.get() <= scoreCoordOutlier:
                     newCoord.outlierScore = Float(scoreCoordOutlier)
