@@ -25,7 +25,7 @@
 # **************************************************************************
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam
+from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
 
@@ -46,10 +46,16 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
+        form.addParam('inputSetOfTiltSeries',
+                      PointerParam,
+                      pointerClass='SetOfTiltSeries',
+                      important=True,
+                      label='Input set of tilt-series',
+                      help='Select a set of tilt-series to be resized.')
+
         form.addParam('resizeOption',
                       EnumParam,
                       choices=['Sampling Rate', 'Dimensions', 'Factor', 'Pyramid'],
-                      condition='doResize',
                       default=self.RESIZE_SAMPLINGRATE,
                       label="Resize option",
                       isplay=EnumParam.DISPLAY_COMBO,
@@ -65,35 +71,35 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('resizeSamplingRate',
                       FloatParam,
                       default=1.0,
-                      condition='doResize and resizeOption==%d' % self.RESIZE_SAMPLINGRATE,
+                      condition='resizeOption==%d' % self.RESIZE_SAMPLINGRATE,
                       label='Resize sampling rate (Å/px)',
                       help='Set the new output sampling rate.')
 
         form.addParam('doFourier',
                       BooleanParam,
                       default=False,
-                      condition='doResize and resizeOption==%d' % self.RESIZE_DIMENSIONS,
+                      condition='resizeOption==%d' % self.RESIZE_DIMENSIONS,
                       label='Use fourier method to resize?',
                       help='If you set to *True*, the final dimensions must be lower than the original ones.')
 
         form.addParam('resizeDim',
                       IntParam,
                       default=0,
-                      condition='doResize and resizeOption==%d' % self.RESIZE_DIMENSIONS,
+                      condition='resizeOption==%d' % self.RESIZE_DIMENSIONS,
                       label='New image size (px)',
                       help='Size in pixels of the particle images <x> <y=x> <z=x>.')
 
         form.addParam('resizeFactor',
                       FloatParam,
                       default=0.5,
-                      condition='doResize and resizeOption==%d' % self.RESIZE_FACTOR,
+                      condition='resizeOption==%d' % self.RESIZE_FACTOR,
                       label='Resize factor',
                       help='New size is the old one x resize factor.')
 
         form.addParam('resizeLevel',
                       IntParam,
                       default=0,
-                      condition='doResize and resizeOption==%d' % self.RESIZE_PYRAMID,
+                      condition='resizeOption==%d' % self.RESIZE_PYRAMID,
                       label='Pyramid level',
                       help='Use positive value to expand and negative to reduce.')
 
@@ -103,3 +109,60 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
                            '(because there is no memory for the input and its Fourier tranform). This option '
                            'removes the antialiasing filter (meaning you will get aliased results), and performs '
                            'a bilinear interpolation (to avoid having to produce the B-spline coefficients).')
+
+    # --------------------------- INSERT steps functions ------------------------
+    def _insertAllSteps(self):
+
+        for ts in self.inputSetOfTiltSeries.get():
+            self._insertFunctionStep('resizeTiltSeries', ts.getObjId())
+
+        # args = protocol._resizeArgs()
+        # if protocol.samplingRate > protocol.samplingRateOld and not protocol.hugeFile:
+        #     protocol._insertFunctionStep("filterStep", isFirstStep, protocol._filterArgs())
+        # protocol._insertFunctionStep("resizeStep", isFirstStep, args)
+
+    # --------------------------- STEP functions --------------------------------
+    def resizeTiltSeries(self, tsObjId):
+        print(self._resizeCommonArgs(self))
+        args = self._resizeCommonArgs(self)
+        self.runJob("xmipp_image_resize", self._ioArgs(isFirstStep)+args)
+
+    # --------------------------- UTILS functions -------------------------------
+    def _ioArgs(self, ts):
+        return "-i %s -o %s --save_metadata_stack %s --keep_input_columns " % (self.inputFn, self.outputStk, self.outputMd)
+
+    @classmethod
+    def _resizeCommonArgs(cls, protocol):
+        samplingRate = protocol.inputSetOfTiltSeries.get().getSamplingRate()
+
+        if protocol.resizeOption == cls.RESIZE_SAMPLINGRATE:
+            newSamplingRate = protocol.resizeSamplingRate.get()
+            factor = samplingRate / newSamplingRate
+            args = " --factor %(factor)f"
+        elif protocol.resizeOption == cls.RESIZE_DIMENSIONS:
+            size = protocol.resizeDim.get()
+            dim = protocol._getSetSize()
+            factor = float(size) / float(dim)
+            newSamplingRate = samplingRate / factor
+
+            if protocol.doFourier and not protocol.hugeFile:
+                args = " --fourier %(size)d"
+            else:
+                args = " --dim %(size)d"
+        elif protocol.resizeOption == cls.RESIZE_FACTOR:
+            factor = protocol.resizeFactor.get()
+            newSamplingRate = samplingRate / factor
+            args = " --factor %(factor)f"
+        elif protocol.resizeOption == cls.RESIZE_PYRAMID:
+            level = protocol.resizeLevel.get()
+            factor = 2 ** level
+            newSamplingRate = samplingRate / factor
+            args = " --pyramid %(level)d"
+        if protocol.hugeFile:
+            args += " --interp linear"
+
+        protocol.samplingRate = newSamplingRate
+        protocol.samplingRateOld = samplingRate
+        protocol.factor = factor
+
+        return args % locals()
