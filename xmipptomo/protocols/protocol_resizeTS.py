@@ -44,6 +44,8 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
+        form.addSection(label='Input')
+
         form.addParam('resizeOption',
                       EnumParam,
                       choices=['Sampling Rate', 'Dimensions', 'Factor', 'Pyramid'],
