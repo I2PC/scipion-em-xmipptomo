@@ -28,6 +28,8 @@ from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
+import os
+import pyworkflow.utils.path as path
 
 
 class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
@@ -123,13 +125,24 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEP functions --------------------------------
     def resizeTiltSeries(self, tsObjId):
-        print(self._resizeCommonArgs(self))
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+
         args = self._resizeCommonArgs(self)
-        self.runJob("xmipp_image_resize", self._ioArgs(isFirstStep)+args)
+        self.runJob("xmipp_image_resize", self._ioArgs(ts)+args)
 
     # --------------------------- UTILS functions -------------------------------
     def _ioArgs(self, ts):
-        return "-i %s -o %s --save_metadata_stack %s --keep_input_columns " % (self.inputFn, self.outputStk, self.outputMd)
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+
+        path.makePath(extraPrefix)
+
+        inputTs = ts.getFirstItem().getFileName()
+        outputMd = os.path.join(extraPrefix, ts.getFirstItem().parseFileName(extension=".xmd"))
+        outputTs = os.path.join(extraPrefix, ts.getFirstItem().parseFileName())
+
+        return "-i %s -o %s --save_metadata_stack %s --keep_input_columns " % (inputTs, outputTs, outputMd)
 
     @classmethod
     def _resizeCommonArgs(cls, protocol):
