@@ -30,6 +30,8 @@ import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
 import os
 import pyworkflow.utils.path as path
+from pyworkflow.object import Set
+import tomo.objects as tomoObj
 
 
 class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
@@ -118,11 +120,6 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('resizeTiltSeries', ts.getObjId())
 
-        # args = protocol._resizeArgs()
-        # if protocol.samplingRate > protocol.samplingRateOld and not protocol.hugeFile:
-        #     protocol._insertFunctionStep("filterStep", isFirstStep, protocol._filterArgs())
-        # protocol._insertFunctionStep("resizeStep", isFirstStep, args)
-
     # --------------------------- STEP functions --------------------------------
     def resizeTiltSeries(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -130,7 +127,38 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         args = self._resizeCommonArgs(self)
         self.runJob("xmipp_image_resize", self._ioArgs(ts)+args)
 
+    def createOutputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+        extraPrefix = self._getExtraPath(tsId)
+
+        outputSetOfTiltSeries = self.getOutputSetOfTiltSeries()
+        newTs = tomoObj.TiltSeries(tsId=tsId)
+        newTs.copyInfo(ts)
+        outputSetOfTiltSeries.append(newTs)
+
+        for index, ti in enumerate(ts):
+            newTi = tomoObj.TiltImage()
+            newTi.copyInfo(ti, copyId=True)
+            newTi.setLocation(index + 1, os.path.join(extraPrefix, ts.getFirstItem().parseFileName()))
+
+            if ti.hasTransform():
+                newTi.setTransform(ti.getTransform())
+
+            newTs.append(newTi)
+
+        newTs.write(properties=False)
+
+        outputSetOfTiltSeries.update(newTs)
+        outputSetOfTiltSeries.write()
+
+        self._store()
+
     # --------------------------- UTILS functions -------------------------------
+    def getTsSize(self):
+        """ Get the X dimension of the tilt-series from the set """
+        return self.inputSetOfTiltSeries.get().getDim()[0]
+
     def _ioArgs(self, ts):
         tsId = ts.getTsId()
 
@@ -154,7 +182,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
             args = " --factor %(factor)f"
         elif protocol.resizeOption == cls.RESIZE_DIMENSIONS:
             size = protocol.resizeDim.get()
-            dim = protocol._getSetSize()
+            dim = protocol.getTsSize()
             factor = float(size) / float(dim)
             newSamplingRate = samplingRate / factor
 
@@ -179,3 +207,15 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         protocol.factor = factor
 
         return args % locals()
+
+    def getOutputSetOfTiltSeries(self):
+        if hasattr(self, "outputSetOfTiltSeries"):
+            self.outputSetOfTiltSeries.enableAppend()
+        else:
+            outputSetOfTiltSeries = self._createSetOfTiltSeries()
+            outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+            outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
+        return self.outputSetOfTiltSeries
