@@ -119,6 +119,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('resizeTiltSeries', ts.getObjId())
+            self._insertFunctionStep('createOutputStep', ts.getObjId())
 
     # --------------------------- STEP functions --------------------------------
     def resizeTiltSeries(self, tsObjId):
@@ -133,6 +134,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         extraPrefix = self._getExtraPath(tsId)
 
         outputSetOfTiltSeries = self.getOutputSetOfTiltSeries()
+
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
         outputSetOfTiltSeries.append(newTs)
