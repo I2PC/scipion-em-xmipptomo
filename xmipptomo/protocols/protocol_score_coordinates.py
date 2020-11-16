@@ -36,11 +36,11 @@ import pwem.emlib.metadata as md
 
 from xmipp3.convert import (openMd, readPosCoordinates, rowToCoordinate,
                             rowFromMd)
+from xmipp_base import createMetaDataFromPattern
 
 from tomo.protocols import ProtTomoPicking
 from tomo3D.utils import delaunayTriangulation
 from tomo.utils import extractVesicles, initDictVesicles
-
 
 class XmippProtScoreCoordinates(ProtTomoPicking):
     '''Scoring and (optional) filtering of coordinates based on different scoring
@@ -113,12 +113,15 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         self.scoreCarbon = []
         for idt, tomoName in enumerate(self.tomoNames):
             tomo = self.tomos[idt+1].clone()
-            projFile, dfactor = self.projectTomo(tomo)
-            coordList = self.generateCoordList(tomo, coordinates, dfactor)
+            projFile = self.projectTomo(tomo)
+            inputTomoPathMetadataFname = self._getTmpPath("inputTomo.xmd")
+            tomo_md = createMetaDataFromPattern(projFile)
+            tomo_md.write(inputTomoPathMetadataFname)
+            coordList = self.generateCoordList(tomo, coordinates)
             self.writeTomoCoordinates(tomo, coordList, self._getTomoPos(projFile))
             args = '-i %s -c %s -o %s -b %d' \
-                   % (projFile, self._getExtraPath('inputCoords'),
-                      self._getExtraPath('outputCoords'), coordinates.getBoxSize() // dfactor)
+                   % (inputTomoPathMetadataFname, self._getExtraPath('inputCoords'),
+                      self._getExtraPath('outputCoords'), coordinates.getBoxSize())
             self.runJob('xmipp_deep_micrograph_cleaner', args)
             baseName = pwutils.removeBaseExt(projFile)
             outFile = self._getExtraPath('outputCoords', baseName + ".pos")
@@ -167,7 +170,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
     # --------------------------- UTILS functions ----------------------
     def projectTomo(self, tomo):
-        dfactor = None
         outFile = pwutils.removeBaseExt(tomo.getFileName()) + '_projected.mrc'
         ih = ImageHandler()
         outProjection = ih.createImage()
@@ -175,13 +177,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         projection = np.sum(tomoData, axis=0)
         outProjection.setData(projection)
         ih.write(outProjection, self._getExtraPath(outFile))
-        bgDim = max(projection.shape)
-        if bgDim > 200:  # Mejor 500
-            dfactor = bgDim / 200
-            args = '-i %s --step %f --method fourier' % \
-                   (self._getExtraPath(outFile), dfactor)
-            self.runJob("xmipp_transform_downsample", args)
-        return self._getExtraPath(outFile), dfactor
+        return self._getExtraPath(outFile)
 
     def _getTomoPos(self, fileName):
         """ Return the corresponding .pos file for a given tomogram. """
@@ -213,19 +209,8 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
         f.close()
 
-    def generateCoordList(self, tomo, coordinates, dfactor):
-        if dfactor is not None:
-            coordList = []
-            for coord in coordinates.iterCoordinates(volume=tomo):
-                cloned_coord = coord.clone()
-                x, y, z = cloned_coord.getPosition()
-                cloned_coord.setPosition(x / dfactor,
-                                         y / dfactor,
-                                         z / dfactor)
-                coordList.append(cloned_coord)
-            return coordList
-        else:
-            return [coord.clone() for coord in coordinates.iterCoordinates(volume=tomo)]
+    def generateCoordList(self, tomo, coordinates):
+        return [coord.clone() for coord in coordinates.iterCoordinates(volume=tomo)]
 
     # --------------------------- INFO functions ----------------------
 
