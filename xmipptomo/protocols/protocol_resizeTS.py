@@ -32,6 +32,7 @@ import os
 import pyworkflow.utils.path as path
 from pyworkflow.object import Set
 import tomo.objects as tomoObj
+from pwem.emlib.image import ImageHandler
 
 
 class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
@@ -140,19 +141,25 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         newTs.copyInfo(ts)
         outputSetOfTiltSeries.append(newTs)
 
+        fileName = ts.getFirstItem().parseFileName()
+
         for index, ti in enumerate(ts):
             newTi = tomoObj.TiltImage()
             newTi.copyInfo(ti, copyId=True)
-            newTi.setLocation(index + 1, os.path.join(extraPrefix, ti.getFileName()))
+            newTi.setLocation(index + 1, os.path.join(extraPrefix, fileName))
 
             if ti.hasTransform():
                 newTi.setTransform(ti.getTransform())
 
             newTs.append(newTi)
 
+        ih = ImageHandler()
+        x, y, z, _ = ih.getDimensions(newTs.getFirstItem().getFileName())
+        newTs.setDim((x, y, z))
         newTs.write(properties=False)
 
         outputSetOfTiltSeries.update(newTs)
+        outputSetOfTiltSeries.updateDim()
         outputSetOfTiltSeries.write()
 
         self._store()
