@@ -106,7 +106,6 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
                 fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
                                                str(self._getVesicleId(subtomo)) + '.txt')
-
                 pointCloud = generatePointCloud(v, tomo.getDim())
                 if not pointCloud:
                     raise Exception("It does not seem like any output is produced!")
@@ -114,15 +113,11 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 fhVesicle = open(fnVesicle, 'w')
                 for point in pointCloud:
                     fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], vesicleList.index(vesicle)))
-
                 fhVesicle.close()
-                data = np.loadtxt(fnVesicle, delimiter=',')
-                groups = np.unique(data[:, 3]).astype(int)
-                for group in groups:
-                    mesh = Mesh(group=group, path=fnVesicle)  # Group = vesicle in this case
-                    mesh.setDescription(adjEllipsoid)
-                    mesh.setVolume(tomo.clone())
-                    self.outSet.append(mesh)
+                mesh = Mesh(group=1, path=fnVesicle)  # Group = vesicle in this case
+                mesh.setDescription(adjEllipsoid)
+                mesh.setVolume(tomo.clone())
+                self.outSet.append(mesh)
         self.outSet.setVolumes(inputTomos)
 
     def createOutputStep(self):
