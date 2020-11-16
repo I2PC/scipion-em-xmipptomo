@@ -130,6 +130,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
+
         tsId = ts.getTsId()
         extraPrefix = self._getExtraPath(tsId)
 
@@ -142,7 +143,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         for index, ti in enumerate(ts):
             newTi = tomoObj.TiltImage()
             newTi.copyInfo(ti, copyId=True)
-            newTi.setLocation(index + 1, os.path.join(extraPrefix, ts.getFirstItem().parseFileName()))
+            newTi.setLocation(index + 1, os.path.join(extraPrefix, ti.getFileName()))
 
             if ti.hasTransform():
                 newTi.setTransform(ti.getTransform())
