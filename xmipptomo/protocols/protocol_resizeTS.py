@@ -252,3 +252,14 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
             summary.append("Output classes not ready yet.")
         return summary
 
+    def _methods(self):
+        methods = []
+        if hasattr(self, 'outputSetOfTiltSeries'):
+            methods.append("%d tilt-series have been interpolated using the xmipp_image_resize program to a %d A/px "
+                           "target sampling rate.\n"
+                           % (self.outputSetOfTiltSeries.getSize(),
+                              self.outputSetOfTiltSeries.getSamplingRate()))
+        else:
+            methods.append("Output classes not ready yet.")
+        return methods
+
