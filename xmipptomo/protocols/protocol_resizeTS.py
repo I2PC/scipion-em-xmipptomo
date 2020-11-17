@@ -237,3 +237,18 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
             self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
         return self.outputSetOfTiltSeries
+
+    # --------------------------- INFO functions ----------------------------
+    def _summary(self):
+        summary = []
+        if hasattr(self, 'outputSetOfTiltSeries'):
+            summary.append("Input Tilt-Series: %d.\n"
+                           "Interpolations applied: %d.\n"
+                           "Target sampling rate: %d A/px.\n"
+                           % (self.inputSetOfTiltSeries.get().getSize(),
+                              self.outputSetOfTiltSeries.getSize(),
+                              self.outputSetOfTiltSeries.getSamplingRate()))
+        else:
+            summary.append("Output classes not ready yet.")
+        return summary
+
