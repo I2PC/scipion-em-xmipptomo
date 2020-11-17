@@ -141,6 +141,8 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         newTs.copyInfo(ts)
         outputSetOfTiltSeries.append(newTs)
 
+        newTs.setSamplingRate(self.samplingRate)
+
         fileName = ts.getFirstItem().parseFileName()
 
         for index, ti in enumerate(ts):
@@ -150,6 +152,8 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
             if ti.hasTransform():
                 newTi.setTransform(ti.getTransform())
+
+            newTi.setSamplingRate(self.samplingRate)
 
             newTs.append(newTi)
 
@@ -168,6 +172,9 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     def getTsSize(self):
         """ Get the X dimension of the tilt-series from the set """
         return self.inputSetOfTiltSeries.get().getDim()[0]
+
+    def getPixelSize(self):
+        pass
 
     def _ioArgs(self, ts):
         tsId = ts.getTsId()
@@ -225,6 +232,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
             outputSetOfTiltSeries = self._createSetOfTiltSeries()
             outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+            outputSetOfTiltSeries.setSamplingRate(self.samplingRate)
             outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
