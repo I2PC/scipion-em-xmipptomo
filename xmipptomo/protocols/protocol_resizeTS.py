@@ -244,7 +244,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         if hasattr(self, 'outputSetOfTiltSeries'):
             summary.append("Input Tilt-Series: %d.\n"
                            "Interpolations applied: %d.\n"
-                           "Target sampling rate: %d A/px.\n"
+                           "Target sampling rate: %.2f A/px.\n"
                            % (self.inputSetOfTiltSeries.get().getSize(),
                               self.outputSetOfTiltSeries.getSize(),
                               self.outputSetOfTiltSeries.getSamplingRate()))
@@ -255,7 +255,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     def _methods(self):
         methods = []
         if hasattr(self, 'outputSetOfTiltSeries'):
-            methods.append("%d tilt-series have been interpolated using the xmipp_image_resize program to a %d A/px "
+            methods.append("%d tilt-series have been interpolated using the xmipp_image_resize program to a %.2f A/px "
                            "target sampling rate.\n"
                            % (self.outputSetOfTiltSeries.getSize(),
                               self.outputSetOfTiltSeries.getSamplingRate()))
