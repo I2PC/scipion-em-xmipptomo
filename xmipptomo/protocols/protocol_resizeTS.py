@@ -121,6 +121,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         for ts in self.inputSetOfTiltSeries.get():
             self._insertFunctionStep('resizeTiltSeries', ts.getObjId())
             self._insertFunctionStep('createOutputStep', ts.getObjId())
+        self._insertFunctionStep('closeStreamStep')
 
     # --------------------------- STEP functions --------------------------------
     def resizeTiltSeries(self, tsObjId):
@@ -168,13 +169,13 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
         self._store()
 
+    def closeStreamStep(self):
+        self.getOutputSetOfTiltSeries().setStreamState(Set.STREAM_CLOSED)
+
     # --------------------------- UTILS functions -------------------------------
     def getTsSize(self):
         """ Get the X dimension of the tilt-series from the set """
         return self.inputSetOfTiltSeries.get().getDim()[0]
-
-    def getPixelSize(self):
-        pass
 
     def _ioArgs(self, ts):
         tsId = ts.getTsId()
