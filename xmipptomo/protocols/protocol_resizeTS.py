@@ -172,6 +172,8 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     def closeStreamStep(self):
         self.getOutputSetOfTiltSeries().setStreamState(Set.STREAM_CLOSED)
 
+        self._store()
+
     # --------------------------- UTILS functions -------------------------------
     def getTsSize(self):
         """ Get the X dimension of the tilt-series from the set """
