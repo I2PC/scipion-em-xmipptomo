@@ -37,3 +37,4 @@ from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
 from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
+from .protocol_resizeTS import XmippProtResizeTiltSeries
