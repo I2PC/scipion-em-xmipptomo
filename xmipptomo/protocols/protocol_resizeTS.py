@@ -127,8 +127,21 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     def resizeTiltSeries(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
 
+        tsId = ts.getTsId()
+        extraPrefix = self._getExtraPath(tsId)
+        path.makePath(extraPrefix)
+
         args = self._resizeCommonArgs(self)
-        self.runJob("xmipp_image_resize", self._ioArgs(ts)+args)
+
+        ih = ImageHandler()
+        x, y, z, _ = ih.getDimensions(ts.getFirstItem().getFileName())
+        ih.createEmptyImage(fnOut=os.path.join(extraPrefix, ts.getFirstItem().parseFileName()),
+                            xDim=int(x * self.factor),
+                            yDim=int(y * self.factor),
+                            nDim=1)
+
+        for ti in ts:
+            self.runJob("xmipp_image_resize", self._ioArgs(ti)+args)
 
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -179,18 +192,18 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
         """ Get the X dimension of the tilt-series from the set """
         return self.inputSetOfTiltSeries.get().getDim()[0]
 
-    def _ioArgs(self, ts):
-        tsId = ts.getTsId()
+    def _ioArgs(self, ti):
+        tsId = ti.getTsId()
 
         extraPrefix = self._getExtraPath(tsId)
 
-        path.makePath(extraPrefix)
+        tiIndex = ti.getLocation()[0]
+        tsPath = os.path.join(extraPrefix, ti.parseFileName())
 
-        inputTs = ts.getFirstItem().getFileName()
-        outputMd = os.path.join(extraPrefix, ts.getFirstItem().parseFileName(extension=".xmd"))
-        outputTs = os.path.join(extraPrefix, ts.getFirstItem().parseFileName())
+        inputTs = str(tiIndex) + ":mrcs@" + ti.getFileName()
+        outputTs = str(tiIndex) + "@" + tsPath
 
-        return "-i %s -o %s --save_metadata_stack %s --keep_input_columns " % (inputTs, outputTs, outputMd)
+        return "-i %s -o %s " % (inputTs, outputTs)
 
     @classmethod
     def _resizeCommonArgs(cls, protocol):
