@@ -63,11 +63,11 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                       label="Score outluiers?")
         form.addParam('outliersThreshold', params.FloatParam, default=0.8,
                       label="Outliers distance threshold", condition='outliers == True and filter == 1',
-                      help='Score value between 0 and 1')
+                      help='Z-Score value from 0 to infinite')
         form.addParam('carbon', params.BooleanParam, default=True,
                       label="Score carbon closeness?")
         form.addParam('carbonThreshold', params.FloatParam, default=0.8,
-                      label="Carbon distance threshold", condition='outliers == True and filter == 1',
+                      label="Carbon distance threshold", condition='carbon == True and filter == 1',
                       help='Score value between 0 and 1')
 
     # --------------------------- INSERT steps functions ----------------------
@@ -98,13 +98,14 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 tree = cKDTree(vesicle)
                 for idp, point in enumerate(vesicle):
                     distance, _ = tree.query(point, k=10)
-                    median_1 = np.abs(distance[1:] - np.median(distance[1:]))
-                    median_2 = np.median(median_1)
-                    distribution.append(median_2)
+                    distribution.append(np.mean(distance[1:]))
+                    # median_1 = np.abs(distance[1:] - np.mean(distance[1:]))
+                    # median_2 = np.mean(median_1)
+                    # distribution.append(median_2)
                     self.scoreOutliers.append([self.tomo_vesicles[tomoName]['ids'][idv][idp], 0])
 
         distribution = np.asarray(distribution)
-        z_scores = (distribution - np.mean(distribution)) / np.std(distribution)
+        z_scores = np.abs((distribution - np.mean(distribution)) / np.std(distribution))
         for idn in range(len(self.scoreOutliers)):
             self.scoreOutliers[idn][1] = z_scores[idn]
 
@@ -149,15 +150,23 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
             scoreCoordOutlier = scoreOutliers[coord.getObjId()] if scoreOutliers else None
             scoreCoordCarbon = scoreCarbon[coord.getObjId()] if scoreCarbon else None
             if self.filter.get():
-                if self.outliers.get() and self.outliersThreshold.get() <= scoreCoordOutlier:
-                    newCoord.outlierScore = Float(scoreCoordOutlier)
+                if self.outliers.get() and not self.carbon.get():
+                    if self.outliersThreshold.get() >= scoreCoordOutlier:
+                        newCoord.outlierScore = Float(scoreCoordOutlier)
+                        outSet.append(newCoord)
+                elif not self.outliers.get() and self.carbon.get():
+                    if self.carbonThreshold.get() <= scoreCoordCarbon:
+                        newCoord.carbonScore = Float(scoreCoordCarbon)
+                        outSet.append(newCoord)
+                elif self.outliers.get() and self.carbon.get():
+                    if self.outliersThreshold.get() >= scoreCoordOutlier and \
+                       self.carbonThreshold.get() <= scoreCoordCarbon:
+                        newCoord.outlierScore = Float(scoreCoordOutlier)
+                        newCoord.carbonScore = Float(scoreCoordCarbon)
+                        outSet.append(newCoord)
                 else:
-                    continue
-                if self.carbon.get() and self.carbonThreshold.get() <= scoreCoordCarbon:
-                    newCoord.carbonScore = Float(scoreCoordCarbon)
-                else:
-                    continue
-                outSet.append(newCoord)
+                    print("All scoring modes are disabled. Exting")
+                    break
             else:
                 if self.outliers.get():
                     newCoord.outlierScore = Float(scoreCoordOutlier)
