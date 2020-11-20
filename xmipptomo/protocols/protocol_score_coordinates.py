@@ -108,12 +108,14 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         z_scores = np.abs((distribution - np.mean(distribution)) / np.std(distribution))
         for idn in range(len(self.scoreOutliers)):
             self.scoreOutliers[idn][1] = z_scores[idn]
+            print('JAJAJAJAJAJAJAJAJAJAJAJAJAJAJA')
 
     def detectCarbonCloseness(self, coordinates):
-        self.scoreCarbon = {}
+        # self.scoreCarbon = {}
         self.scoreCarbon = []
-        for idt, tomoName in enumerate(self.tomoNames):
-            tomo = self.tomos[idt+1].clone()
+        for tomoName in self.tomoNames:
+            idt = self.tomo_vesicles[tomoName]["volId"]
+            tomo = self.tomos[idt].clone()
             projFile = self.projectTomo(tomo)
             inputTomoPathMetadataFname = self._getTmpPath("inputTomo.xmd")
             tomo_md = createMetaDataFromPattern(projFile)
@@ -134,6 +136,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 coord = rowToCoordinate(rowFromMd(posMd, objId))
                 self.scoreCarbon.append([posMd.getValue(md.MDL_ITEM_ID, objId),
                                          coord._xmipp_goodRegionScore.get()])
+            pwutils.cleanPath(projFile)
 
     def createOutputStep(self, coordinates):
         outSet = self._createSetOfCoordinates3D(coordinates)
