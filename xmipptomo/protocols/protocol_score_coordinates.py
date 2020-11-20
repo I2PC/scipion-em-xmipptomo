@@ -108,7 +108,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         z_scores = np.abs((distribution - np.mean(distribution)) / np.std(distribution))
         for idn in range(len(self.scoreOutliers)):
             self.scoreOutliers[idn][1] = z_scores[idn]
-            print('JAJAJAJAJAJAJAJAJAJAJAJAJAJAJA')
 
     def detectCarbonCloseness(self, coordinates):
         # self.scoreCarbon = {}
