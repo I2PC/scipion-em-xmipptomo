@@ -61,7 +61,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                             'filter out unwanted coordinates based on a threshold')
         form.addParam('outliers', params.BooleanParam, default=True,
                       label="Score outluiers?")
-        form.addParam('outliersThreshold', params.FloatParam, default=0.8,
+        form.addParam('outliersThreshold', params.FloatParam, default=1,
                       label="Outliers distance threshold", condition='outliers == True and filter == 1',
                       help='Z-Score value from 0 to infinite')
         form.addParam('carbon', params.BooleanParam, default=True,
