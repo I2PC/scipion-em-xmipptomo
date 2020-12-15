@@ -112,9 +112,9 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
                 fhVesicle = open(fnVesicle, 'w')
                 for point in pointCloud:
-                    fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], vesicleList.index(vesicle)))
+                    fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], self._getVesicleId(subtomo)))
                 fhVesicle.close()
-                mesh = Mesh(group=1, path=fnVesicle)  # Group = vesicle in this case
+                mesh = Mesh(group=self._getVesicleId(subtomo), path=fnVesicle)  # Group = vesicle in this case
                 mesh.setDescription(adjEllipsoid)
                 mesh.setVolume(tomo.clone())
                 self.outSet.append(mesh)
