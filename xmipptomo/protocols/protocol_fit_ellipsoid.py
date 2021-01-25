@@ -32,7 +32,7 @@ from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-from tomo.objects import Mesh, Ellipsoid
+from tomo.objects import MeshPoint, Ellipsoid
 from tomo.utils import fit_ellipsoid, generatePointCloud
 
 
@@ -114,11 +114,11 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 for point in pointCloud:
                     fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], self._getVesicleId(subtomo)))
                 fhVesicle.close()
-                mesh = Mesh(group=self._getVesicleId(subtomo), path=fnVesicle)  # Group = vesicle in this case
+                mesh = MeshPoint(group=self._getVesicleId(subtomo), path=fnVesicle)  # Group = vesicle in this case
                 mesh.setDescription(adjEllipsoid)
                 mesh.setVolume(tomo.clone())
                 self.outSet.append(mesh)
-        self.outSet.setVolumes(inputTomos)
+        self.outSet.setPrecedents(inputTomos)
 
     def createOutputStep(self):
         self._defineOutputs(outputMeshes=self.outSet)
