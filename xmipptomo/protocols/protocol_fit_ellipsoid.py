@@ -118,7 +118,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                     meshPoint.setGroupId(self._getVesicleId(subtomo))
                     meshPoint.setDescription(adjEllipsoid)
                     meshPoint.setVolume(tomo.clone())
-                    meshPoint.setVolName(tomo.getFileName())
+                    meshPoint.setVolName(path.basename(tomo.getFileName()))
                     self.outSet.append(meshPoint)
 
         self.outSet.setPrecedents(inputTomos)
