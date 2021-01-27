@@ -104,20 +104,29 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 print(algDesc)
                 print('Chi2: ', chi2)
 
-                fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
-                                               str(self._getVesicleId(subtomo)) + '.txt')
+                # fnVesicle = self._getExtraPath(path.basename(subtomo.getVolName()).split('.')[0] + '_vesicle_' +
+                #                                str(self._getVesicleId(subtomo)) + '.txt')
                 pointCloud = generatePointCloud(v, tomo.getDim())
                 if not pointCloud:
                     raise Exception("It does not seem like any output is produced!")
 
-                fhVesicle = open(fnVesicle, 'w')
+                # fhVesicle = open(fnVesicle, 'w')
                 for point in pointCloud:
-                    fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], self._getVesicleId(subtomo)))
-                fhVesicle.close()
-                mesh = MeshPoint(group=self._getVesicleId(subtomo), path=fnVesicle)  # Group = vesicle in this case
-                mesh.setDescription(adjEllipsoid)
-                mesh.setVolume(tomo.clone())
-                self.outSet.append(mesh)
+                    meshPoint = MeshPoint()
+                    meshPoint.setX(point[0])
+                    meshPoint.setY(point[1])
+                    meshPoint.setZ(point[2])
+                    meshPoint.setGroupId(self._getVesicleId(subtomo))
+                    meshPoint.setDescription(adjEllipsoid)
+                    meshPoint.setVolume(tomo.clone())
+                    self.outSet.append(meshPoint)
+                    # fhVesicle.write('%f,%f,%f,%d\n' % (point[0], point[1], point[2], self._getVesicleId(subtomo)))
+                # fhVesicle.close()
+
+                # mesh = MeshPoint(group=self._getVesicleId(subtomo), path=fnVesicle)  # Group = vesicle in this case
+                # mesh.setDescription(adjEllipsoid)
+                # mesh.setVolume(tomo.clone())
+                # self.outSet.append(mesh)
         self.outSet.setPrecedents(inputTomos)
 
     def createOutputStep(self):
@@ -140,7 +149,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         else:
             summary.append("%d subtomograms from %d tomograms\n%d vesicles adjusted" %
                            (self.inputSubtomos.get().getSize(), self.inputTomos.get().getSize(),
-                            self.outputMeshes.getSize()))
+                            self.outputMeshes.getSize()))  #TODO: add how many vesicles generated (looking at last groupID())
         return summary
 
     def _methods(self):
