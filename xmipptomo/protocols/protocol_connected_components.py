@@ -125,6 +125,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                     outputSet.setSamplingRate(inputCoors.getSamplingRate())
                     for id, coor3D in enumerate(coorSet.iterItems()):
                         if id in coorInd:
+                            coor3D.setGroupId(outputsetIndex)
                             outputSet.append(coor3D)
                     name = 'output3DCoordinates%s' % str(outputsetIndex)
                     args = {}
