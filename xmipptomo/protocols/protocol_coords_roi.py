@@ -74,20 +74,24 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         sel = self.selection.get()
         for ix, inputSetCoor in enumerate(self.inputCoordinates):
             perc = self._percentage(inputSetCoor)
-            for mesh in self.inputMeshes.get().iterItems():
-                if os.path.basename(inputSetCoor.get().getFirstItem().getVolName()) == os.path.basename(mesh.getVolume().getFileName()):
+            for meshPoint in self.inputMeshes.get():
+                if meshPoint.getVolume():
+                    tomoName = os.path.basename(meshPoint.getVolume().getFileName())
+                else:
+                    tomoName = meshPoint.getVolName()
+                if os.path.basename(inputSetCoor.get().getFirstItem().getVolName()) == tomoName:
                     if sel == 0:
                         i = 0
                     else:
                         outputSetList = []
                     for coorcc in inputSetCoor.get():
-                        for coormesh in mesh.getMesh():
-                            if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
-                                if sel == 0:
-                                    i += 1
-                                else:
-                                    outputSetList.append(coorcc.getObjId())
-                                break
+                        coormesh = meshPoint.getPosition()
+                        if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
+                            if sel == 0:
+                                i += 1
+                            else:
+                                outputSetList.append(coorcc.getObjId())
+                            break
                     if sel == 0:
                         if i >= perc:
                             outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
