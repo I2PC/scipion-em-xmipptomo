@@ -85,8 +85,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                     else:
                         outputSetList = []
                     for coorcc in inputSetCoor.get():
-                        coormesh = meshPoint.getPosition()
-                        if self._euclideanDistance(coorcc, coormesh) <= self.distance.get():
+                        if self._euclideanDistance(coorcc, meshPoint) <= self.distance.get():
                             if sel == 0:
                                 i += 1
                             else:
@@ -95,7 +94,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                     if sel == 0:
                         if i >= perc:
                             outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
-                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.copyInfo(inputSetCoor.get())
                             outputSet.copyItems(inputSetCoor.get())
                             outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
                             outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
@@ -109,7 +108,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                     else:
                         if len(outputSetList) != 0:
                             outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
-                            outputSet.copyInfo(inputSetCoor)
+                            outputSet.copyInfo(inputSetCoor.get())
                             outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
                             outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
                             for coor3D in inputSetCoor.get().iterItems():
@@ -149,4 +148,5 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         return (self.points.get()*inputSetCoor.get().getSize())/100
 
     def _euclideanDistance(self, coorcc, cm):
-        return np.sqrt((coorcc.getX() - int(cm[0])) + (coorcc.getY() - int(cm[1])) + (coorcc.getZ() - int(cm[2])))
+        return np.sqrt((coorcc.getX() - int(cm.getX())) + (coorcc.getY() - int(cm.getY())) + (coorcc.getZ() -
+                                                                                              int(cm.getZ())))
