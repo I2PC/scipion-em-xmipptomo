@@ -39,7 +39,6 @@ from xmipp3.convert import (openMd, readPosCoordinates, rowToCoordinate,
 from xmipp_base import createMetaDataFromPattern
 
 from tomo.protocols import ProtTomoPicking
-from tomo3D.utils import delaunayTriangulation
 from tomo.utils import extractVesicles, initDictVesicles
 
 class XmippProtScoreCoordinates(ProtTomoPicking):
@@ -63,12 +62,14 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                       label="Score outluiers?")
         form.addParam('outliersThreshold', params.FloatParam, default=1,
                       label="Outliers distance threshold", condition='outliers == True and filter == 1',
-                      help='Z-Score value from 0 to infinite')
+                      help='Z-Score value from 0 to infinite. Only coordinates with a Z-Score smaller than '
+                           'or equal to the threshold will be kept in the output')
         form.addParam('carbon', params.BooleanParam, default=True,
                       label="Score carbon closeness?")
         form.addParam('carbonThreshold', params.FloatParam, default=0.8,
                       label="Carbon distance threshold", condition='carbon == True and filter == 1',
-                      help='Score value between 0 and 1')
+                      help='Score value between 0 and 1. Only coordinates with a score largen than or equal '
+                           'to the tresghold will be kept in the output')
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
@@ -90,7 +91,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
     def detectOutliers(self):
         self.scoreOutliers = {}
-        # threshold = np.exp(-self.outliersThreshold.get())
         self.scoreOutliers = []
         distribution = []
         for tomoName in self.tomoNames:
@@ -99,9 +99,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 for idp, point in enumerate(vesicle):
                     distance, _ = tree.query(point, k=10)
                     distribution.append(np.mean(distance[1:]))
-                    # median_1 = np.abs(distance[1:] - np.mean(distance[1:]))
-                    # median_2 = np.mean(median_1)
-                    # distribution.append(median_2)
                     self.scoreOutliers.append([self.tomo_vesicles[tomoName]['ids'][idv][idp], 0])
 
         distribution = np.asarray(distribution)
@@ -110,7 +107,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
             self.scoreOutliers[idn][1] = z_scores[idn]
 
     def detectCarbonCloseness(self, coordinates):
-        # self.scoreCarbon = {}
         self.scoreCarbon = []
         for tomoName in self.tomoNames:
             idt = self.tomo_vesicles[tomoName]["volId"]
@@ -224,4 +220,33 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         return [coord.clone() for coord in coordinates.iterCoordinates(volume=tomo)]
 
     # --------------------------- INFO functions ----------------------
+    def _methods(self):
+        methodsMsgs = []
+        if self.filter.get() == 0:
+            methodsMsgs.append("*Operation mode*: score")
+            filter = False
+        else:
+            methodsMsgs.append("*Operation mode*: filter")
+            filter = True
+        if self.outliers.get():
+            methodsMsgs.append("*Score Outliers*: True")
+            if filter:
+                methodsMsgs.append("    * Outlier threshold: %.2f" % self.outliersThreshold.get())
+        else:
+            methodsMsgs.append("*Score Outliers*: False")
+        if self.carbon.get():
+            methodsMsgs.append("*Score Carbon Closeness*: True")
+            if filter:
+                methodsMsgs.append("    * Carbon threshold: %.2f" % self.carbonThreshold.get())
+        else:
+            methodsMsgs.append("*Score Carbon Closeness*: False")
+        return methodsMsgs
 
+    def _summary(self):
+        summary = []
+        if self.getOutputsSize() >= 1:
+            summary.append("Output *%s*:" % self.outputCoordinates.getNameId().split('.')[1])
+            summary.append("    * Number of coordinates kept: *%s*" % self.outputCoordinates.getSize())
+        else:
+            summary.append("Output coordinates not ready yet.")
+        return summary
