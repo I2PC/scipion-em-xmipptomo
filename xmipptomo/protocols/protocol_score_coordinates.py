@@ -44,7 +44,7 @@ from tomo.utils import extractVesicles, initDictVesicles
 
 class XmippProtScoreCoordinates(ProtTomoPicking):
     '''Scoring and (optional) filtering of coordinates based on different scoring
-    functions (normals angle, carbon distance, neighbour distance)'''
+    functions (carbon distance, neighbour distance)'''
 
     _label = 'score/filter coordinates'
 
@@ -57,7 +57,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
         form.addParam('filter', params.EnumParam, choices=['score', 'filter'],
                        default=0, display=params.EnumParam.DISPLAY_HLIST,
                        label='Operation mode',
-                       help='Deterimen wheter to retrieve all the coordinates scored or to '
+                       help='Determine whether to retrieve all the coordinates scored or to '
                             'filter out unwanted coordinates based on a threshold')
         form.addParam('outliers', params.BooleanParam, default=True,
                       label="Score outluiers?")
