@@ -32,7 +32,7 @@ from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-from tomo.objects import MeshPoint, Ellipsoid, SubTomogram, Coordinate3D, SetOfSubTomograms
+from tomo.objects import MeshPoint, Ellipsoid, SubTomogram, Coordinate3D, SetOfSubTomograms, SetOfCoordinates3D
 from tomo.utils import fit_ellipsoid, generatePointCloud
 
 
@@ -73,21 +73,14 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
             tomoName = path.basename(tomo.getFileName())
             tomoDim = [float(d) for d in tomo.getDim()]
 
-            # Split input particles/coordinates by tomograms and by vesicles in each tomogram
-            # for item in input.iterItems():
             for item in input.iterItems():
                 if not tomoName == path.basename(item.getVolName()):
                     continue
                 vesicleId = self._getVesicleId(item)
                 if vesicleId not in vesicleIdList:
                     vesicleIdList.append(vesicleId)
-
-                    if isinstance(item, SubTomogram):
-                        vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
-                                                                '_vesicle_' + str(vesicleId))
-                    else:
-                        vesicle = self._createSetOfCoordinates3D(inputTomos, '_' + pwutlis.removeBaseExt(tomoName) +
-                                                                 '_vesicle_' + str(vesicleId))
+                    vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
+                                                            '_vesicle_' + str(vesicleId))
                     vesicleList.append(vesicle)
                 idx = vesicleIdList.index(vesicleId)
                 vesicleList[idx].append(item)
