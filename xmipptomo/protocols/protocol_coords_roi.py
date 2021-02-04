@@ -32,6 +32,7 @@ import numpy as np
 from pyworkflow.object import Set
 from pyworkflow.protocol.params import MultiPointerParam, IntParam, PointerParam, EnumParam
 from pwem.protocols import EMProtocol
+from tomo.objects import Coordinate3D
 from tomo.protocols import ProtTomoBase
 
 
@@ -72,38 +73,57 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
         inputSetCoor = self.inputCoordinates.get()
+        inputSetMeshes = self.inputMeshes.get()
 
         # group connected components by groupId
         listOfCCs = []
         listOfgroupIdCCs = []
-        for coor in inputSetCoor.iterCoordinates(volume=None):
+        for coor in inputSetCoor.iterCoordinates():
             tomoNameC = coor.getVolName()
-            tupleC = (coor.getGroupId(), tomoNameC)
+            groupIdC = coor.getGroupId()
+            tupleC = (groupIdC, tomoNameC)
             if tupleC not in listOfgroupIdCCs:
                 listOfgroupIdCCs.append(tupleC)
-                listOfCCs.append([])
+                listOfCCs.append(self._createSetOfCoordinates3D(inputSetCoor.getPrecedents(), groupIdC))
             coorLoc = listOfCCs[listOfgroupIdCCs.index(tupleC)]
             if not coorLoc:
                 coorLoc.append(coor)
             else:
-                if coorLoc[0].getVolName() == tomoNameC:
+                if coorLoc.getFirstItem().getVolName() == tomoNameC:
                     coorLoc.append(coor)
 
         # group meshes by groupId and tomoName
         listOfMeshes = []
         listOfgroupIdMeshes = []
-        for meshPoint in self.inputMeshes.get().iterCoordinates(volume=None):
+        for meshPoint in inputSetMeshes.iterCoordinates():
             tomoNameM = meshPoint.getVolName()
-            tupleM = (meshPoint.getGroupId(), tomoNameM)
+            groupIdM = meshPoint.getGroupId()
+            tupleM = (groupIdM, tomoNameM)
             if tupleM not in listOfgroupIdMeshes:
                 listOfgroupIdMeshes.append(tupleM)
-                listOfMeshes.append([])
+                listOfMeshes.append(self._createSetOfMeshes(inputSetMeshes.getPrecedents(), groupIdM))
             meshPointLoc = listOfMeshes[listOfgroupIdMeshes.index(tupleM)]
             if not meshPointLoc:
                 meshPointLoc.append(meshPoint)
             else:
-                if meshPointLoc[0].getVolName() == tomoNameM:
+                if meshPointLoc.getFirstItem().getVolName() == tomoNameM:
                     meshPointLoc.append(meshPoint)
+
+        # print('------------listOfgroupIdCCs----------', listOfgroupIdCCs)
+        # print('------------listOfCCs----------', len(listOfCCs[0]))
+        # print('------------listOfCCs----------', len(listOfCCs[1]))
+        # print('------------listOfCCs----------', len(listOfCCs[2]))
+        # print('------------listOfCCs----------', len(listOfCCs[3]))
+        # print('------------listOfCCs----------', len(listOfCCs[4]))
+        # print('------------listOfCCs----------', len(listOfCCs[5]))
+        # print('------------listOfCCs----------', len(listOfCCs[6]))
+        #
+        # print('------------listOfgroupIdMeshes----------', listOfgroupIdMeshes)
+        # print('------------listOfMeshes----------', len(listOfMeshes[0]))
+        # print('------------listOfMeshes----------', len(listOfMeshes[1]))
+        # print('------------listOfMeshes----------', len(listOfMeshes[2]))
+        # print('------------listOfMeshes----------', len(listOfMeshes[3]))
+        # print('------------listOfMeshes----------', len(listOfMeshes[4]))
 
         # compare all connected components with all meshes
         sel = self.selection.get()
@@ -113,11 +133,10 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         self.outputSet.setSamplingRate(inputSetCoor.getSamplingRate())
 
         for cc in listOfCCs:
+            print('------------cc----------', cc.getFirstItem().getVolName())  # volName cc OK
             for mesh in listOfMeshes:
-                print('------------cc----------', os.path.basename(cc[0].getVolName()))
-                print('------------mesh----------', os.path.basename(mesh[0].getVolName()))
-
-                if os.path.basename(cc[0].getVolName()) == os.path.basename(mesh[0].getVolName()):
+                print('------------mesh----------', mesh.getFirstItem().getVolName())  # volName meshes now OK
+                if os.path.basename(cc.getFirstItem().getVolName()) == os.path.basename(mesh.getFirstItem().getVolName()):
                     if sel == 0:
                         i = 0
                     else:
@@ -140,7 +159,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                         if len(outputSetList) != 0:
                             for coor3D in inputSetCoor.iterItems():
                                 if coor3D.getObjId() in outputSetList:
-                                    self.outputSet.append(coor3D)
+                                    self.outputSet.append(coor3D)  # sqlite3.IntegrityError: UNIQUE constraint failed: Objects.id
 
 
     def createOutputStep(self):
