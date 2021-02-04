@@ -44,8 +44,8 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input coordinates')
-        form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
+        form.addSection(label='Coordinates')
+        form.addParam('inputCoordinates', PointerParam, label="Coordinates",
                       pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
         form.addParam('distance', FloatParam, label='Distance', help='Maximum radial distance (in voxels) between '
                                                                       'particles to consider that they are in the same '
@@ -124,6 +124,8 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                         if id in coorInd:
                             coor3D.setGroupId(outputsetIndex)
                             self.outputSet.append(coor3D)
+
+        print('Connected components found: %d' % outputsetIndex)
 
     def createOutputStep(self):
         self._defineOutputs(outputSetOfCoordinates3D=self.outputSet)
