@@ -46,11 +46,11 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input coordinates')
-        form.addParam('inputCoordinates', MultiPointerParam, label="Input connected components",
-                      pointerClass='SetOfCoordinates3D', help='Select the Connected components.')
-        form.addParam('inputMeshes', PointerParam, label="Input ROIs",
-                      pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest)')
+        form.addSection(label='Input')
+        form.addParam('inputCoordinates', PointerParam, label="Connected components",
+                      pointerClass='SetOfCoordinates3D', help='Select the Connected components (SetOfCoordinates3D).')
+        form.addParam('inputMeshes', PointerParam, label="ROIs",
+                      pointerClass='SetOfMeshes', help='Select the ROIs (Regions Of Interest) they are SetOfMeshes')
         form.addParam('selection', EnumParam, choices=['Connected component', 'Points'], default=0, label='Selection',
                       display=EnumParam.DISPLAY_HLIST,
                       help='Selection options:\n*Connected component*: It takes the whole connected component (cc) if '
@@ -71,73 +71,98 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def computeDistances(self):
+        inputSetCoor = self.inputCoordinates.get()
+
+        # group connected components by groupId
+        listOfCCs = []
+        listOfgroupIdCCs = []
+        for coor in inputSetCoor.iterCoordinates(volume=None):
+            tomoNameC = coor.getVolName()
+            tupleC = (coor.getGroupId(), tomoNameC)
+            if tupleC not in listOfgroupIdCCs:
+                listOfgroupIdCCs.append(tupleC)
+                listOfCCs.append([])
+            coorLoc = listOfCCs[listOfgroupIdCCs.index(tupleC)]
+            if not coorLoc:
+                coorLoc.append(coor)
+            else:
+                if coorLoc[0].getVolName() == tomoNameC:
+                    coorLoc.append(coor)
+
+        # group meshes by groupId and tomoName
+        listOfMeshes = []
+        listOfgroupIdMeshes = []
+        for meshPoint in self.inputMeshes.get().iterCoordinates(volume=None):
+            tomoNameM = meshPoint.getVolName()
+            tupleM = (meshPoint.getGroupId(), tomoNameM)
+            if tupleM not in listOfgroupIdMeshes:
+                listOfgroupIdMeshes.append(tupleM)
+                listOfMeshes.append([])
+            meshPointLoc = listOfMeshes[listOfgroupIdMeshes.index(tupleM)]
+            if not meshPointLoc:
+                meshPointLoc.append(meshPoint)
+            else:
+                if meshPointLoc[0].getVolName() == tomoNameM:
+                    meshPointLoc.append(meshPoint)
+
+        # compare all connected components with all meshes
         sel = self.selection.get()
-        for ix, inputSetCoor in enumerate(self.inputCoordinates):
-            perc = self._percentage(inputSetCoor)
-            for meshPoint in self.inputMeshes.get():
-                if meshPoint.getVolume():
-                    tomoName = os.path.basename(meshPoint.getVolume().getFileName())
-                else:
-                    tomoName = meshPoint.getVolName()
-                if os.path.basename(inputSetCoor.get().getFirstItem().getVolName()) == tomoName:
+        self.outputSet = self._createSetOfCoordinates3D(inputSetCoor.getPrecedents())
+        self.outputSet.copyInfo(inputSetCoor)
+        self.outputSet.setBoxSize(inputSetCoor.getBoxSize())
+        self.outputSet.setSamplingRate(inputSetCoor.getSamplingRate())
+
+        for cc in listOfCCs:
+            for mesh in listOfMeshes:
+                print('------------cc----------', os.path.basename(cc[0].getVolName()))
+                print('------------mesh----------', os.path.basename(mesh[0].getVolName()))
+
+                if os.path.basename(cc[0].getVolName()) == os.path.basename(mesh[0].getVolName()):
                     if sel == 0:
                         i = 0
                     else:
                         outputSetList = []
-                    for coorcc in inputSetCoor.get():
-                        if self._euclideanDistance(coorcc, meshPoint) <= self.distance.get():
-                            if sel == 0:
-                                i += 1
-                            else:
-                                outputSetList.append(coorcc.getObjId())
-                            break
+                    for coorcc in cc:
+                        for meshPoint in mesh:
+                            if self._euclideanDistance(coorcc, meshPoint) <= self.distance.get():
+                                if sel == 0:
+                                    i += 1
+                                else:
+                                    outputSetList.append(coorcc.getObjId())
+                                break
+
                     if sel == 0:
+                        perc = self._percentage(cc)
                         if i >= perc:
-                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
-                            outputSet.copyInfo(inputSetCoor.get())
-                            outputSet.copyItems(inputSetCoor.get())
-                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
-                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
-                            name = 'output3DCoordinates%s' % str(ix+1)
-                            args = {}
-                            args[name] = outputSet
-                            outputSet.setStreamState(Set.STREAM_OPEN)
-                            self._defineOutputs(**args)
-                            self._defineSourceRelation(inputSetCoor, outputSet)
+                            self.outputSet.copyItems(inputSetCoor, updateItemCallback=self._ifGroupId(coorcc))
 
                     else:
                         if len(outputSetList) != 0:
-                            outputSet = self._createSetOfCoordinates3D(inputSetCoor.get().getPrecedents(), ix + 1)
-                            outputSet.copyInfo(inputSetCoor.get())
-                            outputSet.setBoxSize(inputSetCoor.get().getBoxSize())
-                            outputSet.setSamplingRate(inputSetCoor.get().getSamplingRate())
-                            for coor3D in inputSetCoor.get().iterItems():
+                            for coor3D in inputSetCoor.iterItems():
                                 if coor3D.getObjId() in outputSetList:
-                                    outputSet.append(coor3D)
-                            name = 'output3DCoordinates%s' % str(ix + 1)
-                            args = {}
-                            args[name] = outputSet
-                            outputSet.setStreamState(Set.STREAM_OPEN)
-                            self._defineOutputs(**args)
-                            self._defineSourceRelation(inputSetCoor, outputSet)
+                                    self.outputSet.append(coor3D)
+
 
     def createOutputStep(self):
-        for outputset in self._iterOutputsNew():
-            outputset[1].setStreamState(Set.STREAM_CLOSED)
-        self._store()
+        self._defineOutputs(outputSet=self.outputSet)
+        self._defineSourceRelation(self.inputCoordinates, self.outputSet)
 
     # --------------------------- INFO functions --------------------------------
     def _summary(self):
         summary = []
         if self.selection.get() == 0:
             summary.append("Percentage of coordinates in ROI: %d" % self.points.get())
-        summary.append("Max distance to ROI: %d\nConnected components in ROIs: %d"
-                       % (self.distance.get(), len(self._outputs)))
+        if self.selection.get() == 0:
+            sel = 'complete connected components'
+        else:
+            sel = 'points in connected components'
+        summary.append("Max distance to ROI: %d\nSelect: %s"
+                       % (self.distance.get(), sel))
         return summary
 
     def _methods(self):
         methods = []
-        methods.append("%d connected components detected" % len(self._outputs))
+        methods.append("Connected components detected")
         if self.selection.get() == 0:
             methods.append("with at least %d percent of points" % self.points.get())
         methods.append("at a maximun distance of %d pixels of a ROI." % self.distance.get())
@@ -150,3 +175,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     def _euclideanDistance(self, coorcc, cm):
         return np.sqrt((coorcc.getX() - int(cm.getX())) + (coorcc.getY() - int(cm.getY())) + (coorcc.getZ() -
                                                                                               int(cm.getZ())))
+
+    def _ifGroupId(self, item, coorcc):
+        if item.getGroupId() != coorcc.getGroupId():
+            setattr(item, "_appendItem", False)
