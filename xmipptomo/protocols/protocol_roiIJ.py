@@ -57,8 +57,9 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
         self._insertFunctionStep('launchIJGUIStep', interactive=True)
 
     def _createOutput(self):
-        outSet = self._createSetOfMeshes()
-        for tomo in self.inputTomos.get().iterItems():
+        inputTomos = self.inputTomos.get()
+        outSet = self._createSetOfMeshes(inputTomos)
+        for tomo in inputTomos.iterItems():
             tomoName = pwutils.removeBaseExt(tomo.getFileName())
             outFile = self._getExtraPath(tomoName + '.txt')
             if os.path.isfile(outFile):
@@ -69,9 +70,9 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
                     mesh.setGroupId(coord[3])
                     mesh.setVolume(tomo)
                     outSet.append(mesh)
-        outSet.setPrecedents(self.inputTomos.get())
+        outSet.setPrecedents(inputTomos)
         self._defineOutputs(outputMeshes=outSet)
-        self._defineSourceRelation(self.inputTomos.get(), outSet)
+        self._defineSourceRelation(inputTomos, outSet)
 
     # --------------------------- STEPS functions -----------------------------
     def launchIJGUIStep(self):
