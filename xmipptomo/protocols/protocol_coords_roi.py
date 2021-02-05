@@ -132,10 +132,11 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         self.outputSet.setBoxSize(inputSetCoor.getBoxSize())
         self.outputSet.setSamplingRate(inputSetCoor.getSamplingRate())
 
-        for cc in listOfCCs:
-            print('------------cc----------', cc.getFirstItem().getVolName())  # volName cc OK
-            for mesh in listOfMeshes:
-                print('------------mesh----------', mesh.getFirstItem().getVolName())  # volName meshes now OK
+        for ic, cc in enumerate(listOfCCs):
+            print('========cc=======', ic)
+            print('-------lenCC------', len(cc))
+            for i, mesh in enumerate(listOfMeshes):
+                print('+++++mesh++++++', i)
                 if os.path.basename(cc.getFirstItem().getVolName()) == os.path.basename(mesh.getFirstItem().getVolName()):
                     if sel == 0:
                         i = 0
@@ -144,23 +145,26 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                     for coorcc in cc:
                         for meshPoint in mesh:
                             if self._euclideanDistance(coorcc, meshPoint) <= self.distance.get():
+                                print('------------')
                                 if sel == 0:
                                     i += 1
                                 else:
+                                    print('...........')
                                     outputSetList.append(coorcc.getObjId())
                                 break
 
                     if sel == 0:
                         perc = self._percentage(cc)
                         if i >= perc:
-                            self.outputSet.copyItems(inputSetCoor, updateItemCallback=self._ifGroupId(coorcc))
+                            self.groupIdCoorCC = coorcc.getGroupId()
+                            self.outputSet.copyItems(inputSetCoor, updateItemCallback=self._updateItem)
 
                     else:
                         if len(outputSetList) != 0:
                             for coor3D in inputSetCoor.iterItems():
                                 if coor3D.getObjId() in outputSetList:
-                                    self.outputSet.append(coor3D)  # sqlite3.IntegrityError: UNIQUE constraint failed: Objects.id
-
+                                    self.outputSet.append(coor3D)  # CC just in 1 mesh
+                break
 
     def createOutputStep(self):
         self._defineOutputs(outputSet=self.outputSet)
@@ -180,8 +184,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         return summary
 
     def _methods(self):
-        methods = []
-        methods.append("Connected components detected")
+        methods = "Connected components detected"
         if self.selection.get() == 0:
             methods.append("with at least %d percent of points" % self.points.get())
         methods.append("at a maximun distance of %d pixels of a ROI." % self.distance.get())
@@ -189,12 +192,12 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions --------------------------------------------
     def _percentage(self, inputSetCoor):
-        return (self.points.get()*inputSetCoor.get().getSize())/100
+        return (self.points.get()*inputSetCoor.getSize())/100
 
     def _euclideanDistance(self, coorcc, cm):
         return np.sqrt((coorcc.getX() - int(cm.getX())) + (coorcc.getY() - int(cm.getY())) + (coorcc.getZ() -
                                                                                               int(cm.getZ())))
 
-    def _ifGroupId(self, item, coorcc):
-        if item.getGroupId() != coorcc.getGroupId():
+    def _updateItem(self, item, row):
+        if item.getGroupId() != self.groupIdCoorCC:
             setattr(item, "_appendItem", False)

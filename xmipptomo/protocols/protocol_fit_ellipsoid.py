@@ -64,26 +64,39 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     def fitEllipsoidStep(self):
         input = self.input.get()
         inputTomos = self.inputTomos.get()
-        self.outSet = self._createSetOfMeshes()
+        self.outSet = self._createSetOfMeshes(inputTomos)
         totalMeshes = 0
 
-        for tomo in inputTomos.iterItems():
+        for tomo in inputTomos:
             vesicleList = []
             vesicleIdList = []
             tomoName = path.basename(tomo.getFileName())
+            print("------tomoName-------", tomoName)
             tomoDim = [float(d) for d in tomo.getDim()]
 
-            for item in input.iterItems():
-                if not tomoName == path.basename(item.getVolName()):
-                    continue
-                vesicleId = self._getVesicleId(item)
-                if vesicleId not in vesicleIdList:
-                    vesicleIdList.append(vesicleId)
-                    vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
-                                                            '_vesicle_' + str(vesicleId))
-                    vesicleList.append(vesicle)
-                idx = vesicleIdList.index(vesicleId)
-                vesicleList[idx].append(item)
+            if self._getInputisSubtomo(input.getFirstItem()):
+                for item in input.iterItems():
+                    if not tomoName == path.basename(item.getVolName()):
+                        continue
+                    vesicleId = self._getVesicleId(item)
+                    if vesicleId not in vesicleIdList:
+                        vesicleIdList.append(vesicleId)
+                        vesicle = self._createSetOfSubTomograms('_' + pwutlis.removeBaseExt(tomoName) +
+                                                                '_vesicle_' + str(vesicleId))
+                        vesicleList.append(vesicle)
+                    idx = vesicleIdList.index(vesicleId)
+                    vesicleList[idx].append(item)
+
+            else:
+                for item in input.iterCoordinates(volume=tomo):
+                    vesicleId = self._getVesicleId(item)
+                    if vesicleId not in vesicleIdList:
+                        vesicleIdList.append(vesicleId)
+                        vesicle = self._createSetOfCoordinates3D(inputTomos, '_' + pwutlis.removeBaseExt(tomoName)
+                                                                 + '_vesicle_' + str(vesicleId))
+                        vesicleList.append(vesicle)
+                    idx = vesicleIdList.index(vesicleId)
+                    vesicleList[idx].append(item)
 
             totalMeshes += len(vesicleList)
 
@@ -91,11 +104,19 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 x = []
                 y = []
                 z = []
-                for item in vesicle.iterItems():
-                    coord = self._getCoor(item)
-                    x.append(float(coord.getX()) / tomoDim[0])
-                    y.append(float(coord.getY()) / tomoDim[1])
-                    z.append(float(coord.getZ()) / tomoDim[2])
+
+                if self._getInputisSubtomo(input.getFirstItem()):
+                    for item in vesicle.iterItems():
+                        coord = self._getCoor(item)
+                        x.append(float(coord.getX()) / tomoDim[0])
+                        y.append(float(coord.getY()) / tomoDim[1])
+                        z.append(float(coord.getZ()) / tomoDim[2])
+                else:
+                    for item in vesicle.iterCoordinates(volume=tomo):
+                        coord = self._getCoor(item)
+                        x.append(float(coord.getX()) / tomoDim[0])
+                        y.append(float(coord.getY()) / tomoDim[1])
+                        z.append(float(coord.getZ()) / tomoDim[2])
 
                 [center, radii, v, _, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
                 algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f ' \
@@ -119,7 +140,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                     meshPoint.setGroupId(self._getVesicleId(item))
                     meshPoint.setDescription(adjEllipsoid)
                     meshPoint.setVolume(tomo.clone())
-                    meshPoint.setVolName(path.basename(tomo.getFileName()))
+                    meshPoint.setVolumeName(path.basename(tomo.getFileName()))
                     self.outSet.append(meshPoint)
 
         self.outSet.setPrecedents(inputTomos)
@@ -135,7 +156,7 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
         input = self.input.get()
         if input.getSize() < 9:
             validateMsgs.append('At least 9 subtomograms/coordinates are required to fit a unique ellipsoid')
-        if isinstance(input, SetOfSubTomograms):
+        if self._getInputisSubtomo(self.input.get().getFirstItem()):
             if not input.getFirstItem().hasCoordinate3D():
                 validateMsgs.append('Subtomograms should have coordinates')
         return validateMsgs
@@ -158,10 +179,16 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 self.outputMeshes.getNumberOfMeshes()]
 
     # --------------------------- UTILS functions --------------------------------------------
-    def _getCoor(self, item):
+    def _getInputisSubtomo(self, item):
         if isinstance(item, SubTomogram):
+            return True
+        else:
+            return False
+
+    def _getCoor(self, item):
+        if self._getInputisSubtomo(item):
             coor = item.getCoordinate3D()
-        elif isinstance(item, Coordinate3D):
+        else:
             coor = item
         return coor
 
