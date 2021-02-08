@@ -26,13 +26,13 @@
 # *
 # **************************************************************************
 
-from os import path, listdir
+from os.path import basename, dirname, join
 import numpy as np
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-from tomo.objects import MeshPoint, Ellipsoid, SubTomogram, Coordinate3D, SetOfSubTomograms, SetOfCoordinates3D
+from tomo.objects import MeshPoint, Ellipsoid, SubTomogram
 from tomo.utils import fit_ellipsoid, generatePointCloud
 
 
@@ -62,22 +62,21 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
+        import time
+        time.sleep(10)
         input = self.input.get()
         inputTomos = self.inputTomos.get()
         self.outSet = self._createSetOfMeshes(inputTomos)
         totalMeshes = 0
-
-        for tomo in inputTomos:
+        for tomo in inputTomos.iterItems(iterate=False):
             vesicleList = []
             vesicleIdList = []
-            tomoName = path.basename(tomo.getFileName())
-            print("------tomoName-------", tomoName)
+            tomoName = basename(tomo.getFileName())
             tomoDim = [float(d) for d in tomo.getDim()]
-
-            if self._getInputisSubtomo(input.getFirstItem()):
-                for item in input.iterItems():
-                    if not tomoName == path.basename(item.getVolName()):
-                        continue
+            firstItem = input.getFirstItem()
+            if self._getInputisSubtomo(firstItem):
+                dirName = dirname(firstItem.getVolName())
+                for item in input.iterItems(where="_volName='%s'" % join(dirName, tomoName)):
                     vesicleId = self._getVesicleId(item)
                     if vesicleId not in vesicleIdList:
                         vesicleIdList.append(vesicleId)
@@ -127,7 +126,6 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 adjEllipsoid.setRadii(str(radii))
                 print(algDesc)
                 print('Chi2: ', chi2)
-
                 pointCloud = generatePointCloud(v, tomo.getDim())
                 if not pointCloud:
                     raise Exception("It does not seem like any output is produced!")
@@ -140,9 +138,8 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                     meshPoint.setGroupId(self._getVesicleId(item))
                     meshPoint.setDescription(adjEllipsoid)
                     meshPoint.setVolume(tomo.clone())
-                    meshPoint.setVolumeName(path.basename(tomo.getFileName()))
+                    meshPoint.setVolumeName(basename(tomo.getFileName()))
                     self.outSet.append(meshPoint)
-
         self.outSet.setPrecedents(inputTomos)
         self.outSet.setNumberOfMeshes(totalMeshes)
 
