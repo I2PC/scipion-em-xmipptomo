@@ -26,6 +26,8 @@
 # *
 # **************************************************************************
 import numpy as np
+from pwem.convert.transformations import euler_matrix
+from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, StringParam
 from tomo.protocols import ProtTomoBase
@@ -89,6 +91,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         subtomobase.setAcquisition(acq)
         subtomobase.setLocation(fnVol)
         subtomobase.setSamplingRate(self.sampling.get())
+        transformBase = Transform()
+        transformBase.setMatrix(np.identity(4))
+        subtomobase.setTransform(transformBase)
         self.outputSet.append(subtomobase)
         for i in range(int(self.nsubtomos.get())-1):
             fnPhantomi = self._getExtraPath("phantom%03d.vol" % i)
@@ -102,10 +107,16 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             subtomo.setAcquisition(acq)
             subtomo.setLocation(fnPhantomi)
             subtomo.setSamplingRate(self.sampling.get())
+            A = euler_matrix(np.deg2rad(rot), np.deg2rad(tilt), np.deg2rad(psi), 'szyz')
+            transform = Transform()
+            transform.setMatrix(A)
+            subtomo.setTransform(transform)
             self.outputSet.append(subtomo)
 
     def createOutputStep(self):
         self._defineOutputs(outputSubtomograms=self.outputSet)
+        if self.option.get() == 0:
+            self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
