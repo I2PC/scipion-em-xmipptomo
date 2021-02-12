@@ -33,7 +33,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportSubTomograms)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
-    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreTransform
+    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -315,6 +315,80 @@ class TestXmipptomoPhantom(BaseTest):
         phantom = self._phantom()
         self.assertTrue(getattr(phantom, 'outputSubtomograms'))
         return phantom
+
+
+class XmippTomoScoreCoordinates(BaseTest):
+    """This class check if the protocol project top works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('overview_wbp.em')
+
+    def _runPreviousProtocols(self):
+        protImportTomogram = self.newProtocol(ProtImportTomograms,
+                                      filesPath=self.tomogram,
+                                      samplingRate=2,
+                                      objLabel='Import Tomogram')
+        self.launchProtocol(protImportTomogram)
+        output = getattr(protImportTomogram, 'outputTomograms', None)
+        self.assertIsNotNone(output,
+                             "There was a problem with import tomograms output")
+
+        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
+                                                   objLabel='Import Coordinates - JSON',
+                                                   auto=0,
+                                                   filesPath=self.dataset.getPath(),
+                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   filesPattern='*.json', boxSize=32,
+                                                   samplingRate=5)
+        self.launchProtocol(protImportCoordinates3d)
+        output = getattr(protImportCoordinates3d, 'outputCoordinates', None)
+        self.assertIsNotNone(output,
+                             "There was a problem with import coordinates output")
+
+        return protImportCoordinates3d
+
+    def _createProtScoreCarbon(self, protCoords):
+        protScoreCoordinates = self.newProtocol(XmippProtScoreCoordinates,
+                                                objLabel='Filter Carbon - Threshold 0.8',
+                                                inputCoordinates=protCoords.outputCoordinates,
+                                                filter=1,
+                                                outliers=False)
+        self.launchProtocol(protScoreCoordinates)
+        return getattr(protScoreCoordinates, 'outputCoordinates')
+
+    def _createProtScoreOutliers(self, protCoords):
+        protScoreCoordinates = self.newProtocol(XmippProtScoreCoordinates,
+                                                objLabel='Filter Outliers - Threshold 1',
+                                                inputCoordinates=protCoords.outputCoordinates,
+                                                filter=1,
+                                                carbon=False)
+        self.launchProtocol(protScoreCoordinates)
+        return getattr(protScoreCoordinates, 'outputCoordinates')
+
+    def test_score_coordinates(self):
+
+        # Run imports
+        protCoords = self._runPreviousProtocols()
+
+        # Test Carbon based filtering
+        filteredCoords = self._createProtScoreCarbon(protCoords)
+        self.assertTrue(filteredCoords,
+                        "There was a problem with score coordinates output")
+        self.assertTrue(filteredCoords.getSize() == 4)
+        self.assertTrue(filteredCoords.getBoxSize() == 32)
+        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+
+        # Test Outlier based filtering
+        filteredCoords = self._createProtScoreOutliers(protCoords)
+        self.assertTrue(filteredCoords,
+                        "There was a problem with score coordinates output")
+        self.assertTrue(filteredCoords.getSize() == 14)
+        self.assertTrue(filteredCoords.getBoxSize() == 32)
+        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+
 
 # class TestXmippTomoScoreTransform(BaseTest):
 #     """This class check if the protocol score_transform works properly."""
