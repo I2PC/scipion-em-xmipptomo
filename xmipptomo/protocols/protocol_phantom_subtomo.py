@@ -59,7 +59,8 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addSection(label='Transform')
         form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=50,
                       help="How many phantom subtomograms")
-        form.addParam('rotmin', IntParam, label='Min rot angle', default=0)
+        form.addParam('rotmin', IntParam, label='Min rot angle', default=0,
+                      help='Minimum and maximum range for each Euler angle in degrees')
         form.addParam('rotmax', IntParam, label='Max rot angle', default=60)
         form.addParam('tiltmin', IntParam, label='Min tilt angle', default=0)
         form.addParam('tiltmax', IntParam, label='Max tilt angle', default=60)
@@ -128,7 +129,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             subtomo.setAcquisition(acq)
             subtomo.setLocation(fnPhantomi)
             subtomo.setSamplingRate(self.sampling.get())
-            A = euler_matrix(np.deg2rad(rot), np.deg2rad(tilt), np.deg2rad(psi), 'szyz')
+            A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
             transform = Transform()
             transform.setMatrix(A)
             subtomo.setTransform(transform)
