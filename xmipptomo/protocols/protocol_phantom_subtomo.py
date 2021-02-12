@@ -73,11 +73,18 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def createPhantomsStep(self):
+        mwfilter = self.mwfilter.get()
         fnVol = self._getExtraPath("phantom000.vol")
         if self.option.get() == 0:
             inputVol = self.inputVolume.get()
             fnInVol = inputVol.getLocation()[1]
             dim = inputVol.getDim()
+            if mwfilter:
+                mwangle = self.mwangle.get()
+                self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
+                            % (mwangle, mwangle, fnInVol, fnVol))
+            else:
+                self.runJob("xmipp_image_convert", " -i %s -o %s" % (fnInVol, fnVol))
         else:
             desc = self.create.get()
             fnDescr = self._getExtraPath("phantom.descr")
@@ -86,18 +93,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             fhDescr.close()
             dim = [desc.split()[0], desc.split()[1], desc.split()[2]]
             self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+            if mwfilter:
+                mwangle = self.mwangle.get()
+                self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
+                            % (mwangle, mwangle, fnVol, fnVol))
 
         self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
         self.outputSet.setDim(dim)
         self.outputSet.setSamplingRate(self.sampling.get())
-
-        mwfilter = self.mwfilter.get()
-        if mwfilter:
-            mwangle = self.mwangle.get()
-
-        if mwfilter:
-            self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
-                        % (mwangle, mwangle, fnInVol, fnVol))
 
         subtomobase = SubTomogram()
         acq = TomoAcquisition()
