@@ -49,7 +49,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                       condition="option==0", help="Volume used as 'base' phantom")
         form.addParam('create', StringParam, label='Create phantom', condition="option==1",
                       default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
-                              'sph + 1 0 -5 5 2', help="create a phantom description.")
+                              'sph + 1 0 -5 5 2',
+                      help="create a phantom description: x y z backgroundValue geometry(cyl, sph...) +(superimpose) "
+                           "desnsityValue origin radius height rot tilt psi")
         form.addParam('sampling', FloatParam, label='Sampling rate', default=4)
         form.addParam('mwfilter', BooleanParam, label='Apply missing wedge?', default=False,
                       help='Apply a filter to simulate the missing wedge along Y axis.')
