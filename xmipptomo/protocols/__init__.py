@@ -39,3 +39,4 @@ from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
 from .protocol_score_coordinates import XmippProtScoreCoordinates
 from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_resizeTS import XmippProtResizeTiltSeries
+from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
