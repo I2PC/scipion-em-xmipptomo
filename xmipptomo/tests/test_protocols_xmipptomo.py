@@ -24,6 +24,8 @@
 # *
 # **************************************************************************
 
+# import numpy as np
+
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
@@ -31,7 +33,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportSubTomograms)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
-    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates
+    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -386,3 +388,44 @@ class XmippTomoScoreCoordinates(BaseTest):
         self.assertTrue(filteredCoords.getSize() == 14)
         self.assertTrue(filteredCoords.getBoxSize() == 32)
         self.assertTrue(filteredCoords.getSamplingRate() == 5)
+
+
+# class TestXmippTomoScoreTransform(BaseTest):
+#     """This class check if the protocol score_transform works properly."""
+#
+#     @classmethod
+#     def setUpClass(cls):
+#         setupTestProject(cls)
+#         cls.dataset = DataSet.getDataSet('tomo-em')
+#         cls.setOfSubtomograms = cls.dataset.getFile('basename.hdf')
+#
+#     def _runImportSubtomos(self, label):
+#         protImport = self.newProtocol(ProtImportSubTomograms,
+#                                       filesPath=self.setOfSubtomograms,
+#                                       samplingRate=5,
+#                                       label=label)
+#         self.launchProtocol(protImport)
+#         self.assertIsNotNone(protImport.outputSubTomograms,
+#                              "There was a problem with import subtomograms output")
+#         return protImport.outputSubTomograms
+#
+#     def _scoreTransformations(self, firstSubtomos, secondSubtomos):
+#         scoredTr = self.newProtocol(XmippProtScoreTransform,
+#                                    firstSubtomos=firstSubtomos,
+#                                    secondSubtomos=secondSubtomos,
+#                                    label='Score Subtomogram Transformations')
+#         self.launchProtocol(scoredTr)
+#         self.assertIsNotNone(scoredTr.outputSetOfSubtomogram,
+#                              "There was a problem with score subtomograms output")
+#         return scoredTr.outputSetOfSubtomogram
+#
+#     def test_scoreTransformations(self):
+#         firstSubtomos = self._runImportSubtomos('First Subtomograms')
+#         secondSubtomos = self._runImportSubtomos('Second Subtomograms')
+#         scoredSubtomos = self._scoreTransformations(firstSubtomos, secondSubtomos)
+#         self.assertTrue(scoredSubtomos.getSize() == 4)
+#         dist = scoredSubtomos.aggregate(["MAX"], "distanceScore", ["distanceScore"])
+#         dist = np.asarray([d["distanceScore"] for d in dist])
+#         meanDist = np.mean(dist)
+#         self.assertTrue(meanDist == 0)
+#         return scoredSubtomos
