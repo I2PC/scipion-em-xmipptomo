@@ -133,6 +133,12 @@ class XmippProtScoreTransform(ProtTomoPicking):
 
         return summary
 
+    def _validate(self):
+        validateMsgs = []
+        firstTransform = self.firstSubtomos.get().getFirstItem().getTransform()
+        secondTransform = self.secondSubtomos.get().getFirstItem().getTransform()
 
+        if firstTransform is None or secondTransform is None:
+            validateMsgs.append('Please provide subtomograms which have transformation matrix in "inputAlignment".')
 
-
+        return validateMsgs

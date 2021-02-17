@@ -114,3 +114,14 @@ class XmippProtAlignTransform(ProtTomoPicking):
         return matrices
 
     # --------------------------- INFO functions ---------------------------
+    def _summary(self):
+        summary = []
+
+        if self.getOutputsSize() >= 1:
+            summary.append('A total of *%d Subtomogram Transformations* have been aligned '
+                           'to *Subtomogram Average %s*' % (self.secondSubtomos.get().getSize(),
+                                                              self.firstAverage.get().getFileName()))
+        else:
+            summary.append('Output not ready yet')
+
+        return summary
