@@ -62,8 +62,6 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions -------------------------------
     def fitEllipsoidStep(self):
-        import time
-        time.sleep(10)
         input = self.input.get()
         inputTomos = self.inputTomos.get()
         self.outSet = self._createSetOfMeshes(inputTomos)
