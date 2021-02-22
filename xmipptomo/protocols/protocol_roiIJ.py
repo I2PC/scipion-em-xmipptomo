@@ -28,11 +28,11 @@ import os
 import numpy as np
 
 from pyworkflow.protocol.params import PointerParam
-import pyworkflow.utils as pwutlis
+import pyworkflow.utils as pwutils
 from pwem.viewers.showj import *
 from pwem.protocols import ProtAnalysis2D
 
-from tomo.objects import Mesh
+from tomo.objects import MeshPoint
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
 
@@ -57,20 +57,22 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
         self._insertFunctionStep('launchIJGUIStep', interactive=True)
 
     def _createOutput(self):
-        outSet = self._createSetOfMeshes()
-        for file in os.listdir(self._getExtraPath()):
-            if file.endswith(".txt"):
-                data = np.loadtxt(self._getExtraPath(file), delimiter=',')
-                groups = np.unique(data[:, 3]).astype(int)
-                for group in groups:
-                    mesh = Mesh(group=group, path=self._getExtraPath(file))
-                    for tomo in self.inputTomos.get().iterItems():
-                        if file[:-4] == pwutlis.removeBaseExt(tomo.getFileName()):
-                            mesh.setVolume(tomo.clone())
+        inputTomos = self.inputTomos.get()
+        outSet = self._createSetOfMeshes(inputTomos)
+        for tomo in inputTomos.iterItems():
+            tomoName = pwutils.removeBaseExt(tomo.getFileName())
+            outFile = self._getExtraPath(tomoName + '.txt')
+            if os.path.isfile(outFile):
+                data = np.loadtxt(outFile, delimiter=',')
+                for coord in data:
+                    mesh = MeshPoint()
+                    mesh.setPosition(coord[0], coord[1], coord[2])
+                    mesh.setGroupId(coord[3])
+                    mesh.setVolume(tomo)
                     outSet.append(mesh)
-        outSet.setVolumes(self.inputTomos.get())
+        outSet.setPrecedents(inputTomos)
         self._defineOutputs(outputMeshes=outSet)
-        self._defineSourceRelation(self.inputTomos.get(), outSet)
+        self._defineSourceRelation(inputTomos, outSet)
 
     # --------------------------- STEPS functions -----------------------------
     def launchIJGUIStep(self):

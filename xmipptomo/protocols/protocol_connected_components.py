@@ -28,8 +28,6 @@
 
 from os.path import basename
 import numpy as np
-from pyworkflow.object import Set
-import pwem
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
@@ -46,8 +44,8 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input coordinates')
-        form.addParam('inputCoordinates', PointerParam, label="Input Coordinates",
+        form.addSection(label='Coordinates')
+        form.addParam('inputCoordinates', PointerParam, label="Coordinates",
                       pointerClass='SetOfCoordinates3D', help='Select the SetOfCoordinates3D.')
         form.addParam('distance', FloatParam, label='Distance', help='Maximum radial distance (in voxels) between '
                                                                       'particles to consider that they are in the same '
@@ -75,8 +73,12 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
             idx = tomoList.index(tomoName)
             coorSetList[idx].append(coor)
 
-        # For each setOfCoordinates, perform "connected components" logic
+        # For each tomogram coordinates, perform "connected components" logic
         outputsetIndex = 0
+        self.outputSet = self._createSetOfCoordinates3D(inputCoors.getPrecedents())
+        self.outputSet.copyInfo(inputCoors)
+        self.outputSet.setBoxSize(inputCoors.getBoxSize())
+        self.outputSet.setSamplingRate(inputCoors.getSamplingRate())
         for coorSet in coorSetList:
             coorSet.write()
             minDist = self.distance.get()
@@ -115,31 +117,21 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
                 ixMax = np.argmax(row)
                 listOfSets[ixMax].append(k)
 
-            # Create as output a setOfCoordinates for each connected component
             for ix, coorInd in enumerate(listOfSets):
                 if len(coorInd) != 0:
                     outputsetIndex += 1
-                    outputSet = self._createSetOfCoordinates3D(inputCoors.getPrecedents(), outputsetIndex)
-                    outputSet.copyInfo(inputCoors)
-                    outputSet.setBoxSize(inputCoors.getBoxSize())
-                    outputSet.setSamplingRate(inputCoors.getSamplingRate())
                     for id, coor3D in enumerate(coorSet.iterItems()):
                         if id in coorInd:
-                            outputSet.append(coor3D)
-                    name = 'output3DCoordinates%s' % str(outputsetIndex)
-                    args = {}
-                    args[name] = outputSet
-                    outputSet.setStreamState(Set.STREAM_OPEN)
-                    self._defineOutputs(**args)
-                    self._defineSourceRelation(inputCoors, outputSet)
+                            coor3D.setGroupId(outputsetIndex)
+                            self.outputSet.append(coor3D)
+
+        print('Connected components found: %d' % outputsetIndex)
 
     def createOutputStep(self):
-        for outputset in self._iterOutputsNew():
-            outputset[1].setStreamState(Set.STREAM_CLOSED)
-        self._store()
+        self._defineOutputs(outputSetOfCoordinates3D=self.outputSet)
+        self._defineSourceRelation(self.inputCoordinates, self.outputSet)
 
     # --------------------------- INFO functions --------------------------------
-
     def _validate(self):
         validateMsgs = []
         return validateMsgs
@@ -152,7 +144,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
 
     def _methods(self):
         methods = []
-        methods.append("%d connected component identified, with a maximum radial distance of %d voxels."
-                       % (len(self._outputs), self.distance.get()))
+        methods.append("Coordinates grouped in connected component with a maximum radial distance of %d voxels."
+                       % self.distance.get())
         return methods
 
