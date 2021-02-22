@@ -41,6 +41,8 @@ from xmipp_base import createMetaDataFromPattern
 from tomo.protocols import ProtTomoPicking
 from tomo.utils import extractVesicles, initDictVesicles
 
+from xmipptomo import Plugin
+
 class XmippProtScoreCoordinates(ProtTomoPicking):
     '''Scoring and (optional) filtering of coordinates based on different scoring
     functions (carbon distance, neighbour distance)'''
@@ -120,7 +122,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
             args = '-i %s -c %s -o %s -b %d' \
                    % (inputTomoPathMetadataFname, self._getExtraPath('inputCoords'),
                       self._getExtraPath('outputCoords'), coordinates.getBoxSize())
-            self.runJob('xmipp_deep_micrograph_cleaner', args)
+            self.runJob('xmipp_deep_micrograph_cleaner', args, env=Plugin.getTensorFlowEnviron())
             baseName = pwutils.removeBaseExt(projFile)
             outFile = self._getExtraPath('outputCoords', baseName + ".pos")
             posMd = readPosCoordinates(outFile)

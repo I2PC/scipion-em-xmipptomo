@@ -25,12 +25,23 @@
 # **************************************************************************
 import xmipp3
 import subprocess, os
+import pyworkflow.utils as pwutils
 
 _logo = "xmipp_logo.png"
 _references = ['delaRosaTrevin2013']
 __version__ = "3.0.6"
 
 class Plugin(xmipp3.Plugin):
+
+    @classmethod
+    def getTensorFlowEnviron(cls):
+        """ Create the needed environment for XmippTomo programs. """
+        environ = pwutils.Environ(os.environ)
+        environ.update({
+            "TF_FORCE_GPU_ALLOW_GROWTH": "'true'"
+        }, position=pwutils.Environ.BEGIN)
+        return environ
+
     @classmethod
     def defineBinaries(cls, env):
         preMsgs = []

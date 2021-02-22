@@ -97,11 +97,12 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         listOfgroupIdMeshes = []
         for meshPoint in inputSetMeshes.iterCoordinates():
             tomoNameM = meshPoint.getVolName()
+            tomoId = meshPoint.getVolume().getObjId()
             groupIdM = meshPoint.getGroupId()
             tupleM = (groupIdM, tomoNameM)
             if tupleM not in listOfgroupIdMeshes:
                 listOfgroupIdMeshes.append(tupleM)
-                listOfMeshes.append(self._createSetOfMeshes(inputSetMeshes.getPrecedents(), groupIdM))
+                listOfMeshes.append(self._createSetOfMeshes(inputSetMeshes.getPrecedents(), '%d_%d' % (tomoId,groupIdM)))
             meshPointLoc = listOfMeshes[listOfgroupIdMeshes.index(tupleM)]
             if not meshPointLoc:
                 meshPointLoc.append(meshPoint)
