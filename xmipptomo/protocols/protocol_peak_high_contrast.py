@@ -58,23 +58,58 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         for vol in self.inputSetOfVolumes.get():
             self._insertFunctionStep('peakHighContrastStep', vol.getObjId())
+            self._insertFunctionStep('createOutputStep', vol.getObjId())
 
     # --------------------------- STEP functions --------------------------------
     def peakHighContrastStep(self, volId):
         vol = self.inputSetOfVolumes.get()[volId]
 
         volFileName = vol.getFileName()
-
-        outputFile = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
-
-        print(outputFile)
+        outputFileName = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
+        outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         paramsPeakHighContrast = {
             'inputVol': volFileName,
-            'output': outputFile,
+            'output': outputFilePath,
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
                                "-o %(output)s "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
+
+    def createOutputStep(self, volId):
+        vol = self.inputSetOfVolumes.get()[volId]
+
+        volFileName = vol.getFileName()
+        outputFileName = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
+        outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
+
+        outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3Ds()
+
+        xVol, yVol, zVol = vol.getDim()
+
+        for element in coordList:
+            newCoord3D = tomoObj.Coordinate3D(x=element[0],
+                                              y=element[1],
+                                              z=element[2])
+            newCoord3D.setVolume(ts)
+            newCoord3D.setVolId(tsObjId)
+            outputSetOfCoordinates3D.append(newCoord3D)
+            outputSetOfCoordinates3D.update(newCoord3D)
+        outputSetOfCoordinates3D.write()
+        self._store()
+
+    # --------------------------- UTILS functions ----------------------------
+    def getOutputSetOfCoordinates3Ds(self):
+        if hasattr(self, "outputSetOfCoordinates3D"):
+            self.outputSetOfCoordinates3D.enableAppend()
+        else:
+            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.getOutputSetOfTiltSeries(),
+                                                                      suffix='LandmarkModel')
+            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfTiltSeries.get().getSamplingRate())
+            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfTiltSeries)
+            outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfCoordinates3D)
+        return self.outputSetOfCoordinates3D
