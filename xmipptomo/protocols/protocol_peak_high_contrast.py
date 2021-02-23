@@ -25,9 +25,10 @@
 # **************************************************************************
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
+import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
+import os
 
 
 class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
@@ -46,11 +47,34 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-
-
+        form.addParam('inputSetOfVolumes',
+                      params.PointerParam,
+                      pointerClass='SetOfVolumes',
+                      important=True,
+                      label='Input set of volumnes',
+                      help='Select a set of volumes to peak high contrast regions.')
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-
+        for vol in self.inputSetOfVolumes.get():
+            self._insertFunctionStep('peakHighContrastStep', vol.getObjId())
 
     # --------------------------- STEP functions --------------------------------
+    def peakHighContrastStep(self, volId):
+        vol = self.inputSetOfVolumes.get()[volId]
+
+        volFileName = vol.getFileName()
+
+        outputFile = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
+
+        print(outputFile)
+
+        paramsPeakHighContrast = {
+            'inputVol': volFileName,
+            'output': outputFile,
+        }
+
+        argsPeakHighContrast = "--vol %(inputVol)s " \
+                               "-o %(output)s "
+
+        self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
