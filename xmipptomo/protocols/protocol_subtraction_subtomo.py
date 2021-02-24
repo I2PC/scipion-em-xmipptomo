@@ -28,16 +28,12 @@
 
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, FloatParam
 from pyworkflow.protocol.constants import LEVEL_ADVANCED
-from pyworkflow.utils import replaceBaseExt
 
 from pwem import ALIGN_3D
-from pwem.convert import headers
 from pwem.emlib import MDL_IMAGE
 import pwem.emlib.metadata as md
-from pwem.objects import Volume, Transform
 from pwem.protocols import EMProtocol
 
-from tomo.objects import SubTomogram
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
 
@@ -86,6 +82,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def applyAlignStep(self):
+        """Align subtomograms to be in the same orientation as the reference"""
         inputSet = self.inputSubtomos.get()
         outputFn = self._getExtraPath('input_subtomos.xmd')
         if inputSet.getFirstItem().getFileName().endswith('.mrc') or \
@@ -118,10 +115,12 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
             alignmentToRow(inputSet[(idList[int(id) - 1])].getTransform(), rowOut, ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
+
         # Align subtomograms
         self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform' %
                     (self._getExtraPath("window_with_original_geometry.xmd"),
                      self._getExtraPath('aligned_subtomograms.stk')))
+
         # Window subtomograms to their original size
         alignStk = self._getExtraPath('aligned_subtomograms.stk')
         outputStk = self._getExtraPath('output_subtomograms.stk')
@@ -136,8 +135,8 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
                              updateItemCallback=self._updateItemAlign,
                              itemDataIterator=md.iterRows(inputMd, sortByLabel=md.MDL_ITEM_ID))
 
-
     def subtractionStep(self):
+        """Subtract reference to each of the subtomogram in the input Set"""
         average = self.average.get().getFileName()
         if average.endswith('.mrc'):
             average += ':mrc'
@@ -151,63 +150,53 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         if self.maskBool:
             args += ' --mask1 %s' % (self.mask.get().getFileName())
 
-        for subtomo in self.alignedSet.iterItems():
+        mdOrig = md.MetaData(self._getExtraPath('window_with_original_geometry.xmd'))
+        for subtomo, row in zip(self.alignedSet.iterItems(), md.iterRows(mdOrig)):
             ix = subtomo.getObjId()
-            argsSubtomo = ' --i1 %06d@%s -o % s' % (ix, subtomo.getFileName(),
-                                                    self._getExtraPath("output_subtomo%d.mrc" % ix))
+            fnOutSubtomo = self._getExtraPath("output_subtomo%d.mrc" % ix)
+            argsSubtomo = ' --i1 %06d@%s -o % s' % (ix, subtomo.getFileName(), fnOutSubtomo)
             if self.saveFiles and ix == 1:
                 argsSubtomo += ' --saveV1 %s --saveV2 %s' % (self._getExtraPath('vol1_filtered.mrc'),
                                                       self._getExtraPath('average_adjusted.mrc'))
             print('\n-----Subtomogram %d-----' % ix)
             self.runJob(program, args + argsSubtomo)
-            # filename = subtomo.getFileName()
-            # subtomo.setFileName(filename + ':mrc')
-            # origin = Transform()
-            # ccp4header = headers.Ccp4Header(subtomo.getFileName(), readHeader=True)
-            # shifts = ccp4header.getOrigin()
-            # origin.setShiftsTuple(shifts)
-            # subtomo.setOrigin(origin)
 
-            # APPLY INVERSE TRANSF
-
+            # Apply inverse transform for the output to have the original orientation
+            self.runJob('xmipp_transform_geometry',
+                        '-i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --inverse' %
+                        (fnOutSubtomo, fnOutSubtomo,
+                         row.getValue('angleRot'), row.getValue('angleTilt'), row.getValue('anglePsi'),
+                         row.getValue('shiftX'), row.getValue('shiftY'), row.getValue('shiftZ')))
 
     def createOutputStep(self):
         inputSubtomos = self.inputSubtomos.get()
         outputSet = self._createSetOfSubTomograms()
+        outputSet.copyInfo(inputSubtomos)
         outputSet.copyItems(inputSubtomos, updateItemCallback=self._updateItemOutput)
-        # volume = Volume()
-        # volume.setSamplingRate(inputSubtomos.getSamplingRate())
-        # if inputSubtomos.getFileName().endswith('mrc'):
-        #     origin = Transform()
-        #     ccp4header = headers.Ccp4Header(inputSubtomos.getFileName(), readHeader=True)
-        #     shifts = ccp4header.getOrigin()
-        #     origin.setShiftsTuple(shifts)
-        #     volume.setOrigin(origin)
-        # volume.setFileName(self._getExtraPath("output_volume.mrc"))
-        # filename = volume.getFileName()
-        # if filename.endswith('.mrc') or filename.endswith('.map'):
-        #     volume.setFileName(filename + ':mrc')
-        self._defineOutputs(outputSet=outputSet)
+        self._defineOutputs(outputSubtomograms=outputSet)
         self._defineSourceRelation(inputSubtomos, outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
     def _summary(self):
-        summary = ["Volume 1: %s" % self.inputSubtomos.get().getFileName()]
-
-        summary.append("Volume 2: %s" % self.average.get().getFileName())
-        if self.maskBool:
-            summary.append("Input mask 1: %s" % self.mask.get().getFileName())
-        if self.resol.get() != 0:
-            summary.append("Subtraction at resolution %f A" % self.resol.get())
+        summary = []
+        if not hasattr(self, 'outputSubtomograms'):
+            summary.append("Output subtomograms not ready yet.")
+        else:
+            summary.append("Subtraction performed to %s subtomograms." % self.inputSubtomos.get().getSize())
+            summary.append("Average subtomogram subtracted: %s" % self.average.get().getFileName())
+            if self.maskBool:
+                summary.append("Mask: %s" % self.mask.get().getFileName())
+            if self.resol.get() != 0:
+                summary.append("Subtraction at resolution %f A" % self.resol.get())
         return summary
 
     def _methods(self):
         methods = []
-        if not hasattr(self, 'outputVolume'):
-            methods.append("Output volume not ready yet.")
+        if not hasattr(self, 'outputSubtomograms'):
+            methods.append("Output subtomograms not ready yet.")
         else:
-            methods.append("Volume %s subtracted from volume %s" % (self.average.get().getFileName(),
-                                                                    self.inputSubtomos.get().getFileName()))
+            methods.append("Subtraction of average %s performed to %s subtomograms" %
+                           (self.average.get().getFileName(), self.inputSubtomos.get().getSize()))
             if self.resol.get() != 0:
                 methods.append(" at resolution %f A" % self.resol.get())
         return methods
@@ -220,19 +209,10 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         for subtomo in self.inputSubtomos.get().iterItems():
             if not subtomo.hasTransform():
                 validateMsgs.append(
-                    'Please provide subtomograms which have transformation matrix in "inputAlignment".')
+                    'Please provide subtomograms which have transformation matrix.')
         return validateMsgs
 
     # --------------------------- UTLIS functions --------------------------------------------
-    def _getPdbFileName(self):
-        if self.inputPdbData == self.IMPORT_OBJ:
-            return self.pdbObj.get().getFileName()
-        else:
-            return self.pdbFile.get()
-
-    def _getVolName(self):
-        return self._getExtraPath(replaceBaseExt(self._getPdbFileName(), "vol"))
-
     def _updateItemAlign(self, item, row):
         newFn = row.getValue(md.MDL_IMAGE)
         newLoc = xmippToLocation(newFn)
