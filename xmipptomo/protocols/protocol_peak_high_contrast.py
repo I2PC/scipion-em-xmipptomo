@@ -29,6 +29,7 @@ import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
 import os
+from pyworkflow.object import Set
 
 
 class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
@@ -113,3 +114,26 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfCoordinates3D)
         return self.outputSetOfCoordinates3D
+
+    # --------------------------- INFO functions ----------------------------
+    def _summary(self):
+        summary = []
+        if hasattr(self, 'outputSetOfCoordinates3D'):
+            summary.append("High contrast features found in %d volumes: %d."
+                           % (self.inputSetOfVolumes.get().getSize(),
+                              self.outputSetOfCoordinates3D.getSize()))
+
+        else:
+            summary.append("Output classes not ready yet.")
+        return summary
+
+    def _methods(self):
+        methods = []
+        if hasattr(self, 'outputSetOfCoordinates3D'):
+            methods.append("%d high contrast features have been found in %d volumes."
+                           % (self.outputSetOfCoordinates3D.getSize(),
+                              self.inputSetOfVolumes.get().getSize()))
+
+        else:
+            methods.append("Output classes not ready yet.")
+        return methods
