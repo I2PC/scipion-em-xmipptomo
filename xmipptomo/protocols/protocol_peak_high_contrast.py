@@ -101,6 +101,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         for vol in self.inputSetOfVolumes.get():
             self._insertFunctionStep('peakHighContrastStep', vol.getObjId())
             self._insertFunctionStep('createOutputStep', vol.getObjId())
+        self._insertFunctionStep('closeOutputSetStep')
 
     # --------------------------- STEP functions --------------------------------
     def peakHighContrastStep(self, volId):
@@ -154,6 +155,11 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             outputSetOfCoordinates3D.append(newCoord3D)
             outputSetOfCoordinates3D.update(newCoord3D)
         outputSetOfCoordinates3D.write()
+        self._store()
+
+    def closeOutputSetStep(self):
+        self.getOutputSetOfCoordinates3Ds().setStreamState(Set.STREAM_CLOSED)
+
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
