@@ -26,7 +26,6 @@
 
 from pwem.protocols import EMProtocol
 import pyworkflow.protocol.params as params
-import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
 import os
 from pyworkflow.object import Set
@@ -54,6 +53,45 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       important=True,
                       label='Input set of volumnes',
                       help='Select a set of volumes to peak high contrast regions.')
+
+        form.addParam('pixelValueThr',
+                      params.FloatParam,
+                      label='Pixel value threshold',
+                      default='0.1',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Percentage of pixels whose value will be considered outlier, for posterior high contrast"
+                           "regions detection.")
+
+        form.addParam('numberSampSlices',
+                      params.IntParam,
+                      label='Number of sampling slices',
+                      default='10',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
+                           "high contrast regions detection.")
+
+        form.addParam('numberCeterOfMass',
+                      params.IntParam,
+                      label='Number of initial center of mass',
+                      default='10',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
+                           "high contrast regions detection.")
+
+        form.addParam('distanceThr',
+                      params.FloatParam,
+                      label='Center of mass distance threshold',
+                      default='10',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Threshold distance to consider that a 3D coordinate belong to a center of mass.")
+
+        form.addParam('numberOfCoordinatesThr',
+                      params.IntParam,
+                      label='Number of coordinates threshold',
+                      default='10',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Number of coordinates that must be attracted by a center of mass to consider it a plausible"
+                           "high contrast feature.")
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
