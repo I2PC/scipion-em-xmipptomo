@@ -135,13 +135,14 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         vol = self.inputSetOfVolumes.get()[volId]
 
         volFileName = vol.getFileName()
-        outputFileName = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
+        outputFileName = os.path.splitext(os.path.split(volFileName)[1])[0] + ".xmd"
+        outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3Ds()
 
         xVol, yVol, zVol = vol.getDim()
 
-        coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFileName,
+        coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFilePath,
                                                              xVol,
                                                              yVol,
                                                              zVol)
