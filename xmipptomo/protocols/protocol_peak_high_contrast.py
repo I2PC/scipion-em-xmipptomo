@@ -24,11 +24,14 @@
 # *
 # **************************************************************************
 
+import os
+
 from pwem.protocols import EMProtocol
 import pyworkflow.protocol.params as params
-from tomo.protocols import ProtTomoBase
-import os
 from pyworkflow.object import Set
+from tomo.protocols import ProtTomoBase
+import tomo.objects as tomoObj
+from xmipptomo import utils
 
 
 class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
@@ -104,7 +107,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         vol = self.inputSetOfVolumes.get()[volId]
 
         volFileName = vol.getFileName()
-        outputFileName = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
+        outputFileName = os.path.splitext(os.path.split(volFileName)[1])[0] + ".xmd"
         outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         paramsPeakHighContrast = {
@@ -132,18 +135,22 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         volFileName = vol.getFileName()
         outputFileName = os.path.split(os.path.splitext(volFileName)[0])[0] + "xmd"
-        outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3Ds()
 
         xVol, yVol, zVol = vol.getDim()
 
+        coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFileName,
+                                                             xVol,
+                                                             yVol,
+                                                             zVol)
+
         for element in coordList:
             newCoord3D = tomoObj.Coordinate3D(x=element[0],
                                               y=element[1],
                                               z=element[2])
-            newCoord3D.setVolume(ts)
-            newCoord3D.setVolId(tsObjId)
+            newCoord3D.setVolume(vol)
+            newCoord3D.setVolId(vol.getObjId())
             outputSetOfCoordinates3D.append(newCoord3D)
             outputSetOfCoordinates3D.update(newCoord3D)
         outputSetOfCoordinates3D.write()
@@ -154,13 +161,13 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         if hasattr(self, "outputSetOfCoordinates3D"):
             self.outputSetOfCoordinates3D.enableAppend()
         else:
-            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.getOutputSetOfTiltSeries(),
-                                                                      suffix='LandmarkModel')
-            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfTiltSeries.get().getSamplingRate())
-            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfTiltSeries)
+            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.inputSetOfVolumes.get(),
+                                                                      suffix='')
+            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfVolumes.get().getSamplingRate())
+            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfVolumes)
             outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfCoordinates3D)
+            self._defineSourceRelation(self.inputSetOfVolumes, outputSetOfCoordinates3D)
         return self.outputSetOfCoordinates3D
 
     # --------------------------- INFO functions ----------------------------
