@@ -70,7 +70,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
                            "high contrast regions detection.")
 
-        form.addParam('numberCeterOfMass',
+        form.addParam('numberCenterOfMass',
                       params.IntParam,
                       label='Number of initial center of mass',
                       default='10',
@@ -110,10 +110,20 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         paramsPeakHighContrast = {
             'inputVol': volFileName,
             'output': outputFilePath,
+            'pixelValueThr': self.pixelValueThr.get(),
+            'numberSampSlices': self.numberSampSlices.get(),
+            'numberCenterOfMass': self.numberCenterOfMass.get(),
+            'distanceThr': self.distanceThr.get(),
+            'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get()
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
-                               "-o %(output)s "
+                               "-o %(output)s " \
+                               "--pixelValueThr %(pixelValueThr)s " \
+                               "--numberSampSlices %(numberSampSlices)s " \
+                               "--numberCenterOfMass %(numberCenterOfMass)s " \
+                               "--distanceThr %(distanceThr)s " \
+                               "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
