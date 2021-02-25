@@ -57,6 +57,12 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       label='Input set of volumnes',
                       help='Select a set of volumes to peak high contrast regions.')
 
+        form.addParam('boxSize',
+                      params.IntParam,
+                      label='Box size',
+                      default='20',
+                      help="Size of the box containing the high contrast feature in pixels.")
+
         form.addParam('pixelValueThr',
                       params.FloatParam,
                       label='Pixel value threshold',
@@ -151,6 +157,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             newCoord3D = tomoObj.Coordinate3D(x=element[0],
                                               y=element[1],
                                               z=element[2])
+            newCoord3D.setBoxSize(self.boxSize.get())
             newCoord3D.setVolume(vol)
             newCoord3D.setVolId(vol.getObjId())
             outputSetOfCoordinates3D.append(newCoord3D)
@@ -172,6 +179,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                                                       suffix='')
             outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfVolumes.get().getSamplingRate())
             outputSetOfCoordinates3D.setPrecedents(self.inputSetOfVolumes)
+            outputSetOfCoordinates3D.setBoxSize(self.boxSize.get())
             outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
             self._defineSourceRelation(self.inputSetOfVolumes, outputSetOfCoordinates3D)
