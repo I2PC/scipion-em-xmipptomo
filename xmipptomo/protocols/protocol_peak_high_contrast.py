@@ -124,16 +124,18 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
-            'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get()
+            'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
+            'boxSize': self.boxSize.get()
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
                                "-o %(output)s " \
-                               "--pixelValueThr %(pixelValueThr)s " \
-                               "--numberSampSlices %(numberSampSlices)s " \
-                               "--numberCenterOfMass %(numberCenterOfMass)s " \
-                               "--distanceThr %(distanceThr)s " \
-                               "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s "
+                               "--pixelValueThr %(pixelValueThr)f " \
+                               "--numberSampSlices %(numberSampSlices)d " \
+                               "--numberCenterOfMass %(numberCenterOfMass)d " \
+                               "--distanceThr %(distanceThr)f " \
+                               "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
+                               "--boxSize %(boxSize)d "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
