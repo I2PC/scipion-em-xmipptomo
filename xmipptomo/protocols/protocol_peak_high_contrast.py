@@ -60,7 +60,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         form.addParam('boxSize',
                       params.IntParam,
                       label='Box size',
-                      default='20',
+                      default='32',
                       help="Size of the box containing the high contrast feature in pixels.")
 
         form.addParam('pixelValueThr',
@@ -118,7 +118,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         paramsPeakHighContrast = {
-            'inputVol': volFileName,
+            'inputVol': volFileName + ":mrc",
             'output': outputFilePath,
             'pixelValueThr': self.pixelValueThr.get(),
             'numberSampSlices': self.numberSampSlices.get(),
