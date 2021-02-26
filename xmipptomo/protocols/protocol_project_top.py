@@ -31,7 +31,7 @@ from pwem.objects import Particle, Volume, Coordinate, Transform, String
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
 from tomo.objects import SubTomogram
-
+import tomo.constants as const
 
 class XmippProtSubtomoProject(ProtAnalysis3D):
     """
@@ -124,8 +124,8 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             if type(subtomo) == SubTomogram:
                 if subtomo.hasCoordinate3D():
                     coord = Coordinate()
-                    coord.setX(subtomo.getCoordinate3D().getX())
-                    coord.setY(subtomo.getCoordinate3D().getY())
+                    coord.setX(subtomo.getCoordinate3D().getX(const.BOTTOM_LEFT_CORNER))
+                    coord.setY(subtomo.getCoordinate3D().getY(const.BOTTOM_LEFT_CORNER))
                     p.setCoordinate(coord)
                 p.setClassId(subtomo.getClassId())
             if subtomo.hasTransform():

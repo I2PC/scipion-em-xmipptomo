@@ -34,7 +34,7 @@ from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 from tomo.objects import MeshPoint, Ellipsoid, SubTomogram
 from tomo.utils import fit_ellipsoid, generatePointCloud
-
+import tomo.constants as const
 
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     """ This protocol adjust a SetOfSubtomograms with coordinates assigned or a SetOfCoordinates3D, to a vesicle
@@ -105,15 +105,15 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
                 if self._getInputisSubtomo(input.getFirstItem()):
                     for item in vesicle.iterItems():
                         coord = self._getCoor(item)
-                        x.append(float(coord.getX()) / tomoDim[0])
-                        y.append(float(coord.getY()) / tomoDim[1])
-                        z.append(float(coord.getZ()) / tomoDim[2])
+                        x.append(float(coord.getX(const.BOTTOM_LEFT_CORNER)) / tomoDim[0])
+                        y.append(float(coord.getY(const.BOTTOM_LEFT_CORNER)) / tomoDim[1])
+                        z.append(float(coord.getZ(const.BOTTOM_LEFT_CORNER)) / tomoDim[2])
                 else:
                     for item in vesicle.iterCoordinates(volume=tomo):
                         coord = self._getCoor(item)
-                        x.append(float(coord.getX()) / tomoDim[0])
-                        y.append(float(coord.getY()) / tomoDim[1])
-                        z.append(float(coord.getZ()) / tomoDim[2])
+                        x.append(float(coord.getX(const.BOTTOM_LEFT_CORNER)) / tomoDim[0])
+                        y.append(float(coord.getY(const.BOTTOM_LEFT_CORNER)) / tomoDim[1])
+                        z.append(float(coord.getZ(const.BOTTOM_LEFT_CORNER)) / tomoDim[2])
 
                 [center, radii, v, _, chi2] = fit_ellipsoid(np.array(x), np.array(y), np.array(z))
                 algDesc = '%f*x*x + %f*y*y + %f*z*z + 2*%f*x*y + 2*%f*x*z + 2*%f*y*z + 2*%f*x + 2*%f*y + 2*%f*z + %f ' \
@@ -130,12 +130,12 @@ class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
 
                 for point in pointCloud:
                     meshPoint = MeshPoint()
-                    meshPoint.setX(point[0])
-                    meshPoint.setY(point[1])
-                    meshPoint.setZ(point[2])
+                    meshPoint.setVolume(tomo.clone())
+                    meshPoint.setX(point[0], const.BOTTOM_LEFT_CORNER)
+                    meshPoint.setY(point[1], const.BOTTOM_LEFT_CORNER)
+                    meshPoint.setZ(point[2], const.BOTTOM_LEFT_CORNER)
                     meshPoint.setGroupId(self._getVesicleId(item))
                     meshPoint.setDescription(adjEllipsoid)
-                    meshPoint.setVolume(tomo.clone())
                     meshPoint.setVolumeName(basename(tomo.getFileName()))
                     self.outSet.append(meshPoint)
         self.outSet.setPrecedents(inputTomos)

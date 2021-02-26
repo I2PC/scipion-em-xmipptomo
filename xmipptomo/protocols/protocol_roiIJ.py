@@ -35,6 +35,7 @@ from pwem.protocols import ProtAnalysis2D
 from tomo.objects import MeshPoint
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
+import tomo.constants as const
 
 
 class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
@@ -66,9 +67,9 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
                 data = np.loadtxt(outFile, delimiter=',')
                 for coord in data:
                     mesh = MeshPoint()
-                    mesh.setPosition(coord[0], coord[1], coord[2])
-                    mesh.setGroupId(coord[3])
                     mesh.setVolume(tomo)
+                    mesh.setPosition(coord[0], coord[1], coord[2], const.BOTTOM_LEFT_CORNER)
+                    mesh.setGroupId(coord[3])
                     outSet.append(mesh)
         outSet.setPrecedents(inputTomos)
         self._defineOutputs(outputMeshes=outSet)

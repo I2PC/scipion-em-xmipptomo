@@ -40,6 +40,7 @@ from xmipp_base import createMetaDataFromPattern
 
 from tomo.protocols import ProtTomoPicking
 from tomo.utils import extractVesicles, initDictVesicles
+import tomo.constants as const
 
 from xmipptomo import Plugin
 
@@ -206,7 +207,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 it can be useful for scaling the coordinates if needed.
         """
         if getPosFunc is None:
-            getPosFunc = lambda coord: coord.getPosition()
+            getPosFunc = lambda coord: coord.getPosition(const.BOTTOM_LEFT_CORNER)
 
         state = 'Manual' if isManual else 'Supervised'
         f = openMd(outputFn, state)
