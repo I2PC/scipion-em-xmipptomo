@@ -102,14 +102,26 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of coordinates that must be attracted by a center of mass to consider it a plausible"
                            "high contrast feature.")
 
+        form.addParallelSection(threads=4, mpi=1)
+
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
         for vol in self.inputSetOfVolumes.get():
-            self._insertFunctionStep('peakHighContrastStep', vol.getObjId())
-            self._insertFunctionStep('createOutputStep', vol.getObjId())
+            preprocessId = self._insertFunctionStep('preprocessInputVolume',
+                                                    vol.getObjId(),
+                                                    prerequisites=[])
+            peakId = self._insertFunctionStep('peakHighContrastStep',
+                                              vol.getObjId(),
+                                              prerequisites=[preprocessId])
+            self._insertFunctionStep('createOutputStep',
+                                     vol.getObjId(),
+                                     prerequisites=[peakId])
         self._insertFunctionStep('closeOutputSetStep')
 
     # --------------------------- STEP functions --------------------------------
+    def preprocessInputVolume(self, volId):
+        pass
+    
     def peakHighContrastStep(self, volId):
         vol = self.inputSetOfVolumes.get()[volId]
 
