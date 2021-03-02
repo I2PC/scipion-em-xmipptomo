@@ -156,8 +156,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         argsBandpassFilter = "--input %(input)s " \
                              "--output %(output)s " \
-                             "--fourier band_pass %(w1)f %(w2)f " \
- \
+                             "--fourier band_pass %(w1)f %(w2)f "
+
         self.runJob('xmipp_transform_filter', argsBandpassFilter % paramsBandpassFilter)
 
     def peakHighContrastStep(self, volId):
