@@ -102,6 +102,24 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of coordinates that must be attracted by a center of mass to consider it a plausible"
                            "high contrast feature.")
 
+        groupFilterParams = form.addGroup('Volume filtering',
+                                          expertLevel=params.LEVEL_ADVANCED,
+                                          help="Params for volume bandpass filtering before picking.")
+
+        groupFilterParams.addParam('w1',
+                                   params.FloatParam,
+                                   default=0.1,
+                                   label='Low bandpass frequency',
+                                   help='Lower boundary frequency of the bandpass filter applied in volume '
+                                        'preprocessing.')
+
+        groupFilterParams.addParam('w2',
+                                   params.FloatParam,
+                                   default=0.3,
+                                   label='High bandpass frequency',
+                                   help='Higher boundary frequency of the bandpass filter applied in volume '
+                                        'preprocessing.')
+
         form.addParallelSection(threads=4, mpi=1)
 
     # --------------------------- INSERT steps functions ------------------------
@@ -110,27 +128,49 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             preprocessId = self._insertFunctionStep('preprocessInputVolume',
                                                     vol.getObjId(),
                                                     prerequisites=[])
+
             peakId = self._insertFunctionStep('peakHighContrastStep',
                                               vol.getObjId(),
                                               prerequisites=[preprocessId])
+
             self._insertFunctionStep('createOutputStep',
                                      vol.getObjId(),
                                      prerequisites=[peakId])
+
         self._insertFunctionStep('closeOutputSetStep')
 
     # --------------------------- STEP functions --------------------------------
     def preprocessInputVolume(self, volId):
-        pass
-    
+        vol = self.inputSetOfVolumes.get()[volId]
+
+        volFileName = vol.getFileName()
+        outputFileName = os.path.split(volFileName)[1]
+        outputFilePath = os.path.join(self._getTmpPath(), outputFileName)
+
+        paramsBandpassFilter = {
+            'input': volFileName + ":mrc",
+            'output': outputFilePath,
+            'w1': self.pixelValueThr.get(),
+            'w2': self.numberSampSlices.get(),
+        }
+
+        argsBandpassFilter = "--input %(input)s " \
+                             "--output %(output)s " \
+                             "--fourier band_pass %(w1)f %(w2)f " \
+ \
+        self.runJob('xmipp_transform_filter', argsBandpassFilter % paramsBandpassFilter)
+
     def peakHighContrastStep(self, volId):
         vol = self.inputSetOfVolumes.get()[volId]
 
         volFileName = vol.getFileName()
+        inputFileName = os.path.split(volFileName)[1]
+        inputFilePath = os.path.join(self._getTmpPath(), inputFileName)
         outputFileName = os.path.splitext(os.path.split(volFileName)[1])[0] + ".xmd"
         outputFilePath = os.path.join(self._getExtraPath(), outputFileName)
 
         paramsPeakHighContrast = {
-            'inputVol': volFileName + ":mrc",
+            'inputVol': inputFilePath + ":mrc",
             'output': outputFilePath,
             'pixelValueThr': self.pixelValueThr.get(),
             'numberSampSlices': self.numberSampSlices.get(),
