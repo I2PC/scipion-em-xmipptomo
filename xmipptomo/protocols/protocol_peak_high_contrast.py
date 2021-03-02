@@ -150,8 +150,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         paramsBandpassFilter = {
             'input': volFileName + ":mrc",
             'output': outputFilePath,
-            'w1': self.pixelValueThr.get(),
-            'w2': self.numberSampSlices.get(),
+            'w1': self.w1.get(),
+            'w2': self.w2.get(),
         }
 
         argsBandpassFilter = "--input %(input)s " \
