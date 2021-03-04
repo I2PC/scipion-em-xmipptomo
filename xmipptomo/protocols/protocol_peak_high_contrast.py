@@ -103,7 +103,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                            "high contrast feature.")
 
         groupFilterParams = form.addGroup('Volume filtering',
-                                          help="Params for volume bandpass filtering before picking.")
+                                           help="Params for volume bandpass filtering before picking.")
 
         groupFilterParams.addParam('w1',
                                    params.FloatParam,
