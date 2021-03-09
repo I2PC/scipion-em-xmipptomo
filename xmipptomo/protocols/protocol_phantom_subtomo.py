@@ -29,6 +29,7 @@ import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, StringParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition
@@ -38,6 +39,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     """ Create subtomogram phantoms """
 
     _label = 'phantom create subtomo'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):

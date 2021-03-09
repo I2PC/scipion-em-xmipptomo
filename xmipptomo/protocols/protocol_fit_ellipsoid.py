@@ -28,6 +28,7 @@
 
 from os.path import basename, dirname, join
 import numpy as np
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutlis
 from pwem.protocols import EMProtocol
@@ -36,11 +37,13 @@ from tomo.objects import MeshPoint, Ellipsoid, SubTomogram
 from tomo.utils import fit_ellipsoid, generatePointCloud
 import tomo.constants as const
 
+
 class XmippProtFitEllipsoid(EMProtocol, ProtTomoBase):
     """ This protocol adjust a SetOfSubtomograms with coordinates assigned or a SetOfCoordinates3D, to a vesicle
     (ellipsoid), defining regions of interest (SetOfMeshes) for each vesicle as output."""
 
     _label = 'fit vesicles'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)

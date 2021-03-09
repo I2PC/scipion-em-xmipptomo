@@ -27,6 +27,7 @@
 import os
 import numpy as np
 
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutils
 from pwem.viewers.showj import *
@@ -40,7 +41,9 @@ import tomo.constants as const
 
 class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
     """ Tomogram ROI selection in IJ """
+
     _label = 'imagej roi'
+    _devStatus = BETA
 
     def __init__(self, **kwargs):
         ProtAnalysis2D.__init__(self, **kwargs)

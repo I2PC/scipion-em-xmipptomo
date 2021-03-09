@@ -28,6 +28,7 @@
 
 import os
 import numpy as np
+from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, PointerParam, EnumParam
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
@@ -39,6 +40,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     connected componnent) to a ROI (region of interest) previously defined"""
 
     _label = 'connected components to ROIs'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)

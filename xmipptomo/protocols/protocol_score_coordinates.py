@@ -27,6 +27,7 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
+from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
 from pyworkflow.object import Float
@@ -44,11 +45,13 @@ import tomo.constants as const
 
 from xmipptomo import Plugin
 
+
 class XmippProtScoreCoordinates(ProtTomoPicking):
     '''Scoring and (optional) filtering of coordinates based on different scoring
     functions (carbon distance, neighbour distance)'''
 
     _label = 'score/filter coordinates'
+    _devStatus = BETA
 
     def _defineParams(self, form):
         form.addSection(label='Input')

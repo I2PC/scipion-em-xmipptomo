@@ -25,6 +25,7 @@
 # **************************************************************************
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
@@ -46,6 +47,7 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
     RESIZE_PYRAMID = 3
 
     _label = 'resize tilt-series'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):

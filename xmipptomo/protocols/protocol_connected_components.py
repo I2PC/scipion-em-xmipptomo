@@ -29,15 +29,18 @@
 from os.path import basename
 import numpy as np
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
 import tomo.constants as const
+
 
 class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     """ This protocol takes a set of coordinates and identifies connected
     components among the picked particles."""
 
     _label = 'connected components'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)

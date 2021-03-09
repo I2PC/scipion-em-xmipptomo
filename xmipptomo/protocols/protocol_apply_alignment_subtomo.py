@@ -31,6 +31,8 @@ from pwem.emlib import MDL_IMAGE
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 import pwem.emlib.metadata as md
+
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam
 
 from tomo.objects import AverageSubTomogram
@@ -42,6 +44,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
     """ Apply alignment matrix and produce a new setOfSubtomograms, with each subtomogram aligned to its reference. """
 
     _label = 'apply alignment subtomo'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):

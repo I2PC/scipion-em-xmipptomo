@@ -29,6 +29,7 @@ from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform, String
 from pwem.protocols import ProtAnalysis3D
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
 from tomo.objects import SubTomogram
 import tomo.constants as const
@@ -38,6 +39,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     Project a set of volumes or subtomograms to obtain their X, Y or Z projection of the desired range of slices.
     """
     _label = 'subtomo projection'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):

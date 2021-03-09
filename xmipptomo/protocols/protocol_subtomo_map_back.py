@@ -33,6 +33,8 @@ from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 
 from tomo.objects import Tomogram
@@ -47,6 +49,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
    It has different representation options."""
 
     _label = 'map back subtomos'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
