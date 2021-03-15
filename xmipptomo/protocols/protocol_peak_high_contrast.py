@@ -66,7 +66,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         form.addParam('fiducialSize',
                       params.FloatParam,
                       label='Fiducial size (nm)',
-                      default='32',
+                      default='10',
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
         form.addParam('pixelValueThr',
@@ -135,25 +135,25 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'inputVol': inputFilePath + ":mrc",
             'output': outputFilePath,
             'boxSize': self.boxSize.get(),
-            'fiducialSize': self.fiducialSize.get(),
+            'fiducialSize': self.fiducialSize.get() * 10,
             'pixelValueThr': self.pixelValueThr.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
-            'samplingRate': self.inputSetTomograms.getSamplingRate(),
+            'samplingRate': self.inputSetOfVolumes.get().getSamplingRate(),
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
-                               "--fiducialSize %(fiducialSize)f" \
+                               "--fiducialSize %(fiducialSize)f " \
                                "--pixelValueThr %(pixelValueThr)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberCenterOfMass %(numberCenterOfMass)d " \
                                "--distanceThr %(distanceThr)f " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
-                               "--samplingRate %(samplingRate)d "
+                               "--samplingRate %(samplingRate)f "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
