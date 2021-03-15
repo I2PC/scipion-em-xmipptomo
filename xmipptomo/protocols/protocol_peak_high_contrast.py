@@ -63,6 +63,12 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='32',
                       help="Size of the box containing the high contrast feature in pixels.")
 
+        form.addParam('fiducialSize',
+                      params.FloatParam,
+                      label='Fiducial size (nm)',
+                      default='32',
+                      help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
+
         form.addParam('pixelValueThr',
                       params.FloatParam,
                       label='Pixel value threshold',
