@@ -134,22 +134,26 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         paramsPeakHighContrast = {
             'inputVol': inputFilePath + ":mrc",
             'output': outputFilePath,
+            'boxSize': self.boxSize.get(),
+            'fiducialSize': self.fiducialSize.get(),
             'pixelValueThr': self.pixelValueThr.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
-            'boxSize': self.boxSize.get()
+            'samplingRate': self.inputSetTomograms.getSamplingRate(),
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
                                "-o %(output)s " \
+                               "--boxSize %(boxSize)d " \
+                               "--fiducialSize %(fiducialSize)f" \
                                "--pixelValueThr %(pixelValueThr)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberCenterOfMass %(numberCenterOfMass)d " \
                                "--distanceThr %(distanceThr)f " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
-                               "--boxSize %(boxSize)d "
+                               "--samplingRate %(samplingRate)d "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
