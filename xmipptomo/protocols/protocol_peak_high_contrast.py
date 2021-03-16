@@ -167,8 +167,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3Ds()
 
-        xVol, yVol, zVol = vol.getDim()
-
         coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFilePath)
 
         for element in coordList:
