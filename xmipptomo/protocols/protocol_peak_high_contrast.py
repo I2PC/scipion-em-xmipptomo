@@ -29,6 +29,7 @@ import os
 from pwem.protocols import EMProtocol
 import pyworkflow.protocol.params as params
 from pyworkflow.object import Set
+from tomo import constants
 from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
 from xmipptomo import utils
@@ -69,13 +70,12 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='10',
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
-        form.addParam('pixelValueThr',
+        form.addParam('numberInitialCoor',
                       params.FloatParam,
-                      label='Pixel value threshold',
-                      default='0.1',
+                      label='Number of initial coordinates',
+                      default='15000',
                       expertLevel=params.LEVEL_ADVANCED,
-                      help="Percentage of pixels whose value will be considered outlier, for posterior high contrast"
-                           "regions detection.")
+                      help="Number of coordinates presenting an outlier value to be peaked before trimming.")
 
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -105,8 +105,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       label='Number of coordinates threshold',
                       default='10',
                       expertLevel=params.LEVEL_ADVANCED,
-                      help="Number of coordinates that must be attracted by a center of mass to consider it a plausible"
-                           "high contrast feature.")
+                      help="Number of coordinates that must be attracted by a center of mass to consider it a "
+                           "plausible high contrast feature.")
 
         form.addParallelSection(threads=4, mpi=1)
 
@@ -136,7 +136,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'output': outputFilePath,
             'boxSize': self.boxSize.get(),
             'fiducialSize': self.fiducialSize.get() * 10,
-            'pixelValueThr': self.pixelValueThr.get(),
+            'numberInitialCoor': self.numberInitialCoor.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
@@ -148,7 +148,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
-                               "--pixelValueThr %(pixelValueThr)f " \
+                               "--numberInitialCoor %(numberInitialCoor)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberCenterOfMass %(numberCenterOfMass)d " \
                                "--distanceThr %(distanceThr)f " \
@@ -159,6 +159,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
     def createOutputStep(self, volId):
         vol = self.inputSetOfVolumes.get()[volId]
+        volObjId = vol.getObjId()
 
         volFileName = vol.getFileName()
         outputFileName = os.path.splitext(os.path.split(volFileName)[1])[0] + ".xmd"
@@ -168,20 +169,19 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         xVol, yVol, zVol = vol.getDim()
 
-        coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFilePath,
-                                                             xVol,
-                                                             yVol,
-                                                             zVol)
+        coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFilePath)
 
         for element in coordList:
-            newCoord3D = tomoObj.Coordinate3D(x=element[0],
-                                              y=element[1],
-                                              z=element[2])
-            newCoord3D.setBoxSize(self.boxSize.get())
+            newCoord3D = tomoObj.Coordinate3D()
             newCoord3D.setVolume(vol)
-            newCoord3D.setVolId(vol.getObjId())
+            newCoord3D.setX(element[0], constants.BOTTOM_LEFT_CORNER)
+            newCoord3D.setY(element[1], constants.BOTTOM_LEFT_CORNER)
+            newCoord3D.setZ(element[2], constants.BOTTOM_LEFT_CORNER)
+
+            newCoord3D.setVolId(volObjId)
             outputSetOfCoordinates3D.append(newCoord3D)
             outputSetOfCoordinates3D.update(newCoord3D)
+
         outputSetOfCoordinates3D.write()
         self._store()
 
