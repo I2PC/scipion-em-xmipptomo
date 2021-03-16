@@ -37,11 +37,6 @@ def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xDim, yDim, zDim):
     for line in inputLines[7:]:
         vector = line.split()
 
-        # Wait for coordinates changes in scipion object
-        # coorList.append([float(vector[0]) - xDim / 2,
-        #                  float(vector[1]) - yDim / 2,
-        #                  float(vector[2]) - zDim / 2])
-
         coorList.append([float(vector[0]),
                          float(vector[1]),
                          float(vector[2])])
