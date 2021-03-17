@@ -25,7 +25,7 @@
 # **************************************************************************
 
 
-def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xDim, yDim, zDim):
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
     """ This method takes an xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
     every coordinate. This method also transform the coordinates into the Scipion convention. """
 
