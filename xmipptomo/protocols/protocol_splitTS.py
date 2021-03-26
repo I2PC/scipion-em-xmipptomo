@@ -124,12 +124,12 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         ih = ImageHandler()
 
         """Output even set"""
-        outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
+        outputEvenSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
         tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
 
         evenTs = tomoObj.TiltSeries(tsId=tsId)
         evenTs.copyInfo(ts)
-        outputOddSetOfTiltSeries.append(evenTs)
+        outputEvenSetOfTiltSeries.append(evenTs)
 
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
@@ -144,8 +144,9 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         evenTs.setDim((xEvenTs, yEvenTs, zEvenTs))
 
         evenTs.write()
-        outputOddSetOfTiltSeries.update(evenTs)
-        outputOddSetOfTiltSeries.write()
+        outputEvenSetOfTiltSeries.update(evenTs)
+        outputEvenSetOfTiltSeries.updateDim()
+        outputEvenSetOfTiltSeries.write()
         self._store()
 
         """Output odd set"""
@@ -168,8 +169,9 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         xOddTs, yOddTs, zOddTs, _ = ih.getDimensions(oddTs.getFirstItem().getFileName()+":mrc")
         oddTs.setDim((xOddTs, yOddTs, zOddTs))
 
-        oddTs.write()
+        oddTs.write(properties=False)
         outputOddSetOfTiltSeries.update(oddTs)
+        outputOddSetOfTiltSeries.updateDim()
         outputOddSetOfTiltSeries.write()
         self._store()
 
