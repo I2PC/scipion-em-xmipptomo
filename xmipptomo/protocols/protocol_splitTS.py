@@ -31,6 +31,7 @@ from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
+from pwem.emlib.image import ImageHandler
 
 
 class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
@@ -70,7 +71,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
         paramsOddEven = {
-            'inputImg': tsFileName,
+            'inputImg': tsFileName+":mrcs",
             'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
             'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
             'type': "images",
@@ -120,6 +121,8 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
         tsFileName = ts.getFirstItem().getFileName()
 
+        ih = ImageHandler()
+
         """Output even set"""
         outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
         tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
@@ -136,6 +139,10 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
                 evenTs.append(newTi)
+
+        xEvenTs, yEvenTs, zEvenTs, _ = ih.getDimensions(evenTs.getFirstItem().getFileName()+":mrc")
+        evenTs.setDim((xEvenTs, yEvenTs, zEvenTs))
+
         evenTs.write()
         outputOddSetOfTiltSeries.update(evenTs)
         outputOddSetOfTiltSeries.write()
@@ -157,6 +164,10 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
                 oddTs.append(newTi)
+
+        xOddTs, yOddTs, zOddTs, _ = ih.getDimensions(oddTs.getFirstItem().getFileName()+":mrc")
+        oddTs.setDim((xOddTs, yOddTs, zOddTs))
+
         oddTs.write()
         outputOddSetOfTiltSeries.update(oddTs)
         outputOddSetOfTiltSeries.write()
