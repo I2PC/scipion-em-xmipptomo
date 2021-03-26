@@ -31,6 +31,7 @@ from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
+from pwem.emlib.image import ImageHandler
 
 
 class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
@@ -70,7 +71,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
         paramsOddEven = {
-            'inputImg': tsFileName,
+            'inputImg': tsFileName+":mrcs",
             'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
             'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
             'type': "images",
@@ -120,13 +121,15 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
         tsFileName = ts.getFirstItem().getFileName()
 
+        ih = ImageHandler()
+
         """Output even set"""
-        outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
+        outputEvenSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
         tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
 
         evenTs = tomoObj.TiltSeries(tsId=tsId)
         evenTs.copyInfo(ts)
-        outputOddSetOfTiltSeries.append(evenTs)
+        outputEvenSetOfTiltSeries.append(evenTs)
 
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
@@ -136,9 +139,14 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
                 evenTs.append(newTi)
+
+        xEvenTs, yEvenTs, zEvenTs, _ = ih.getDimensions(evenTs.getFirstItem().getFileName()+":mrc")
+        evenTs.setDim((xEvenTs, yEvenTs, zEvenTs))
+
         evenTs.write()
-        outputOddSetOfTiltSeries.update(evenTs)
-        outputOddSetOfTiltSeries.write()
+        outputEvenSetOfTiltSeries.update(evenTs)
+        outputEvenSetOfTiltSeries.updateDim()
+        outputEvenSetOfTiltSeries.write()
         self._store()
 
         """Output odd set"""
@@ -157,8 +165,13 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
                 oddTs.append(newTi)
-        oddTs.write()
+
+        xOddTs, yOddTs, zOddTs, _ = ih.getDimensions(oddTs.getFirstItem().getFileName()+":mrc")
+        oddTs.setDim((xOddTs, yOddTs, zOddTs))
+
+        oddTs.write(properties=False)
         outputOddSetOfTiltSeries.update(oddTs)
+        outputOddSetOfTiltSeries.updateDim()
         outputOddSetOfTiltSeries.write()
         self._store()
 
