@@ -70,12 +70,12 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='10',
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
-        form.addParam('numberInitialCoor',
+        form.addParam('ratioInitialCoor',
                       params.FloatParam,
-                      label='Number of initial coordinates',
-                      default='15000',
-                      expertLevel=params.LEVEL_ADVANCED,
-                      help="Number of coordinates presenting an outlier value to be peaked before trimming.")
+                      label='Ratio of initial coordinates (ppm)',
+                      default='800',
+                      help="Number of coordinates per million containing an outlier value to be peaked before "
+                           "trimming.")
 
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -136,7 +136,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'output': outputFilePath,
             'boxSize': self.boxSize.get(),
             'fiducialSize': self.fiducialSize.get() * 10,
-            'numberInitialCoor': self.numberInitialCoor.get(),
+            'ratioInitialCoor': self.ratioInitialCoor.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
@@ -148,7 +148,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
-                               "--numberInitialCoor %(numberInitialCoor)f " \
+                               "--ratioInitialCoor %(ratioInitialCoor)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberCenterOfMass %(numberCenterOfMass)d " \
                                "--distanceThr %(distanceThr)f " \
