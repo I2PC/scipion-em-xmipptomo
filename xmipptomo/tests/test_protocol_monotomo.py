@@ -30,7 +30,7 @@ from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from pwem.protocols import ProtImportVolumes
 
 from xmipp3.protocols import XmippProtCropResizeVolumes
-from xmipptomo import XmippProtMonoTomo
+from xmipptomo.protocols import XmippProtMonoTomo
 
 class TestMonoTomoBase(BaseTest):
     @classmethod
