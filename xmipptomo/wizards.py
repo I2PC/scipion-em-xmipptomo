@@ -27,6 +27,7 @@
 
 from pyworkflow.wizard import Wizard
 from .protocols import XmippProtConnectedComponents
+from xmipptomo.viewers import XmippMonoTomoViewer
 
 
 class XmippConnectedCompWizard(Wizard):
@@ -45,3 +46,5 @@ class XmippConnectedCompWizard(Wizard):
         distance = boxSize * 3
         form.setVar('distance', distance)
 
+class ColorScaleWizard(ColorScaleWizardBase):
+    _targets = ColorScaleWizardBase.defineTargets(XmippMonoTomoViewer)
