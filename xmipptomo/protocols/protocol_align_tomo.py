@@ -121,8 +121,6 @@ class XmippProtAlignTomos(ProtTomoPicking):
             self.runJob("xmipp_volume_align", params)
 
     def createOutputStep(self):
-        import time
-        time.sleep(10)
         output_set = self._createSetOfCoordinates3D(self.referenceTomograms.get())
         inputCoordinates = self.inputCoordinates.get()
         inputTomograms = inputCoordinates.getPrecedents()
@@ -131,8 +129,10 @@ class XmippProtAlignTomos(ProtTomoPicking):
         output_set.setBoxSize(inputCoordinates.getBoxSize())
         for tomo_input in inputTomograms.iterItems():
             tomo_reference = referenceTomograms[tomo_input.getObjId()]
-            tomo_input_dim = np.asarray(tomo_input.getDimensions() + (0,)) / 2
-            tomo_reference_dim = np.asarray(tomo_reference.getDimensions() + (0,)) / 2
+            tomo_input_dim = np.asarray(tomo_input.getDimensions()) / 2
+            tomo_reference_dim = np.asarray(tomo_reference.getDimensions()) / 2
+            tomo_input_tr, tomo_reference_tr = self.createTransformation(t=-tomo_input_dim), \
+                                               self.createTransformation(t=tomo_reference_dim)
             matrix_file = self._getExtraPath(pwutils.removeBaseExt(tomo_input.getFileName()) + "_input_align_matrix.txt")
             matrix = np.loadtxt(matrix_file).reshape(4, 4)
             for coordinate in inputCoordinates.iterCoordinates(volume=tomo_input):
@@ -140,9 +140,8 @@ class XmippProtAlignTomos(ProtTomoPicking):
                 moved_Coord.setVolume(tomo_reference)
                 original_pos, original_transformation = np.asarray(coordinate.getPosition() + (1,)), \
                                                         coordinate.getMatrix()
-                original_pos = original_pos - tomo_input_dim
-                moved_pos, moved_transformation = np.dot(matrix, original_pos), np.dot(matrix, original_transformation)
-                moved_pos = moved_pos + tomo_reference_dim
+                tr_coord = tomo_reference_tr @ matrix @ tomo_input_tr
+                moved_pos, moved_transformation = np.dot(tr_coord, original_pos), np.dot(tr_coord, original_transformation)
                 moved_Coord.setPosition(moved_pos[0], moved_pos[1], moved_pos[2])
                 moved_Coord.setMatrix(moved_transformation)
                 output_set.append(moved_Coord)
@@ -178,6 +177,12 @@ class XmippProtAlignTomos(ProtTomoPicking):
         img = img[start_x:start_x + dim_x, start_y:start_y + dim_y, start_z:start_z + dim_z]
         img = np.swapaxes(img, 0, 2)
         return img
+
+    def createTransformation(self, rot=np.eye(3), t=np.array([0, 0, 0])):
+        transformation = np.eye(4)
+        transformation[:-1, :-1] = rot
+        transformation[:-1, -1] = t
+        return transformation
 
     # --------------------------- INFO functions ---------------------------
     def _summary(self):
