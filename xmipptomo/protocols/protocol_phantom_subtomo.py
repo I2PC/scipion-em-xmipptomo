@@ -29,7 +29,7 @@ import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, StringParam, BooleanParam
+from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition
 
@@ -47,7 +47,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                       help="Import a volume or create 'base' phantom manually")
         form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
                       condition="option==0", help="Volume used as 'base' phantom")
-        form.addParam('create', StringParam, label='Create phantom', condition="option==1",
+        form.addParam('create', TextParam, label='Create phantom', condition="option==1",
                       default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
                               'sph + 1 0 -5 5 2',
                       help="create a phantom description: x y z backgroundValue geometry(cyl, sph...) +(superimpose) "
