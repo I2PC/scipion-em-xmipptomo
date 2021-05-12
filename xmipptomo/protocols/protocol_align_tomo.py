@@ -117,7 +117,7 @@ class XmippProtAlignTomos(ProtTomoPicking):
                                           "_input_subregion.mrc")
             matrix_file = self._getExtraPath(pwutils.removeBaseExt(tomo_input) +
                                              "_input_align_matrix.txt")
-            params = f"--i1 {reference_file} --i2 {input_file} --dontScale --local --copyGeo {matrix_file}"
+            params = f"--i1 {reference_file}:mrc --i2 {input_file}:mrc --dontScale --local --copyGeo {matrix_file}"
             self.runJob("xmipp_volume_align", params)
 
     def createOutputStep(self):
