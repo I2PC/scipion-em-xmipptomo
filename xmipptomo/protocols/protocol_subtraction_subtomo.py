@@ -117,7 +117,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
 
         # Align subtomograms
-        self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform' %
+        self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform --dont_wrap' %
                     (self._getExtraPath("window_with_original_geometry.xmd"),
                      self._getExtraPath('aligned_subtomograms.stk')))
 
@@ -163,7 +163,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
             # Apply inverse transform for the output to have the original orientation
             self.runJob('xmipp_transform_geometry',
-                        '-i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --inverse' %
+                        '-i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --inverse --dont_wrap' %
                         (fnOutSubtomo, fnOutSubtomo,
                          row.getValue('angleRot'), row.getValue('angleTilt'), row.getValue('anglePsi'),
                          row.getValue('shiftX'), row.getValue('shiftY'), row.getValue('shiftZ')))
