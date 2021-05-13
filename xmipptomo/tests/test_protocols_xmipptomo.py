@@ -70,12 +70,8 @@ class TestXmipptomoProtCC(BaseTest):
                                                    inputCoordinates=protImport.outputCoordinates,
                                                    distance=120)
         self.launchProtocol(protConnectedComponents)
-        self.assertTrue(protConnectedComponents.output3DCoordinates1)
-        self.assertEqual(protConnectedComponents.output3DCoordinates1.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates2)
-        self.assertEqual(protConnectedComponents.output3DCoordinates2.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates3)
-        self.assertEqual(protConnectedComponents.output3DCoordinates3.getSize(), 1)
+        self.assertTrue(protConnectedComponents.outputSetOfCoordinates3D)
+        self.assertEqual(protConnectedComponents.outputSetOfCoordinates3D.getSize(), 5)
         return protConnectedComponents
 
 
