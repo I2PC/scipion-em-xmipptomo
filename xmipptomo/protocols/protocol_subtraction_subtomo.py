@@ -55,8 +55,10 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
                       help='Select an average subtomogram to be subtracted.')
         form.addParam('maskBool', BooleanParam, label='Mask subtomograms?', default=True,
                       help='The mask are not mandatory but highly recommendable.')
-        form.addParam('mask', PointerParam, pointerClass='VolumeMask', label="Mask",
-                      condition='maskBool', help='Specify a mask for the region of subtraction.')
+        form.addParam('mask', PointerParam, pointerClass='VolumeMask', label="Average mask",
+                      condition='maskBool', help='Specify a mask for the average.')
+        form.addParam('maskSub', PointerParam, pointerClass='VolumeMask', label="Subtraction mask", allowsNull=True,
+                      condition='maskBool', help='Optional, specify a mask for the region of subtraction')
         form.addParam('resol', FloatParam, label="Filter at resolution: ", default=3, allowsNull=True,
                       expertLevel=LEVEL_ADVANCED,
                       help='Resolution (A) at which subtraction will be performed, filtering the input volumes.'
@@ -143,12 +145,16 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         resol = self.resol.get()
         iter = self.iter.get()
         program = "xmipp_volume_subtraction"
-        args = '--i2 % s --iter %s --lambda %s --sub' % (average, iter, self.rfactor.get())
+        args = '--i2 %s --iter %s --lambda %s --sub --dont_compute_E' % \
+               (average, iter, self.rfactor.get())
         if resol:
             fc = self.inputSubtomos.get().getSamplingRate() / resol
             args += ' --cutFreq %f --sigma %d' % (fc, self.sigma.get())
         if self.maskBool:
             args += ' --mask1 %s' % (self.mask.get().getFileName())
+            maskSub = self.maskSub.get()
+            if maskSub:
+                args += ' --maskSub %s' % maskSub.getFileName()
 
         mdOrig = md.MetaData(self._getExtraPath('window_with_original_geometry.xmd'))
         for subtomo, row in zip(self.alignedSet.iterItems(), md.iterRows(mdOrig)):
