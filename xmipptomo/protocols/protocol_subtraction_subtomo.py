@@ -159,7 +159,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         mdOrig = md.MetaData(self._getExtraPath('window_with_original_geometry.xmd'))
         for subtomo, row in zip(self.alignedSet.iterItems(), md.iterRows(mdOrig)):
             ix = subtomo.getObjId()
-            fnOutSubtomo = self._getExtraPath("output_subtomo%d.mrc" % ix)
+            fnOutSubtomo = self._getExtraPath("output_subtomo%06d.mrc" % ix)
             argsSubtomo = ' --i1 %06d@%s -o % s' % (ix, subtomo.getFileName(), fnOutSubtomo)
             if self.saveFiles and ix == 1:
                 argsSubtomo += ' --saveV1 %s --saveV2 %s' % (self._getExtraPath('vol1_filtered.mrc'),
@@ -226,5 +226,4 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         item.setTransform(None)
 
     def _updateItemOutput(self, item, row):
-        item.setFileName(self._getExtraPath("output_subtomo%d.mrc" % item.getObjId()))
-
+        item.setFileName(self._getExtraPath("output_subtomo%06d.mrc" % item.getObjId()))
