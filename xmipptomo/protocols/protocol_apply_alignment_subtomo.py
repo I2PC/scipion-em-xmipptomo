@@ -114,7 +114,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
                              updateItemCallback=self._updateItem,
                              itemDataIterator=md.iterRows(inputMd, sortByLabel=md.MDL_ITEM_ID))
         alignedSet.setAlignment(pwem.ALIGN_NONE)
-        avgFile = self._getExtraPath("average.xmp")
+        avgFile = self._getExtraPath("average.mrc")
         imgh = ImageHandler()
         avgImage = imgh.computeAverage(alignedSet)
         avgImage.write(avgFile)
