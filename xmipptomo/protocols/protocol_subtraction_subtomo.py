@@ -55,8 +55,10 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
                       help='Select an average subtomogram to be subtracted.')
         form.addParam('maskBool', BooleanParam, label='Mask subtomograms?', default=True,
                       help='The mask are not mandatory but highly recommendable.')
-        form.addParam('mask', PointerParam, pointerClass='VolumeMask', label="Mask",
-                      condition='maskBool', help='Specify a mask for the region of subtraction.')
+        form.addParam('mask', PointerParam, pointerClass='VolumeMask', label="Average mask",
+                      condition='maskBool', help='Specify a mask for the average.')
+        form.addParam('maskSub', PointerParam, pointerClass='VolumeMask', label="Subtraction mask", allowsNull=True,
+                      condition='maskBool', help='Optional, specify a mask for the region of subtraction')
         form.addParam('resol', FloatParam, label="Filter at resolution: ", default=3, allowsNull=True,
                       expertLevel=LEVEL_ADVANCED,
                       help='Resolution (A) at which subtraction will be performed, filtering the input volumes.'
@@ -117,7 +119,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
 
         # Align subtomograms
-        self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform' %
+        self.runJob('xmipp_transform_geometry', '-i %s -o %s --apply_transform --dont_wrap' %
                     (self._getExtraPath("window_with_original_geometry.xmd"),
                      self._getExtraPath('aligned_subtomograms.stk')))
 
@@ -143,17 +145,21 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         resol = self.resol.get()
         iter = self.iter.get()
         program = "xmipp_volume_subtraction"
-        args = '--i2 % s --iter %s --lambda %s --sub' % (average, iter, self.rfactor.get())
+        args = '--i2 %s --iter %s --lambda %s --sub' % \
+               (average, iter, self.rfactor.get())
         if resol:
             fc = self.inputSubtomos.get().getSamplingRate() / resol
             args += ' --cutFreq %f --sigma %d' % (fc, self.sigma.get())
         if self.maskBool:
             args += ' --mask1 %s' % (self.mask.get().getFileName())
+            maskSub = self.maskSub.get()
+            if maskSub:
+                args += ' --maskSub %s' % maskSub.getFileName()
 
         mdOrig = md.MetaData(self._getExtraPath('window_with_original_geometry.xmd'))
         for subtomo, row in zip(self.alignedSet.iterItems(), md.iterRows(mdOrig)):
             ix = subtomo.getObjId()
-            fnOutSubtomo = self._getExtraPath("output_subtomo%d.mrc" % ix)
+            fnOutSubtomo = self._getExtraPath("output_subtomo%06d.mrc" % ix)
             argsSubtomo = ' --i1 %06d@%s -o % s' % (ix, subtomo.getFileName(), fnOutSubtomo)
             if self.saveFiles and ix == 1:
                 argsSubtomo += ' --saveV1 %s --saveV2 %s' % (self._getExtraPath('vol1_filtered.mrc'),
@@ -163,7 +169,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
             # Apply inverse transform for the output to have the original orientation
             self.runJob('xmipp_transform_geometry',
-                        '-i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --inverse' %
+                        '-i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --inverse --dont_wrap' %
                         (fnOutSubtomo, fnOutSubtomo,
                          row.getValue('angleRot'), row.getValue('angleTilt'), row.getValue('anglePsi'),
                          row.getValue('shiftX'), row.getValue('shiftY'), row.getValue('shiftZ')))
@@ -220,5 +226,4 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         item.setTransform(None)
 
     def _updateItemOutput(self, item, row):
-        item.setFileName(self._getExtraPath("output_subtomo%d.mrc" % item.getObjId()))
-
+        item.setFileName(self._getExtraPath("output_subtomo%06d.mrc" % item.getObjId()))
