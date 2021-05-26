@@ -72,10 +72,10 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         form.addParam('ratioInitialCoor',
                       params.FloatParam,
-                      label='Ratio of initial coordinates (ppm)',
+                      label='Ratio of initial coordinates (SD)',
                       default='800',
-                      help="Number of coordinates per million containing an outlier value to be peaked before "
-                           "trimming.")
+                      help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
+                           "to consider it a member of a high contrast feature.")
 
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -103,7 +103,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         form.addParam('numberOfCoordinatesThr',
                       params.IntParam,
                       label='Number of coordinates threshold',
-                      default='10',
+                      default='50',
                       expertLevel=params.LEVEL_ADVANCED,
                       help="Number of coordinates that must be attracted by a center of mass to consider it a "
                            "plausible high contrast feature.")
