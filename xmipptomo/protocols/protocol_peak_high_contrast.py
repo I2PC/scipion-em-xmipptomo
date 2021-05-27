@@ -70,10 +70,10 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='10',
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
-        form.addParam('ratioInitialCoor',
+        form.addParam('sdThreshold',
                       params.FloatParam,
-                      label='Ratio of initial coordinates (SD)',
-                      default='800',
+                      label='Threshold for initial coordinates (SD)',
+                      default='5',
                       help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
                            "to consider it a member of a high contrast feature.")
 
@@ -136,7 +136,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'output': outputFilePath,
             'boxSize': self.boxSize.get(),
             'fiducialSize': self.fiducialSize.get() * 10,
-            'ratioInitialCoor': self.ratioInitialCoor.get(),
+            'sdThreshold': self.sdThreshold.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
@@ -148,7 +148,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
-                               "--ratioInitialCoor %(ratioInitialCoor)f " \
+                               "--sdThreshold %(sdThreshold)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberCenterOfMass %(numberCenterOfMass)d " \
                                "--distanceThr %(distanceThr)f " \
