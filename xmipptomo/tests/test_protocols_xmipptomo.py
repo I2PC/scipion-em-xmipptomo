@@ -70,12 +70,8 @@ class TestXmipptomoProtCC(BaseTest):
                                                    inputCoordinates=protImport.outputCoordinates,
                                                    distance=120)
         self.launchProtocol(protConnectedComponents)
-        self.assertTrue(protConnectedComponents.output3DCoordinates1)
-        self.assertEqual(protConnectedComponents.output3DCoordinates1.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates2)
-        self.assertEqual(protConnectedComponents.output3DCoordinates2.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates3)
-        self.assertEqual(protConnectedComponents.output3DCoordinates3.getSize(), 1)
+        self.assertTrue(protConnectedComponents.outputSetOfCoordinates3D)
+        self.assertEqual(protConnectedComponents.outputSetOfCoordinates3D.getSize(), 5)
         return protConnectedComponents
 
 
@@ -170,28 +166,16 @@ class TestXmipptomoApplyTransf(BaseTest):
         cls.setOfSubtomograms = cls.dataset.getFile('basename.hdf')
 
     def _runPreviousProtocols(self):
-        protImport = self.newProtocol(ProtImportSubTomograms,
-                                      filesPath=self.setOfSubtomograms,
-                                      samplingRate=5)
-        self.launchProtocol(protImport)
-        from xmipp2.protocols import Xmipp2ProtMLTomo
-        protMltomo = self.newProtocol(Xmipp2ProtMLTomo,
-                                      inputVolumes=protImport.outputSubTomograms,
-                                      randomInitialization=True,
-                                      numberOfReferences=1,
-                                      numberOfIters=3,
-                                      angularSampling=30)
-        self.launchProtocol(protMltomo)
-        self.assertIsNotNone(protMltomo.outputSubtomograms,
-                         "There was a problem with SetOfSubtomogram output")
-        self.assertIsNotNone(protMltomo.outputClassesSubtomo,
-                         "There was a problem with SetOfSubtomogram output")
-        return protMltomo
+        protPhantom = self.newProtocol(XmippProtPhantomSubtomo, option=1, nsubtomos=5)
+        self.launchProtocol(protPhantom)
+        self.assertIsNotNone(protPhantom.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+        return protPhantom
 
     def _applyAlignment(self):
-        protMltomo = self._runPreviousProtocols()
+        protPhantom = self._runPreviousProtocols()
         apply = self.newProtocol(XmippProtApplyTransformSubtomo,
-                                 inputSubtomograms=protMltomo.outputSubtomograms)
+                                 inputSubtomograms=protPhantom.outputSubtomograms)
         self.launchProtocol(apply)
         self.assertIsNotNone(apply.outputSubtomograms,
                              "There was a problem with subtomograms output")
