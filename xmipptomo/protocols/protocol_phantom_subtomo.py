@@ -31,7 +31,7 @@ from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
