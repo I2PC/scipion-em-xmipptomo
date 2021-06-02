@@ -48,7 +48,6 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', PointerParam, pointerClass="SetOfSubTomograms",
                       label='Set of subtomograms', help="Set of subtomograms to be alignment")
-        form.addParallelSection(threads=0, mpi=8)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
