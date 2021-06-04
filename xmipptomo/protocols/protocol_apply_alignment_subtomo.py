@@ -51,7 +51,6 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', PointerParam, pointerClass="SetOfSubTomograms",
                       label='Set of subtomograms', help="Set of subtomograms to be alignment")
-        form.addParallelSection(threads=0, mpi=8)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -117,7 +116,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
                              updateItemCallback=self._updateItem,
                              itemDataIterator=md.iterRows(inputMd, sortByLabel=md.MDL_ITEM_ID))
         alignedSet.setAlignment(pwem.ALIGN_NONE)
-        avgFile = self._getExtraPath("average.xmp")
+        avgFile = self._getExtraPath("average.mrc")
         imgh = ImageHandler()
         avgImage = imgh.computeAverage(alignedSet)
         avgImage.write(avgFile)

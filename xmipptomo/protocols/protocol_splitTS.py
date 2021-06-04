@@ -72,7 +72,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
         paramsOddEven = {
-            'inputImg': tsFileName,
+            'inputImg': tsFileName+":mrcs",
             'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
             'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
             'type': "images",
@@ -138,7 +138,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
                 evenTs.append(newTi)
-        evenTs.write()
+        evenTs.write(properties=False)
         outputOddSetOfTiltSeries.update(evenTs)
         outputOddSetOfTiltSeries.write()
         self._store()
@@ -159,7 +159,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
                 oddTs.append(newTi)
-        oddTs.write()
+        oddTs.write(properties=False)
         outputOddSetOfTiltSeries.update(oddTs)
         outputOddSetOfTiltSeries.write()
         self._store()
