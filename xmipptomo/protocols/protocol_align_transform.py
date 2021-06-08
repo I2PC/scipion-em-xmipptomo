@@ -27,6 +27,7 @@
 
 import numpy as np
 
+from pyworkflow import BETA
 from pwem.objects import Transform
 
 from pyworkflow.protocol import params
@@ -40,6 +41,7 @@ class XmippProtAlignTransform(ProtTomoPicking):
     Subtomogram Average'''
 
     _label = 'align transformations'
+    _devStatus = BETA
 
     def __init__(self, **args):
         ProtTomoPicking.__init__(self, **args)

@@ -33,11 +33,14 @@ from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 
 from tomo.objects import Tomogram
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import alignmentToRow
+import tomo.constants as const
 
 
 class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
@@ -46,6 +49,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
    It has different representation options."""
 
     _label = 'map back subtomos'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -147,9 +151,11 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                         or basename(subtomo.getVolName()) == tomo.getBaseName().partition('import_')[0]:
                     nRow = md.Row()
                     nRow.setValue(lib.MDL_ITEM_ID, int(subtomo.getObjId()))
-                    nRow.setValue(lib.MDL_XCOOR, int(subtomo.getCoordinate3D().getX()*scaleFactor))
-                    nRow.setValue(lib.MDL_YCOOR, int(subtomo.getCoordinate3D().getY()*scaleFactor))
-                    nRow.setValue(lib.MDL_ZCOOR, int(subtomo.getCoordinate3D().getZ()*scaleFactor))
+                    coord = subtomo.getCoordinate3D()
+                    coord.setVolume(tomo)
+                    nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+                    nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+                    nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
                     # Compute inverse matrix
                     A = subtomo.getTransform().getMatrix()
                     subtomo.getTransform().setMatrix(np.linalg.inv(A))

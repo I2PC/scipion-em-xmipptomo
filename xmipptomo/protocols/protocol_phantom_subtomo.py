@@ -29,15 +29,18 @@ import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D
+import tomo.constants as const
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     """ Create subtomogram phantoms """
 
     _label = 'phantom create subtomo'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -133,9 +136,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         subtomobase.setTransform(transformBase)
         if coordsBool:
             coor = Coordinate3D()
-            coor.setX(np.random.randint(0, tomoDim[0]))
-            coor.setY(np.random.randint(0, tomoDim[1]))
-            coor.setZ(np.random.randint(0, tomoDim[2]))
+            coor.setVolume(tomo)
+            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
             subtomobase.setCoordinate3D(coor)
             subtomobase.setVolName(tomo.getFileName())
             self.coords.append(coor)
@@ -164,9 +168,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             subtomo.setTransform(transform)
             if coordsBool:
                 coor = Coordinate3D()
-                coor.setX(np.random.randint(0, tomoDim[0]))
-                coor.setY(np.random.randint(0, tomoDim[1]))
-                coor.setZ(np.random.randint(0, tomoDim[2]))
+                coor.setVolume(tomo)
+                coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+                coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+                coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
                 subtomo.setCoordinate3D(coor)
                 subtomo.setVolName(tomo.getFileName())
                 self.coords.append(coor)

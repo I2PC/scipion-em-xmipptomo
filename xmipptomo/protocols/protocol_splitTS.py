@@ -25,6 +25,7 @@
 # **************************************************************************
 
 import os
+from pyworkflow import BETA
 import pyworkflow.utils.path as path
 import pyworkflow.utils as pwutils
 from pyworkflow.protocol import params
@@ -38,6 +39,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
     Wrapper protocol to Xmipp split Odd Even on tilt-series
     """
     _label = 'split tilt-series'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
