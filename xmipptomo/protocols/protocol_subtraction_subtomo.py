@@ -26,6 +26,7 @@
 # *
 # **************************************************************************
 
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, FloatParam
 from pyworkflow.protocol.constants import LEVEL_ADVANCED
 
@@ -45,6 +46,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
     determined region."""
 
     _label = 'subtomo subtraction'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions --------------------------------------------
     def _defineParams(self, form):

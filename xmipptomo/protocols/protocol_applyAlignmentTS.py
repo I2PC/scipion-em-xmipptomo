@@ -26,6 +26,7 @@
 
 import os
 import numpy as np
+from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
@@ -40,6 +41,7 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
     """
 
     _label = 'apply alignment tilt-series'
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):

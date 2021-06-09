@@ -29,6 +29,7 @@ import numpy as np
 import math
 import csv
 import pwem.objects as data
+from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
@@ -42,6 +43,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
     """
 
     _label = 'misalign tilt-series '
+    _devStatus = BETA
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)

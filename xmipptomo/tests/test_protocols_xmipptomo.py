@@ -70,12 +70,8 @@ class TestXmipptomoProtCC(BaseTest):
                                                    inputCoordinates=protImport.outputCoordinates,
                                                    distance=120)
         self.launchProtocol(protConnectedComponents)
-        self.assertTrue(protConnectedComponents.output3DCoordinates1)
-        self.assertEqual(protConnectedComponents.output3DCoordinates1.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates2)
-        self.assertEqual(protConnectedComponents.output3DCoordinates2.getSize(), 2)
-        self.assertTrue(protConnectedComponents.output3DCoordinates3)
-        self.assertEqual(protConnectedComponents.output3DCoordinates3.getSize(), 1)
+        self.assertTrue(protConnectedComponents.outputSetOfCoordinates3D)
+        self.assertEqual(protConnectedComponents.outputSetOfCoordinates3D.getSize(), 5)
         return protConnectedComponents
 
 
@@ -167,31 +163,18 @@ class TestXmipptomoApplyTransf(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.dataset = DataSet.getDataSet('tomo-em')
-        cls.setOfSubtomograms = cls.dataset.getFile('basename.hdf')
 
     def _runPreviousProtocols(self):
-        protImport = self.newProtocol(ProtImportSubTomograms,
-                                      filesPath=self.setOfSubtomograms,
-                                      samplingRate=5)
-        self.launchProtocol(protImport)
-        from xmipp2.protocols import Xmipp2ProtMLTomo
-        protMltomo = self.newProtocol(Xmipp2ProtMLTomo,
-                                      inputVolumes=protImport.outputSubTomograms,
-                                      randomInitialization=True,
-                                      numberOfReferences=1,
-                                      numberOfIters=3,
-                                      angularSampling=30)
-        self.launchProtocol(protMltomo)
-        self.assertIsNotNone(protMltomo.outputSubtomograms,
-                         "There was a problem with SetOfSubtomogram output")
-        self.assertIsNotNone(protMltomo.outputClassesSubtomo,
-                         "There was a problem with SetOfSubtomogram output")
-        return protMltomo
+        protPhantom = self.newProtocol(XmippProtPhantomSubtomo, option=1, nsubtomos=5)
+        self.launchProtocol(protPhantom)
+        self.assertIsNotNone(protPhantom.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+        return protPhantom
 
     def _applyAlignment(self):
-        protMltomo = self._runPreviousProtocols()
+        protPhantom = self._runPreviousProtocols()
         apply = self.newProtocol(XmippProtApplyTransformSubtomo,
-                                 inputSubtomograms=protMltomo.outputSubtomograms)
+                                 inputSubtomograms=protPhantom.outputSubtomograms)
         self.launchProtocol(apply)
         self.assertIsNotNone(apply.outputSubtomograms,
                              "There was a problem with subtomograms output")
@@ -223,78 +206,37 @@ class TestXmipptomoMapback(BaseTest):
         self.launchProtocol(protImportTomogram)
         self.assertIsNotNone(protImportTomogram.outputTomograms,
                              "There was a problem with tomogram output")
-        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
-                                                   filesPath=self.coords3D,
-                                                   importTomograms=protImportTomogram.outputTomograms,
-                                                   boxSize=32,
-                                                   samplingRate=5)
-        self.launchProtocol(protImportCoordinates3d)
-        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
-                             "There was a problem with coordinates 3d output")
-        from emantomo.protocols import EmanProtTomoExtraction
-        protTomoExtraction = self.newProtocol(EmanProtTomoExtraction,
-                                              inputTomograms=protImportTomogram.outputTomograms,
-                                              inputCoordinates=protImportCoordinates3d.outputCoordinates,
-                                              boxSize=32)
-        self.launchProtocol(protTomoExtraction)
-        self.assertIsNotNone(protTomoExtraction.outputSetOfSubtomogram,
-                         "There was a problem with SetOfSubtomogram output")
-        from xmipp2.protocols import Xmipp2ProtMLTomo
-        protMltomo = self.newProtocol(Xmipp2ProtMLTomo,
-                                      inputVolumes=protTomoExtraction.outputSetOfSubtomogram,
-                                      randomInitialization=True,
-                                      numberOfReferences=1,
-                                      numberOfIters=3,
-                                      angularSampling=30)
-        self.launchProtocol(protMltomo)
-        self.assertIsNotNone(protMltomo.outputSubtomograms,
-                         "There was a problem with SetOfSubtomogram output")
-        self.assertIsNotNone(protMltomo.outputClassesSubtomo,
-                         "There was a problem with SetOfSubtomogram output")
-        return protImportTomogram, protMltomo
+
+        protPhantom = self.newProtocol(XmippProtPhantomSubtomo,
+                                       option=1,
+                                       sampling=4,
+                                       nsubtomos=5,
+                                       coords=True,
+                                       tomos=protImportTomogram.outputTomograms)
+        self.launchProtocol(protPhantom)
+        self.assertIsNotNone(protPhantom.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+
+        return protImportTomogram, protPhantom
 
     def _mapback(self):
-        protImportTomogram, protMltomo = self._runPreviousProtocols()
+        protImportTomogram, protPhantom = self._runPreviousProtocols()
         mapback = self.newProtocol(XmippProtSubtomoMapBack,
-                                   inputClasses=protMltomo.outputClassesSubtomo,
-                                   inputTomograms=protImportTomogram.outputTomograms)
+                                   selection=1,
+                                   inputSubtomos=protPhantom.outputSubtomograms,
+                                   inputRef=protPhantom,
+                                   inputTomograms=protImportTomogram.outputTomograms,
+                                   removeBackground=True)
+        mapback.inputRef.setExtended("outputSubtomograms.1")
         self.launchProtocol(mapback)
         self.assertIsNotNone(mapback.outputTomograms,
                              "There was a problem with tomograms output")
-
-        mapback2 = self.newProtocol(XmippProtSubtomoMapBack,
-                                   selection=1,
-                                   inputSubtomos=protMltomo.outputSubtomograms,
-                                   inputRef=protMltomo,
-                                   inputTomograms=protImportTomogram.outputTomograms)
-        mapback2.inputRef.setExtended("outputSubtomograms.1")
-        self.launchProtocol(mapback2)
-        self.assertIsNotNone(mapback2.outputTomograms,
-                             "There was a problem with tomograms output")
-        return mapback, mapback2
+        return mapback
 
     def test_mapback(self):
-        mapback, mapback2 = self._mapback()
+        mapback = self._mapback()
         self.assertTrue(getattr(mapback, 'outputTomograms'))
-        self.assertTrue(getattr(mapback2, 'outputTomograms'))
-        return mapback, mapback2
-
-    # def _mapback_subtomos(self):
-        # protImportTomogram, protMltomo = self._runPreviousProtocols()
-        # mapback = self.newProtocol(XmippProtSubtomoMapBack,
-        #                            selection=1,
-        #                            inputSubtomos=protMltomo.outputSubtomograms,
-        #                            inputTomograms=protImportTomogram.outputTomograms)
-        # mapback.inputRef.setExtended("outputSubtomograms.1")
-        # self.launchProtocol(mapback)
-        # self.assertIsNotNone(mapback.outputTomograms,
-        #                      "There was a problem with tomograms output")
-        # return mapback
-
-    # def test_mapback_subtomos(self):
-    #     mapback = self._mapback_subtomos()
-    #     self.assertTrue(getattr(mapback, 'outputTomograms'))
-    #     return mapback
+        return mapback
 
 
 class TestXmipptomoPhantom(BaseTest):

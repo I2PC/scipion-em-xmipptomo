@@ -29,8 +29,10 @@
 from os.path import basename
 import numpy as np
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, FloatParam
 from tomo.protocols import ProtTomoBase
+import tomo.constants as const
 
 
 class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
@@ -38,6 +40,7 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
     components among the picked particles."""
 
     _label = 'connected components'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -83,8 +86,10 @@ class XmippProtConnectedComponents(EMProtocol, ProtTomoBase):
             coorSet.write()
             minDist = self.distance.get()
             coorlist = []
-            for i, coor in enumerate(coorSet.iterItems()):
-                coorlist.append([coor.getX(), coor.getY(), coor.getZ()])
+            for i, coor in enumerate(coorSet.iterCoordinates()):
+                coorlist.append([coor.getX(const.BOTTOM_LEFT_CORNER),
+                                 coor.getY(const.BOTTOM_LEFT_CORNER),
+                                 coor.getZ(const.BOTTOM_LEFT_CORNER)])
             A = np.zeros([len(coorlist), len(coorlist)])
             for j, coor1 in enumerate(coorlist):
                 for k, _ in enumerate(coorlist, start=j+1):

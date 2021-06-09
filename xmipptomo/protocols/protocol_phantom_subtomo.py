@@ -29,15 +29,18 @@ import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D
+import tomo.constants as const
 
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     """ Create subtomogram phantoms """
 
     _label = 'phantom create subtomo'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -68,6 +71,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('tiltmax', IntParam, label='Max tilt angle', default=60)
         form.addParam('psimin', IntParam, label='Min psi angle', default=0)
         form.addParam('psimax', IntParam, label='Max psi angle', default=60)
+        form.addParam('coords', BooleanParam, label='Assign random coordinates?', default=False,
+                      help='Create random x, y, z coordinates for each subtomogram.')
+        form.addParam('tomos', PointerParam, pointerClass="SetOfTomograms", label='Tomograms',
+                      condition="coords==True", help="Tomograms to get dimension for random creation of coordinates")
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -77,6 +84,13 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions --------------------------------------------
     def createPhantomsStep(self):
         mwfilter = self.mwfilter.get()
+        rotmin = self.rotmin.get()
+        rotmax = self.rotmax.get()
+        tiltmin = self.tiltmin.get()
+        tiltmax = self.tiltmax.get()
+        psimin = self.psimin.get()
+        psimax = self.psimax.get()
+
         fnVol = self._getExtraPath("phantom000.vol")
         if self.option.get() == 0:
             inputVol = self.inputVolume.get()
@@ -105,6 +119,13 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         self.outputSet.setDim(dim)
         self.outputSet.setSamplingRate(self.sampling.get())
 
+        coordsBool = self.coords.get()
+        if coordsBool:
+            tomos = self.tomos.get()
+            tomo = tomos.getFirstItem()
+            tomoDim = tomo.getDim()
+            self.coords = self._createSetOfCoordinates3D(tomos)
+
         subtomobase = SubTomogram()
         acq = TomoAcquisition()
         subtomobase.setAcquisition(acq)
@@ -113,13 +134,23 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         transformBase = Transform()
         transformBase.setMatrix(np.identity(4))
         subtomobase.setTransform(transformBase)
+        if coordsBool:
+            coor = Coordinate3D()
+            coor.setVolume(tomo)
+            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            subtomobase.setCoordinate3D(coor)
+            subtomobase.setVolName(tomo.getFileName())
+            self.coords.append(coor)
+            self.coords.setBoxSize(subtomobase.getDim()[0])
         self.outputSet.append(subtomobase)
 
         for i in range(int(self.nsubtomos.get())-1):
             fnPhantomi = self._getExtraPath("phantom%03d.vol" % int(i+1))
-            rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-            tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-            psi = np.random.randint(self.psimin.get(), self.psimax.get())
+            rot = np.random.randint(rotmin, rotmax)
+            tilt = np.random.randint(tiltmin, tiltmax)
+            psi = np.random.randint(psimin, psimax)
             self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d "
                         % (fnVol, fnPhantomi, rot, tilt, psi))
 
@@ -135,12 +166,26 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             transform = Transform()
             transform.setMatrix(A)
             subtomo.setTransform(transform)
+            if coordsBool:
+                coor = Coordinate3D()
+                coor.setVolume(tomo)
+                coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+                coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+                coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+                subtomo.setCoordinate3D(coor)
+                subtomo.setVolName(tomo.getFileName())
+                self.coords.append(coor)
             self.outputSet.append(subtomo)
+        if coordsBool:
+            self.outputSet.setCoordinates3D(self.coords)
 
     def createOutputStep(self):
+        self._defineOutputs(outputCoord=self.coords)
         self._defineOutputs(outputSubtomograms=self.outputSet)
         if self.option.get() == 0:
             self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
+        if self.coords.get():
+            self._defineSourceRelation(self.tomos.get(), self.outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
