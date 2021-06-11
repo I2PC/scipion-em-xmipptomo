@@ -29,15 +29,17 @@ from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
 from pwem.objects import Particle, Volume, Coordinate, Transform, String
 from pwem.protocols import ProtAnalysis3D
-from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam
+from pyworkflow import BETA
+from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
 from tomo.objects import SubTomogram
-
+import tomo.constants as const
 
 class XmippProtSubtomoProject(ProtAnalysis3D):
     """
     Project a set of volumes or subtomograms to obtain their X, Y or Z projection of the desired range of slices.
     """
     _label = 'subtomo projection'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -45,11 +47,14 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         form.addParam('input', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
                       label='Input Volumes', help='This protocol can *not* work with .em files *if* the input is a set'
                                                   ' of tomograms or a set of volumes, ')
+        form.addParam('radAvg', BooleanParam, default=False, label='Compute radial average?',
+                      help='Compute the radial average with respect to Z of the input volumes and from them, '
+                           'it computes their projections in the desired direction')
         form.addParam('dirParam', EnumParam, choices=['X', 'Y', 'Z'], default=2, display=EnumParam.DISPLAY_HLIST,
-                      label='Projection direction')
+                      label='Projection direction', condition='radAvg == False')
         form.addParam('rangeParam', EnumParam, choices=['All', 'Range'], default=0, display=EnumParam.DISPLAY_HLIST,
-                      label='Range of slices', help='Range of slices used to compute the projection, where 0 is the '
-                                                    'central slice.')
+                      label='Range of slices', condition='radAvg == False',
+                      help='Range of slices used to compute the projection, where 0 is the central slice.')
         form.addParam('cropParam', IntParam, default=10, label='Slices', condition="rangeParam == 1",
                       help='Crop this amount of voxels in each side of the selected direction.')
 
@@ -71,33 +76,41 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
 
         for i, subtomo in enumerate(input.iterItems()):
+            fn = subtomo.getLocation()
+            if fn[1].endswith('.mrc'):
+                fn = list(fn)
+                fn[1] += ':mrc'
+                fn = tuple(fn)
+                subtomo.setFileName(fn[1])
             vol = Volume()
-            vol.setLocation('%d@%s' % (subtomo.getLocation()))
+            vol.setLocation('%d@%s' % fn)
             vol = ih().read(vol.getLocation())
-            volData = vol.getData()
-            proj = np.empty([x, y])
             img = ih().createImage()
-
-            if dir == 0:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
-                for zi in range(z):
-                    for yi in range(y):
-                        proj[zi, yi] = np.sum(volData[zi, yi, :])
-            elif dir == 1:
-                if self.rangeParam.get() == 1:
-                    volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
-                for zi in range(z):
+            if self.radAvg.get():
+                img = vol.radialAverageAxis()
+            else:
+                volData = vol.getData()
+                proj = np.empty([x, y])
+                if dir == 0:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
+                    for zi in range(z):
+                        for yi in range(y):
+                            proj[zi, yi] = np.sum(volData[zi, yi, :])
+                elif dir == 1:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
+                    for zi in range(z):
+                        for xi in range(x):
+                            proj[zi, xi] = np.sum(volData[zi, :, xi])
+                elif dir == 2:
+                    if self.rangeParam.get() == 1:
+                        volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
                     for xi in range(x):
-                        proj[zi, xi] = np.sum(volData[zi, :, xi])
-            elif dir == 2:
-                if self.rangeParam.get() == 1:
-                    volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
-                for xi in range(x):
-                    for yi in range(y):
-                        proj[xi, yi] = np.sum(volData[:, yi, xi])
+                        for yi in range(y):
+                            proj[xi, yi] = np.sum(volData[:, yi, xi])
+                img.setData(proj)
 
-            img.setData(proj)
             img.write('%d@%s' % (i+1, fnProj))
 
     def createOutputStep(self):
@@ -113,8 +126,8 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             if type(subtomo) == SubTomogram:
                 if subtomo.hasCoordinate3D():
                     coord = Coordinate()
-                    coord.setX(subtomo.getCoordinate3D().getX())
-                    coord.setY(subtomo.getCoordinate3D().getY())
+                    coord.setX(subtomo.getCoordinate3D().getX(const.BOTTOM_LEFT_CORNER))
+                    coord.setY(subtomo.getCoordinate3D().getY(const.BOTTOM_LEFT_CORNER))
                     p.setCoordinate(coord)
                 p.setClassId(subtomo.getClassId())
             if subtomo.hasTransform():
@@ -127,10 +140,21 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         self._defineOutputs(outputParticles=imgSetOut)
         self._defineSourceRelation(self.input, imgSetOut)
 
+        if self.radAvg.get():
+            avgFile = self._getExtraPath("average.xmp")
+            imgh = ih()
+            avgImage = imgh.computeAverage(imgSetOut)
+            avgImage.write(avgFile)
+            avg = Particle()
+            avg.setLocation(1, avgFile)
+            avg.copyInfo(imgSetOut)
+            self._defineOutputs(outputAverage=avg)
+            self._defineSourceRelation(self.input, avg)
+
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
         vols = self.input.get()
-        return ["Projection of %d volumes with dimensions %s obtained with xmipp_phantom_project"
+        return ["Projection of %d volumes with dimensions %s obtained."
                 % (vols.getSize(), vols.getDimensions())]
 
     def _summary(self):
