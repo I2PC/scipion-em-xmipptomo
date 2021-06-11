@@ -77,6 +77,13 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
                            "to consider it a member of a high contrast feature.")
 
+        form.addParam('centerFeatures',
+                      params.BooleanParam,
+                      label='Center features',
+                      default=False,
+                      help="Center the peaked high contrast features by sliding the symmetric volume and maximizing "
+                           "the correlation .")
+
         form.addParam('numberSampSlices',
                       params.IntParam,
                       label='Number of sampling slices',
@@ -154,6 +161,9 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--distanceThr %(distanceThr)f " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
+
+        if(self.centerFeatures.get()):
+            argsPeakHighContrast += "--centerFeatures "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
