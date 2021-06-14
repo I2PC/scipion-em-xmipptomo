@@ -29,6 +29,7 @@ from xmipptomo import utils
 from pyworkflow import BETA
 from pyworkflow.object import Set
 import pyworkflow.protocol.params as params
+import pyworkflow.object as pwobj
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
@@ -88,7 +89,16 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
             rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
 
-            print(rotationAngle)
+            newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
+
+            if newCTFTomo.hasAstigmatismInfoAsList():
+                defocusAngleList = pwobj.CsvList(pType=float)
+
+                for angle in inputCtfTomo.getDefocusAngleList().split(','):
+
+                    defocusAngleList.append(pwobj.Float(round(float(angle)+rotationAngle,2)))
+
+                newCTFTomo.setDefocusAngleList(defocusAngleList)
 
             newCTFTomoSeries.append(newCTFTomo)
 
