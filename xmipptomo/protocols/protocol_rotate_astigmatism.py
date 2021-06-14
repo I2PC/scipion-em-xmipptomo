@@ -143,19 +143,20 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
     def _summary(self):
         summary = []
-        if hasattr(self, 'outputAssignedTransformSetOfTiltSeries'):
-            summary.append("Input Tilt-Series: %d.\nTransformation matrices assigned: %d.\n"
+        if hasattr(self, 'outputSetOfCTFTomoSeries'):
+            summary.append("Input pairs of Tilt-Series and CTF estimations: %d.\n"
+                           "CTF estiamtions astigmatically rotated: %d.\n"
                            % (self.getTMSetOfTiltSeries.get().getSize(),
-                              self.outputAssignedTransformSetOfTiltSeries.getSize()))
+                              self.outputSetOfCTFTomoSeries.getSize()))
         else:
             summary.append("Output classes not ready yet.")
         return summary
 
     def _methods(self):
         methods = []
-        if hasattr(self, 'outputAssignedTransformSetOfTiltSeries'):
-            methods.append("The transformation matrix has been assigned to %d Tilt-series from the input set.\n"
-                           % (self.outputAssignedTransformSetOfTiltSeries.getSize()))
+        if hasattr(self, 'outputSetOfCTFTomoSeries'):
+            methods.append("The astigmatism estimation has been rotated for %d CTF estimations.\n"
+                           % (self.outputSetOfCTFTomoSeries.getSize()))
         else:
             methods.append("Output classes not ready yet.")
         return methods
