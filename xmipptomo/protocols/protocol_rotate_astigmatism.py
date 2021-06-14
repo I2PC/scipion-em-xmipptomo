@@ -103,6 +103,15 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
             newCTFTomoSeries.append(newCTFTomo)
 
+        newCTFTomoSeries.setNumberOfEstimationsInRangeFromDefocusList()
+
+        newCTFTomoSeries.setIsDefocusUDeviationInRange(inputCtfTomoSeries.getIsDefocusUDeviationInRange())
+        newCTFTomoSeries.setIsDefocusVDeviationInRange(inputCtfTomoSeries.getIsDefocusVDeviationInRange())
+
+        if not (newCTFTomoSeries.getIsDefocusUDeviationInRange() and
+                newCTFTomoSeries.getIsDefocusVDeviationInRange()):
+            newCTFTomoSeries.setEnabled(False)
+
         newCTFTomoSeries.write(properties=False)
 
         self.outputSetOfCTFTomoSeries.update(newCTFTomoSeries)
