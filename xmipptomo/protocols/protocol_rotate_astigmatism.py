@@ -36,7 +36,7 @@ from tomo.protocols import ProtTomoBase
 from pwem.emlib.image import ImageHandler
 
 
-class ProtRotateAstigmatism(EMProtocol, ProtTomoBase):
+class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
     """
     Rotate the astigmatism of a set of ctf tilt-series estimation given a set of transformation matrices comming from
     a set of tilt series.
