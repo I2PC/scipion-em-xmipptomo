@@ -68,19 +68,36 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
         outputAssignedTransformSetOfTiltSeries = self.getOutputAssignedTransformSetOfTiltSeries()
 
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
-        tsObjId = self.inputSetOfCtfTomoSeries.get()[tsObjId]
+        inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
         tsId = getTMTS.getTsId()
 
-        for tiltImageGetTM, ctfTomo in zip(getTMTS, tsObjId):
+        self.getOutputSetOfCTFTomoSeries()
+
+        newCTFTomoSeries = tomoObj.CTFTomoSeries()
+        newCTFTomoSeries.copyInfo(inputCtfTomoSeries)
+        newCTFTomoSeries.setTiltSeries(getTMTS)
+        newCTFTomoSeries.setTsId(tsId)
+        newCTFTomoSeries.setObjId(tsObjId)
+        newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
+        newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
+
+        self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
+
+        for index, tiltImageGetTM, inputCtfTomo in enumerate(zip(getTMTS, inputCtfTomoSeries)):
+            newCTFTomo = tomoObj.CTFTomo()
+            newCTFTomo.copyInfo(inputCtfTomo)
+
             rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
 
+            print(rotationAngle)
 
-        newTs.setDim(setTMTS.getDim())
-        newTs.write()
+        newCTFTomoSeries.append(newCTFTomo)
 
-        outputAssignedTransformSetOfTiltSeries.update(newTs)
-        outputAssignedTransformSetOfTiltSeries.updateDim()
-        outputAssignedTransformSetOfTiltSeries.write()
+        newCTFTomoSeries.write(properties=False)
+
+        self.outputSetOfCTFTomoSeries.update(newCTFTomoSeries)
+        self.outputSetOfCTFTomoSeries.write()
+
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
