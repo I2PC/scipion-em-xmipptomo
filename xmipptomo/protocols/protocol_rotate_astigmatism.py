@@ -84,15 +84,16 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
-    def getOutputAssignedTransformSetOfTiltSeries(self):
-        if not hasattr(self, "outputAssignedTransformSetOfTiltSeries"):
-            outputAssignedTransformSetOfTiltSeries = self._createSetOfTiltSeries(suffix='AssignedTransform')
-            outputAssignedTransformSetOfTiltSeries.copyInfo(self.setTMSetOfTiltSeries.get())
-            outputAssignedTransformSetOfTiltSeries.setDim(self.setTMSetOfTiltSeries.get().getDim())
-
-            self._defineOutputs(outputAssignedTransformSetOfTiltSeries=outputAssignedTransformSetOfTiltSeries)
-            self._defineSourceRelation(self.getTMSetOfTiltSeries, outputAssignedTransformSetOfTiltSeries)
-        return self.outputAssignedTransformSetOfTiltSeries
+    def getOutputSetOfCTFTomoSeries(self):
+        if hasattr(self, "outputSetOfCTFTomoSeries"):
+            self.outputSetOfCTFTomoSeries.enableAppend()
+        else:
+            outputSetOfCTFTomoSeries = tomoObj.SetOfCTFTomoSeries.create(self._getPath(),
+                                                                         template='CTFmodels%s.sqlite')
+            outputSetOfCTFTomoSeries.setSetOfTiltSeries(self.getTMSetOfTiltSeries.get())
+            outputSetOfCTFTomoSeries.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(outputSetOfCTFTomoSeries=outputSetOfCTFTomoSeries)
+        return self.outputSetOfCTFTomoSeries
 
     # --------------------------- INFO functions ----------------------------
     def _validate(self):
