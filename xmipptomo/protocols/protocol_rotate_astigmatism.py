@@ -57,8 +57,9 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
         form.addParam('inputSetOfCtfTomoSeries',
                       params.PointerParam,
                       label="input tilt-series CTF estimation",
+                      important=True,
                       pointerClass='SetOfCTFTomoSeries',
-                      help='Select the CTF estimation from the set of tilt-series.')
+                      help='Select the CTF estimation whose astigmtism estimation will be rotated.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
