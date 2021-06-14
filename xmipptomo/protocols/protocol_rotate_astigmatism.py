@@ -27,6 +27,7 @@
 import os
 from xmipptomo import utils
 from pyworkflow import BETA
+from pyworkflow.object import Set
 import pyworkflow.protocol.params as params
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
@@ -65,8 +66,6 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions ----------------------------
     def rotateAstimatism(self, tsObjId):
-        outputAssignedTransformSetOfTiltSeries = self.getOutputAssignedTransformSetOfTiltSeries()
-
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
         inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
         tsId = getTMTS.getTsId()
@@ -83,7 +82,7 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
         self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
 
-        for index, tiltImageGetTM, inputCtfTomo in enumerate(zip(getTMTS, inputCtfTomoSeries)):
+        for index, (tiltImageGetTM, inputCtfTomo) in enumerate(zip(getTMTS, inputCtfTomoSeries)):
             newCTFTomo = tomoObj.CTFTomo()
             newCTFTomo.copyInfo(inputCtfTomo)
 
@@ -91,7 +90,7 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
             print(rotationAngle)
 
-        newCTFTomoSeries.append(newCTFTomo)
+            newCTFTomoSeries.append(newCTFTomo)
 
         newCTFTomoSeries.write(properties=False)
 
