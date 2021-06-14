@@ -25,15 +25,12 @@
 # **************************************************************************
 
 import os
-import numpy as np
-import itertools
+from xmipptomo import utils
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
-import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
-from pwem.emlib.image import ImageHandler
 
 
 class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
@@ -64,26 +61,19 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         for ts in self.getTMSetOfTiltSeries.get():
-            self._insertFunctionStep('assignTransformationMatricesStep', ts.getObjId())
+            self._insertFunctionStep(self.rotateAstimatism, ts.getObjId())
 
     # --------------------------- STEPS functions ----------------------------
-    def assignTransformationMatricesStep(self, tsObjId):
+    def rotateAstimatism(self, tsObjId):
         outputAssignedTransformSetOfTiltSeries = self.getOutputAssignedTransformSetOfTiltSeries()
 
-        setTMTS = self.setTMSetOfTiltSeries.get()[tsObjId]
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
+        tsObjId = self.inputSetOfCtfTomoSeries.get()[tsObjId]
         tsId = getTMTS.getTsId()
 
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(setTMTS)
-        outputAssignedTransformSetOfTiltSeries.append(newTs)
+        for tiltImageGetTM, ctfTomo in zip(getTMTS, tsObjId):
+            rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
 
-        for tiltImageGetTM, tiltImageSetTM in zip(getTMTS, setTMTS):
-            newTi = tomoObj.TiltImage()
-            newTi.copyInfo(tiltImageSetTM, copyId=True)
-            newTi.setLocation(tiltImageSetTM.getLocation())
-            newTi.setTransform(tiltImageGetTM.getTransform())
-            newTs.append(newTi)
 
         newTs.setDim(setTMTS.getDim())
         newTs.write()
