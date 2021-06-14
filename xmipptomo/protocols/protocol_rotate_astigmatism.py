@@ -116,17 +116,17 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
     def _validate(self):
         validateMsgs = []
 
-        for tsGetTM, tsSetTM in zip(self.getTMSetOfTiltSeries.get(), self.setTMSetOfTiltSeries.get()):
+        for tsGetTM, inputCtfTomoSeries in zip(self.getTMSetOfTiltSeries.get(), self.inputSetOfCtfTomoSeries.get()):
             if not tsGetTM.getFirstItem().hasTransform():
                 validateMsgs.append("Some tilt-series from the input set of tilt-series does not have a "
                                     "transformation matrix assigned.")
 
-            if tsGetTM.getSize() != tsSetTM.getSize():
+            if tsGetTM.getSize() != inputCtfTomoSeries.getSize():
                 validateMsgs.append("Some tilt-series from the input set of tilt-series and its target in the assign "
                                     "transformation set of tilt-series size's do not match. Every input tilt-series "
                                     "and its target must have the same number of elements")
 
-        if self.getTMSetOfTiltSeries.get().getSize() != self.setTMSetOfTiltSeries.get().getSize():
+        if self.getTMSetOfTiltSeries.get().getSize() != self.inputSetOfCtfTomoSeries.get().getSize():
             validateMsgs.append("Both input sets of tilt-series size's do not match. Both sets must have the same "
                                 "number of elements.")
 
