@@ -36,12 +36,13 @@ from tomo.protocols import ProtTomoBase
 from pwem.emlib.image import ImageHandler
 
 
-class ProtAssignTransformationMatrixTiltSeries(EMProtocol, ProtTomoBase):
+class ProtRotateAstigmatism(EMProtocol, ProtTomoBase):
     """
-    Assign the transformation matrices from an input set of tilt-series to a target one.
+    Rotate the astigmatism of a set of ctf tilt-series estimation given a set of transformation matrices comming from
+    a set of tilt series.
     """
 
-    _label = 'Tilt-series assign alignment'
+    _label = 'Astigmatism rotation'
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions -----------------------
