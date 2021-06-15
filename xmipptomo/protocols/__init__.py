@@ -40,6 +40,7 @@ from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_resizeTS import XmippProtResizeTiltSeries
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
 from .protocol_roiIJ import XmippProtRoiIJ
+from .protocol_rotate_astigmatism import XmippProtRotateAstigmatism
 from .protocol_score_coordinates import XmippProtScoreCoordinates
 from .protocol_score_transform import XmippProtScoreTransform
 from .protocol_splitTS import XmippProtSplitTiltSeries
