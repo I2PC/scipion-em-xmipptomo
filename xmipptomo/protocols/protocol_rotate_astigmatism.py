@@ -146,8 +146,8 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                                     "and its target must have the same number of elements")
 
         if self.getTMSetOfTiltSeries.get().getSize() != self.inputSetOfCtfTomoSeries.get().getSize():
-            validateMsgs.append("Both input sets of tilt-series size's do not match. Both sets must have the same "
-                                "number of elements.")
+            validateMsgs.append("Input sets of tilt-series and input set of CTF estimation differ in size. Both sets "
+                                "must have the same number of elements.")
 
         return validateMsgs
 
