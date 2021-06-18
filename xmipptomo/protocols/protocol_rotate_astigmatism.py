@@ -90,8 +90,6 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
             rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
 
-            newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
-
             if newCTFTomo.hasAstigmatismInfoAsList():
                 defocusAngleList = pwobj.CsvList(pType=float)
 
@@ -100,6 +98,13 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                     defocusAngleList.append(pwobj.Float(round(float(angle)+rotationAngle,2)))
 
                 newCTFTomo.setDefocusAngleList(defocusAngleList)
+
+                newCTFTomo.completeInfoFromList()
+
+            else:
+                newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
+
+                newCTFTomo.standardize()
 
             newCTFTomoSeries.append(newCTFTomo)
 
