@@ -90,8 +90,6 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
             rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
 
-            newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
-
             if newCTFTomo.hasAstigmatismInfoAsList():
                 defocusAngleList = pwobj.CsvList(pType=float)
 
@@ -100,6 +98,13 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                     defocusAngleList.append(pwobj.Float(round(float(angle)+rotationAngle,2)))
 
                 newCTFTomo.setDefocusAngleList(defocusAngleList)
+
+                newCTFTomo.completeInfoFromList()
+
+            else:
+                newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
+
+                newCTFTomo.standardize()
 
             newCTFTomoSeries.append(newCTFTomo)
 
@@ -146,8 +151,8 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                                     "and its target must have the same number of elements")
 
         if self.getTMSetOfTiltSeries.get().getSize() != self.inputSetOfCtfTomoSeries.get().getSize():
-            validateMsgs.append("Both input sets of tilt-series size's do not match. Both sets must have the same "
-                                "number of elements.")
+            validateMsgs.append("Input sets of tilt-series and input set of CTF estimation differ in size. Both sets "
+                                "must have the same number of elements.")
 
         return validateMsgs
 
