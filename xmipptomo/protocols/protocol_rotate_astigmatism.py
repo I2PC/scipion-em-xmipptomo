@@ -65,6 +65,7 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         for ts in self.getTMSetOfTiltSeries.get():
             self._insertFunctionStep(self.rotateAstimatism, ts.getObjId())
+        self._insertFunctionStep(self.closeOutputSetsStep())
 
     # --------------------------- STEPS functions ----------------------------
     def rotateAstimatism(self, tsObjId):
@@ -116,6 +117,11 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
         self.outputSetOfCTFTomoSeries.update(newCTFTomoSeries)
         self.outputSetOfCTFTomoSeries.write()
+
+        self._store()
+
+    def closeOutputSetsStep(self):
+        self.getOutputSetOfCTFTomoSeries().setStreamState(Set.STREAM_CLOSED)
 
         self._store()
 
