@@ -69,71 +69,69 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions ----------------------------
     def rotateAstimatism(self, tsObjId):
-        print(self.getTMSetOfTiltSeries.get())
-        print(self.inputSetOfCtfTomoSeries.get())
-        print("---------------------------------")
-
-        for i in self.inputSetOfCtfTomoSeries.get():
-            print(i.getTsId())
-
-        print("element" + str(tsObjId))
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
-        print(getTMTS)
-        inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
-        print(inputCtfTomoSeries)
         tsId = getTMTS.getTsId()
 
-        self.getOutputSetOfCTFTomoSeries()
+        # inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
 
-        newCTFTomoSeries = tomoObj.CTFTomoSeries()
-        newCTFTomoSeries.copyInfo(inputCtfTomoSeries)
-        newCTFTomoSeries.setTiltSeries(getTMTS)
-        newCTFTomoSeries.setTsId(tsId)
-        newCTFTomoSeries.setObjId(tsObjId)
-        newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
-        newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
-
-        self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
-
-        for index, (tiltImageGetTM, inputCtfTomo) in enumerate(zip(getTMTS, inputCtfTomoSeries)):
-            newCTFTomo = tomoObj.CTFTomo()
-            newCTFTomo.copyInfo(inputCtfTomo)
-
-            rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
-
-            if newCTFTomo.hasAstigmatismInfoAsList():
-                defocusAngleList = pwobj.CsvList(pType=float)
-
-                for angle in inputCtfTomo.getDefocusAngleList().split(','):
-
-                    defocusAngleList.append(pwobj.Float(round(float(angle)+rotationAngle,2)))
-
-                newCTFTomo.setDefocusAngleList(defocusAngleList)
-
-                newCTFTomo.completeInfoFromList()
-
+        for ctfTomoSeries in self.inputSetOfCtfTomoSeries.get():
+            if tsId == ctfTomoSeries.getTsId():
+        
+                self.getOutputSetOfCTFTomoSeries()
+        
+                newCTFTomoSeries = tomoObj.CTFTomoSeries()
+                newCTFTomoSeries.copyInfo(inputCtfTomoSeries)
+                newCTFTomoSeries.setTiltSeries(getTMTS)
+                newCTFTomoSeries.setTsId(tsId)
+                newCTFTomoSeries.setObjId(tsObjId)
+                newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
+                newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
+        
+                self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
+        
+                for index, (tiltImageGetTM, inputCtfTomo) in enumerate(zip(getTMTS, inputCtfTomoSeries)):
+                    newCTFTomo = tomoObj.CTFTomo()
+                    newCTFTomo.copyInfo(inputCtfTomo)
+        
+                    rotationAngle = utils.calculateRotationAngleFromTM(tiltImageGetTM)
+        
+                    if newCTFTomo.hasAstigmatismInfoAsList():
+                        defocusAngleList = pwobj.CsvList(pType=float)
+        
+                        for angle in inputCtfTomo.getDefocusAngleList().split(','):
+        
+                            defocusAngleList.append(pwobj.Float(round(float(angle)+rotationAngle,2)))
+        
+                        newCTFTomo.setDefocusAngleList(defocusAngleList)
+        
+                        newCTFTomo.completeInfoFromList()
+        
+                    else:
+                        newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
+        
+                        newCTFTomo.standardize()
+        
+                    newCTFTomoSeries.append(newCTFTomo)
+        
+                newCTFTomoSeries.setNumberOfEstimationsInRangeFromDefocusList()
+        
+                newCTFTomoSeries.setIsDefocusUDeviationInRange(inputCtfTomoSeries.getIsDefocusUDeviationInRange())
+                newCTFTomoSeries.setIsDefocusVDeviationInRange(inputCtfTomoSeries.getIsDefocusVDeviationInRange())
+        
+                if not (newCTFTomoSeries.getIsDefocusUDeviationInRange() and
+                        newCTFTomoSeries.getIsDefocusVDeviationInRange()):
+                    newCTFTomoSeries.setEnabled(False)
+        
+                newCTFTomoSeries.write(properties=False)
+        
+                self.outputSetOfCTFTomoSeries.update(newCTFTomoSeries)
+                self.outputSetOfCTFTomoSeries.write()
+        
+                self._store()
+                
             else:
-                newCTFTomo.setDefocusAngle(pwobj.Float(inputCtfTomo.getDefocusAngle() + rotationAngle))
-
-                newCTFTomo.standardize()
-
-            newCTFTomoSeries.append(newCTFTomo)
-
-        newCTFTomoSeries.setNumberOfEstimationsInRangeFromDefocusList()
-
-        newCTFTomoSeries.setIsDefocusUDeviationInRange(inputCtfTomoSeries.getIsDefocusUDeviationInRange())
-        newCTFTomoSeries.setIsDefocusVDeviationInRange(inputCtfTomoSeries.getIsDefocusVDeviationInRange())
-
-        if not (newCTFTomoSeries.getIsDefocusUDeviationInRange() and
-                newCTFTomoSeries.getIsDefocusVDeviationInRange()):
-            newCTFTomoSeries.setEnabled(False)
-
-        newCTFTomoSeries.write(properties=False)
-
-        self.outputSetOfCTFTomoSeries.update(newCTFTomoSeries)
-        self.outputSetOfCTFTomoSeries.write()
-
-        self._store()
+                raise Exception("There is no matchinf CtfTomoSeries for a tilt-series %s"
+                                % (tsId))
 
     def closeOutputSetsStep(self):
         self.getOutputSetOfCTFTomoSeries().setStreamState(Set.STREAM_CLOSED)
