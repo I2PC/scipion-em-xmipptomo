@@ -74,8 +74,8 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
         # inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
 
-        for ctfTomoSeries in self.inputSetOfCtfTomoSeries.get():
-            if tsId == ctfTomoSeries.getTsId():
+        for inputCtfTomoSeries in self.inputSetOfCtfTomoSeries.get():
+            if tsId == inputCtfTomoSeries.getTsId():
         
                 self.getOutputSetOfCTFTomoSeries()
         
