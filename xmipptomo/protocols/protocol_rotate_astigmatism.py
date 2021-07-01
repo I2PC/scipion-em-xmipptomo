@@ -69,6 +69,13 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions ----------------------------
     def rotateAstimatism(self, tsObjId):
+        print(self.getTMSetOfTiltSeries.get())
+        print(self.inputSetOfCtfTomoSeries.get())
+        print("---------------------------------")
+
+        for i in self.inputSetOfCtfTomoSeries.get():
+            print(i.getTsId())
+
         print("element" + str(tsObjId))
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
         print(getTMTS)
