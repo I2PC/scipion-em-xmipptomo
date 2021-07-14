@@ -101,6 +101,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
                             % (mwangle, mwangle, fnInVol, fnVol))
             else:
+                mwangle = 90
                 self.runJob("xmipp_image_convert", " -i %s -o %s" % (fnInVol, fnVol))
         else:
             desc = self.create.get()
@@ -114,6 +115,8 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                 mwangle = self.mwangle.get()
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
                             % (mwangle, mwangle, fnVol, fnVol))
+            else:
+                mwangle = 90
 
         self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
         self.outputSet.setDim(dim)
@@ -128,6 +131,8 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
         subtomobase = SubTomogram()
         acq = TomoAcquisition()
+        acq.setAngleMax(mwangle)
+        acq.setAngleMin(mwangle*-1)
         subtomobase.setAcquisition(acq)
         subtomobase.setLocation(fnVol)
         subtomobase.setSamplingRate(self.sampling.get())
