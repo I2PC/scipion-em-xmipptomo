@@ -35,6 +35,7 @@ from pyworkflow.object import Float
 from pwem.emlib.image import ImageHandler
 from pyworkflow.utils import getExt
 from pwem.objects import Volume
+from tomo.objects import Tomogram
 import pwem.emlib.metadata as md
 
 MONOTOMO_METHOD_URL = 'http://github.com/I2PC/scipion/wiki/XmippProtMonoTomo'

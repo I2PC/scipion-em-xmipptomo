@@ -25,6 +25,7 @@
 # **************************************************************************
 
 import os
+from pyworkflow import BETA
 import pyworkflow.utils.path as path
 import pyworkflow.utils as pwutils
 from pyworkflow.protocol import params
@@ -38,6 +39,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
     Wrapper protocol to Xmipp split Odd Even on tilt-series
     """
     _label = 'split tilt-series'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -70,7 +72,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsFileNameEven = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.xmd"
 
         paramsOddEven = {
-            'inputImg': tsFileName,
+            'inputImg': tsFileName+":mrcs",
             'outputOdd': self._getExtraPath(os.path.join(tsId, tsFileNameOdd)),
             'outputEven': self._getExtraPath(os.path.join(tsId, tsFileNameEven)),
             'type': "images",
@@ -136,7 +138,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
                 evenTs.append(newTi)
-        evenTs.write()
+        evenTs.write(properties=False)
         outputOddSetOfTiltSeries.update(evenTs)
         outputOddSetOfTiltSeries.write()
         self._store()
@@ -157,7 +159,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.copyInfo(tiltImage, copyId=True)
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
                 oddTs.append(newTi)
-        oddTs.write()
+        oddTs.write(properties=False)
         outputOddSetOfTiltSeries.update(oddTs)
         outputOddSetOfTiltSeries.write()
         self._store()

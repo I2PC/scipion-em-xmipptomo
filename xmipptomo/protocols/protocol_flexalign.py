@@ -23,9 +23,12 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
+from pyworkflow import BETA
 from tomo.protocols import ProtTsCorrectMotion
 from xmipp3.protocols import XmippProtMovieCorr
 from pathlib import Path
+
 
 class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     """
@@ -33,6 +36,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     motion correction. It is used mainly for testing purposes.
     """
     _label = 'tiltseries FlexAlign'
+    _devStatus = BETA
     evenOddCapable = True
     
     def _defineParams(self, form):
