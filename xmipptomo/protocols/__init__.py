@@ -46,6 +46,7 @@ from .protocol_score_transform import XmippProtScoreTransform
 from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
+from .protocol_half_maps_subtomos import XmippProtHalfMapsSubtomo
 
 
 
