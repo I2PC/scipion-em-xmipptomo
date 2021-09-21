@@ -29,32 +29,28 @@ from os.path import exists
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from pwem.protocols import ProtImportVolumes
 
-from xmipp3.protocols import XmippProtCropResizeVolumes
+from tomo.protocols import ProtImportTomograms
+
 from xmipptomo.protocols import XmippProtMonoTomo
+
 
 class TestMonoTomoBase(BaseTest):
     @classmethod
     def setData(cls, dataProject='resmap'):
         cls.dataset = DataSet.getDataSet(dataProject)
         cls.map3D = cls.dataset.getFile('betagal')
-        cls.half1 = cls.dataset.getFile('betagal_half1')
-        cls.half2 = cls.dataset.getFile('betagal_half2')
+        cls.half1 = cls.dataset.getFile('even_tomogram_rx*.mrc')
+        cls.half2 = cls.dataset.getFile('odd_tomogram_rx*.mrc')
 
     @classmethod
-    def runImportVolumes(cls, pattern, samplingRate):
+    def runImportTomograms(cls, pattern, samplingRate):
         """ Run an Import volumes protocol. """
-        cls.protImport = cls.newProtocol(ProtImportVolumes,
+        cls.protImport = cls.newProtocol(ProtImportTomograms,
                                          filesPath=pattern,
                                          samplingRate=samplingRate
                                          )
         cls.launchProtocol(cls.protImport)
-        cls.protResize = cls.newProtocol(XmippProtCropResizeVolumes,
-                                         inputVolumes=cls.protImport.outputVolume,
-                                         doResize=True,
-                                         resizeOption=2,
-                                         resizeFactor=5)
-        cls.launchProtocol(cls.protResize)
-        return cls.protResize
+        return cls.protImport
 
 
 class TestMonoTomo(TestMonoTomoBase):
@@ -62,20 +58,17 @@ class TestMonoTomo(TestMonoTomoBase):
     def setUpClass(cls):
         setupTestProject(cls)
         TestMonoTomoBase.setData()
-        cls.protImportHalf1 = cls.runImportVolumes(cls.half1, 3.54)
-        cls.protImportHalf2 = cls.runImportVolumes(cls.half2, 3.54)
-
+        cls.protImportHalf1 = cls.runImportTomograms(cls.half1, 16.14)
+        cls.protImportHalf2 = cls.runImportTomograms(cls.half2, 16.14)
 
     def testMonoTomo(self):
         MonoTomo = self.newProtocol(XmippProtMonoTomo,
                                     objLabel='two halves monotomo',
-                                    inputVolume=self.protImportHalf1.outputVol,
-                                    inputVolume2=self.protImportHalf2.outputVol,
-                                    provideMaskInHalves=True,
+                                    oddTomograms=self.protImportHalf1.outputTomograms,
+                                    evenTomograms=self.protImportHalf2.outputTomograms,
                                     useMask=False,
                                     minRes=1,
-                                    maxRes=25,
+                                    maxRes=150,
                                     )
         self.launchProtocol(MonoTomo)
-        self.assertTrue(exists(MonoTomo._getExtraPath('mgresolution.mrc')),
-                        "MonoTomo has failed")
+        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_1/fullTomogram_1.mrc')), "MonoTomo has failed")

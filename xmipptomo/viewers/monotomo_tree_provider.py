@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
+# * Authors:     Scipion Team
 # *
-# * [1] SciLifeLab, Stockholm University
+# * your institution
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -20,11 +20,21 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'scipion@cnb.csic.es'
+# *  e-mail address 'you@yourinstitution.email'
 # *
 # **************************************************************************
+from os.path import join, isfile
 
-from .viewer_cltomo import XmippCLTomoViewer, XmippProtTsFlexAlignViewer
-from .monotomo_tree_provider import MonoTomoViewerProvider
-from .viewer_data import MonotomoDataViewer
-from .viewer_resolution_local_monotomo import XmippMonoTomoViewer
+from pyworkflow.utils import removeBaseExt
+from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider
+
+
+class MonoTomoViewerProvider(TomogramsTreeProvider):
+
+    def getObjectInfo(self, tomo):
+        print(tomo.get().getFileName())
+        tomoName = removeBaseExt(tomo.getFileName())
+        return {'key': tomoName, 'parent': None}
+
+    def getColumns(self):
+        return [('tomo', 400)]
