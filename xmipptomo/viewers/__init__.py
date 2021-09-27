@@ -25,6 +25,4 @@
 # **************************************************************************
 
 from .viewer_cltomo import XmippCLTomoViewer, XmippProtTsFlexAlignViewer
-from .monotomo_tree_provider import MonoTomoViewerProvider
-from .viewer_data import MonotomoDataViewer
 from .viewer_resolution_local_monotomo import XmippMonoTomoViewer

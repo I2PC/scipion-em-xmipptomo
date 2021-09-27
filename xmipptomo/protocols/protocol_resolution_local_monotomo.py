@@ -29,21 +29,18 @@ import numpy as np
 import os
 
 from pyworkflow import VERSION_2_0
-from pyworkflow.object import Float
 from pyworkflow.utils import getExt
 from pyworkflow.object import Set
-import copy
 from pyworkflow.protocol.params import (PointerParam, BooleanParam, FloatParam,
                                         LEVEL_ADVANCED)
 
 from pwem.protocols import ProtAnalysis3D
 from pwem.emlib.image import ImageHandler
-from pwem.objects import Volume
 import pwem.emlib.metadata as md
 from pwem.protocols import EMProtocol
 
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfTomograms, Tomogram
+from tomo.objects import Tomogram
 
 MONOTOMO_METHOD_URL = 'http://github.com/I2PC/scipion/wiki/XmippProtMonoTomo'
 OUTPUT_RESOLUTION_FILE = 'resolutionMap'
@@ -308,9 +305,10 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
 
     def _summary(self):
         summary = []
-        summary.append("Highest resolution %.2f Å,   "
-                       "Lowest resolution %.2f Å. \n" % (self.min_res_init,
-                                                         self.max_res_init))
+        if hasattr(self, 'min_res_init') and hasattr(self, 'max_res_init'):
+            summary.append("Highest resolution %.2f Å,   "
+                           "Lowest resolution %.2f Å. \n" % (self.min_res_init,
+                                                             self.max_res_init))
         return summary
 
     def _citations(self):

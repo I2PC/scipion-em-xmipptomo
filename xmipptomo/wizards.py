@@ -24,10 +24,11 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+from pwem.wizards import ColorScaleWizardBase
 from pyworkflow.wizard import Wizard
 from .protocols import XmippProtConnectedComponents
 from xmipptomo.viewers import XmippMonoTomoViewer
+from .viewers.monotomo_tree_provider import MonotomoViewer
 
 
 class XmippConnectedCompWizard(Wizard):
@@ -46,5 +47,26 @@ class XmippConnectedCompWizard(Wizard):
         distance = boxSize * 3
         form.setVar('distance', distance)
 
+
 class ColorScaleWizard(ColorScaleWizardBase):
     _targets = ColorScaleWizardBase.defineTargets(XmippMonoTomoViewer)
+
+
+class SelectTomogramWizard(Wizard):
+    _targets = [(XmippMonoTomoViewer, ['inputTomogram'])]
+
+    def _selectTomogram(self, form):
+        localResolutionTomos = form.protocol.outputLocalResolutionSetOfTomograms
+        view = MonotomoViewer(form.getTkRoot(), form.protocol,
+                              localResolutionTomos).show()
+        return view
+
+    def show(self, form, *args):
+        view = self._selectTomogram(form.protocol)
+        if len(view.values):
+            tomogram = view.values[0]
+            form.protocol.selectedTomogram = tomogram
+            tomogramId = (tomogram.getTsId() if tomogram.getTsId() is not None
+                          else tomogram.getObjId())
+            form.setVar('inputTomogram', str(tomogramId) +
+                        "  ("+str(tomogram) + ")")

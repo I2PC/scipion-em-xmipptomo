@@ -28,21 +28,23 @@
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from pwem.wizards import ColorScaleWizardBase
+from pyworkflow.gui.dialog import showError
 
 from pyworkflow.protocol.params import (LabelParam, EnumParam,
-                                        IntParam, LEVEL_ADVANCED)
+                                        IntParam, LEVEL_ADVANCED, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER
 from pwem.viewers import ChimeraView, DataView, EmPlotter
 from pwem.emlib.metadata import MetaData, MDL_X, MDL_COUNT
-from pwem.viewers import LocalResolutionViewer
 from pwem.constants import AX_Z
 
 from xmipp3.viewers.plotter import XmippPlotter
+
 from xmipptomo.protocols.protocol_resolution_local_monotomo import (XmippProtMonoTomo,
                                                            OUTPUT_RESOLUTION_FILE,
                                                            FN_METADATA_HISTOGRAM)
 
-class XmippMonoTomoViewer(LocalResolutionViewer):
+
+class XmippMonoTomoViewer(ProtocolViewer):
     """
     Visualization tools for MonoRes results.
 
@@ -58,10 +60,16 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         return plt.colormaps()
 
     def __init__(self, *args, **kwargs):
+        self.selectedTomogram = None
         ProtocolViewer.__init__(self, *args, **kwargs)
 
     def _defineParams(self, form):
+
         form.addSection(label='Visualization')
+
+        form.addParam('inputTomogram', StringParam,
+                      label="Select a tomogram",
+                      important=True)
 
         form.addParam('doShowVolumeSlices', LabelParam,
                       label="Show resolution slices")
@@ -92,7 +100,7 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         group.addParam('doShowChimera', LabelParam,
                        label="Show Resolution map in Chimera")
 
-        ColorScaleWizardBase.defineColorScaleParams(group, defaultHighest=self.protocol.max_res_init.get(), defaultLowest=self.protocol.min_res_init.get())
+        ColorScaleWizardBase.defineColorScaleParams(group)
 
     def _getVisualizeDict(self):
         self.protocol._createFilenameTemplates()
@@ -105,9 +113,9 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
                 }
 
     def _showVolumeSlices(self, param=None):
-        cm = DataView(self.protocol.resolution_Volume.getFileName())
-
-        return [cm]
+        if self.validateTomogram():
+            cm = DataView(self.protocol.resolution_Volume.getFileName())
+            return [cm]
 
     def _showOriginalVolumeSlices(self, param=None):
 
@@ -223,3 +231,11 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         if cmap is None:
             cmap = cm.jet
         return cmap
+
+    def validateTomogram(self):
+        if not self.inputTomogram.empty():
+            return True
+        else:
+            showError("Tomogram missing", "You need to select one tomogram.",
+                      self.getTkRoot())
+            return False
