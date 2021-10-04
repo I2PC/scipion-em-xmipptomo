@@ -107,7 +107,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
 
         line.addParam('minRes', FloatParam, default=0, label='High')
         line.addParam('maxRes', FloatParam, allowsNull=True, label='Low')
-        line.addParam('stepSize', FloatParam, allowsNull=True, default=0.25,
+        line.addParam('stepSize', FloatParam, allowsNull=True, default=0.5,
                       expertLevel=LEVEL_ADVANCED, label='Step')
 
         form.addParallelSection(threads=4, mpi=0)
