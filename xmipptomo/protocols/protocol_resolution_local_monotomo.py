@@ -115,7 +115,8 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
 
     def _insertAllSteps(self):
-
+        self.min_res_init = Float(self.minRes.get())
+        self.max_res_init = Float(self.maxRes.get())
         for tom_odd, tom_even in zip(self.oddTomograms.get(), self.evenTomograms.get()):
             if tom_odd.getObjId() == tom_even.getObjId():
                 tomId = tom_odd.getObjId()
@@ -209,8 +210,6 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         fnLocRes = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tomId, MRCEXT)
         fnHist = self.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tomId, XMDEXT)
         m, M = self.getMinMax(fnLocRes)
-        self.min_res_init = Float(m)
-        self.max_res_init = Float(M)
 
         freq_step = self.stepSize.get() if self.stepSize.hasValue() else 10
 
