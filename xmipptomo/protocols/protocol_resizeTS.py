@@ -135,13 +135,6 @@ class XmippProtResizeTiltSeries(EMProtocol, ProtTomoBase):
 
         args = self._resizeCommonArgs(self)
 
-        ih = ImageHandler()
-        x, y, z, _ = ih.getDimensions(ts.getFirstItem().getFileName())
-        ih.createEmptyImage(fnOut=os.path.join(extraPrefix, ts.getFirstItem().parseFileName()),
-                            xDim=int(x * self.factor),
-                            yDim=int(y * self.factor),
-                            nDim=1)
-
         for ti in ts:
             self.runJob("xmipp_image_resize", self._ioArgs(ti)+args)
 
