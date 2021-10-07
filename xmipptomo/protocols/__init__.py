@@ -38,6 +38,7 @@ from .protocol_misalignTS import XmippProtMisalignTiltSeries
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_resizeTS import XmippProtResizeTiltSeries
+from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_rotate_astigmatism import XmippProtRotateAstigmatism

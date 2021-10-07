@@ -121,8 +121,8 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
             if tom_odd.getObjId() == tom_even.getObjId():
                 tomId = tom_odd.getObjId()
                 #self._insertFunctionStep('convertInputStep')
-                self._insertFunctionStep('resolutionMonoTomoStep', self.oddTomograms.get(), self.evenTomograms.get(), tomId)
-                self._insertFunctionStep("createHistrogram", tomId)
+                self._insertFunctionStep(self.resolutionMonoTomoStep, self.oddTomograms.get(), self.evenTomograms.get(), tomId)
+                self._insertFunctionStep(self.createHistrogram, tomId)
         self._insertFunctionStep('createOutputStep')
 
 
