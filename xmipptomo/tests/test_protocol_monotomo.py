@@ -25,7 +25,6 @@
 # **************************************************************************
 from os.path import exists
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
-from pwem.protocols import ProtImportVolumes
 from tomo.protocols import ProtImportTomograms
 from xmipptomo.protocols import XmippProtMonoTomo
 
