@@ -79,16 +79,11 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         '''
 
         #Defining the output folder
-        #tomoPath = self._getExtraPath(self.TOMOGRAMFOLDER + str(tomId))
         os.mkdir(self._getExtraPath(self.TOMOGRAMFOLDER + str(tomId)))
 
         inputTomo = tomoSet[tomId].getFileName()
-
-        #auxfn = os.path.basename(tomoSet.getFileName())
-        #outputTomo = os.path.splitext(auxfn)[0]+str(tomId)+self.SUFIXRESIZE
-        #outputTomo = os.path.join(tomoPath, outputTomo)
-
         outputTomo = self.outputTomoFileName(tomoSet, tomId)
+        
         # Launching the xmipp command
         params =  ' -i %s ' % inputTomo
         params += ' -o %s ' % outputTomo
