@@ -83,7 +83,7 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
 
         inputTomo = tomoSet[tomId].getFileName()
         outputTomo = self.outputTomoFileName(tomoSet, tomId)
-        
+
         # Launching the xmipp command
         params =  ' -i %s ' % inputTomo
         params += ' -o %s ' % outputTomo

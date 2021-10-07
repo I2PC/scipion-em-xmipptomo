@@ -75,7 +75,6 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
         path.makePath(extraPrefix)
 
         args = self._resizeCommonArgs(self)
-        print(args)
 
         for ti in ts:
             self.runJob("xmipp_image_resize", self._ioArgs(ti)+args)
