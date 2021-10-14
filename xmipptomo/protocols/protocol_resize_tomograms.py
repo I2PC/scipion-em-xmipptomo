@@ -60,8 +60,8 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
                       PointerParam,
                       pointerClass='SetOfTomograms',
                       important=True,
-                      label='Input set of tilt-series',
-                      help='Select a set of tilt-series to be resized.')
+                      label='Input set of tomograms',
+                      help='Select a set of tomograms to be resized.')
         self._defineParamsReSize(form)
 
     # --------------------------- INSERT steps functions ------------------------
@@ -125,7 +125,6 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         else:
             outputSetOfTomograms = self._createSetOfTomograms(suffix='resized')
             outputSetOfTomograms.copyInfo(self.inputSet.get())
-            samplingRate = self.samplingRate
             outputSetOfTomograms.setSamplingRate(self.samplingRate)
             outputSetOfTomograms.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfTomograms=outputSetOfTomograms)
