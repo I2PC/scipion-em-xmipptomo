@@ -156,6 +156,9 @@ class XmippProtHalfMapsSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
         errors = []
+        if not self.inputSubtomograms.get().getTransform():
+            errors.append("Input subtomograms do not have alignment information. Please, "
+                          "provide a SetOfSubtomograms that has been previously aligned.")
         return errors
 
     def _summary(self):
