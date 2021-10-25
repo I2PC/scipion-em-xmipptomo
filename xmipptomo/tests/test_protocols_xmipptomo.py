@@ -24,8 +24,8 @@
 # *
 # **************************************************************************
 
-# import numpy as np
-
+import numpy as np
+from pwem.emlib.image import ImageHandler
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
@@ -33,7 +33,8 @@ from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportSubTomograms)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
-    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform
+    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
+    XmippProtHalfMapsSubtomo
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -347,6 +348,38 @@ class XmippTomoScoreCoordinates(BaseTest):
         self.assertTrue(filteredCoords.getSize() == 0)
         self.assertTrue(filteredCoords.getBoxSize() == 32)
         self.assertTrue(filteredCoords.getSamplingRate() == 5)
+
+
+class TestXmipptomoHalfMaps(BaseTest):
+    """This class check if the protocol to create half maps from a SetOfSubtomograms
+    works properly"""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+    def _phantom(self):
+        phantom = self.newProtocol(XmippProtPhantomSubtomo, option=1)
+        self.launchProtocol(phantom)
+        self.assertIsNotNone(phantom.outputSubtomograms,
+                             "There was a problem with subtomograms output")
+        return phantom
+
+    def _half_maps(self, subtomos):
+        half_maps = self.newProtocol(XmippProtHalfMapsSubtomo, inputSubtomograms=subtomos)
+        self.launchProtocol(half_maps)
+        self.assertIsNotNone(half_maps.halfMaps,
+                             "There was a problem with half maps output")
+        return half_maps
+
+    def test_half_maps(self):
+        phantom = self._phantom()
+        half_maps = self._half_maps(phantom.outputSubtomograms)
+        map_even = np.squeeze(ImageHandler().read(half_maps.halfMaps[1].getFileName()).getData())
+        map_odd = np.squeeze(ImageHandler().read(half_maps.halfMaps[2].getFileName()).getData())
+        error = np.sqrt(np.sum((map_even - map_odd) ** 2) / map_even.size)
+        self.assertAlmostEqual(error, 0.0, delta=0.1, msg="Unexpected half maps")
+        return half_maps
 
 
 # class TestXmippTomoScoreTransform(BaseTest):
