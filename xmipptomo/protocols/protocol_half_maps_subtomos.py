@@ -51,7 +51,7 @@ class XmippProtHalfMapsSubtomo(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', PointerParam, pointerClass="SetOfSubTomograms",
-                      label='Set of subtomograms', help="Set of subtomograms to be alignment")
+                      label='Set of subtomograms', help="Set of subtomograms to be split into even and odd stacks")
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
