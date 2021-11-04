@@ -34,6 +34,7 @@ from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_flexalign import XmippProtTsFlexAlign
+from .protocol_detect_misalignment_TS import XmippProtDetectMisalignmentTiltSeries
 from .protocol_misalignTS import XmippProtMisalignTiltSeries
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_project_top import XmippProtSubtomoProject
