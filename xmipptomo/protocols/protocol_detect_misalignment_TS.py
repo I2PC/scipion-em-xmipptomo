@@ -37,7 +37,7 @@ import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 
 
-class XmippProtDetectMisalignTiltSeries(EMProtocol, ProtTomoBase):
+class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     """
     Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
@@ -48,3 +48,33 @@ class XmippProtDetectMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
+
+    # -------------------------- DEFINE param functions -----------------------
+    def _defineParams(self, form):
+        form.addSection('Input')
+
+        form.addParam('inputSetOfTiltSeries',
+                      params.PointerParam,
+                      pointerClass='SetOfTiltSeries',
+                      important=True,
+                      label='Input set of tilt-series')
+
+        form.addParam('fiducialSize',
+                      params.FloatParam,
+                      important=True,
+                      label='Fiducial size (A)',
+                      help='Fiducial size in Angstroms (A).')
+
+        form.addParam('sdThreshold',
+                      params.FloatParam,
+                      advanced=True,
+                      label='Coordinate value SD threshold',
+                      help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
+                           'high contrast feature.')
+
+        form.addParam('numberOfCoordinatesThr',
+                      params.IntParam,
+                      advanced=True,
+                      label='Number of coordinates threshold',
+                      help='Minimum number of coordinates attracted to a center of mass to consider it as a high '
+                           'contrast feature.')
