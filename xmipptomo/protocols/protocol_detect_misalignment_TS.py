@@ -104,4 +104,31 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         utils.writeXmippTiltAngleList(ts, angleFilePath)
 
     def detectMisalignment(self, tsObjId):
-        pass
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+        tmpPrefix = self._getTmpPath(tsId)
+
+        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+
+        paramsCcderaser = {
+            'i': os.path.join(tmpPrefix, ts.getFirstItem().parseFileName() + ":mrcs"),
+            'tlt': angleFilePath,
+            'o': os.path.join(extraPrefix, ts.getFirstItem().parseFileName(suffix='coordinates', extension='.xmd')),
+            'sdThreshold': self.sdThreshold.get(),
+            'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
+            'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+            'fiducialSize': self.fiducialSize.get(),
+        }
+
+        argsCcderaser = "-i %(i)s " \
+                        "--tlt %(tlt)s " \
+                        "-o %(o)d " \
+                        "--sdThreshold %(sdThreshold).2f " \
+                        "--numberOfCoordinatesThr %(numberOfCoordinatesThr).2f " \
+                        "--samplingRate %(samplingRate).2f " \
+                        "--fiducialSize %(fiducialSize)d " \
+
+        self.runJob(self, 'xmipp_tomo_detect_misalignment_trajectory', argsCcderaser % paramsCcderaser)
+
