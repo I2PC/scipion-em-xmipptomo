@@ -39,3 +39,23 @@ def calculateRotationAngleFromTM(ti):
     rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
 
     return rotationAngle
+
+
+def retrieveXmipp3dCoordinatesIntoList(ts, angleFilePath):
+    """ This method takes a Scipion tilt-series object and return a xmipp metadata (xmd) tilt angle file contaiing
+    every angle of each tilt-image. """
+
+    header = "# XMIPP_STAR_1 * " \
+             "#" \
+             "data_noname" \
+             "loop_" \
+             "_angleTilt"
+
+    angleList = []
+
+    for ti in ts:
+        angleList.append(ti.getTiltAngle())
+
+    with open(angleFilePath, 'w') as f:
+        f.write(header)
+        f.writelines("%s\n" % angle for angle in angleList)
