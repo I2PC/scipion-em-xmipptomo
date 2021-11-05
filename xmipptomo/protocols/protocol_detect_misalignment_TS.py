@@ -25,20 +25,15 @@
 # **************************************************************************
 
 import os
-import numpy as np
-import math
-import csv
-import pwem.objects as data
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
-
+import xmipptomo.utils as utils
 
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
-
     """
     Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
     """
@@ -78,3 +73,35 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       label='Number of coordinates threshold',
                       help='Minimum number of coordinates attracted to a center of mass to consider it as a high '
                            'contrast feature.')
+
+    # -------------------------- INSERT steps functions ---------------------
+    def _insertAllSteps(self):
+        for ts in self.inputSetOfTiltSeries.get():
+            tsObjId = ts.getObjId()
+            self._insertFunctionStep(self.convertInputStep, tsObjId)
+            self._insertFunctionStep(self.detectMisalignment, ts.getObjId())
+
+    # --------------------------- STEPS functions ----------------------------
+    def convertInputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+        tmpPrefix = self._getTmpPath(tsId)
+
+        path.makePath(tmpPrefix)
+        path.makePath(extraPrefix)
+
+        firstItem = ts.getFirstItem()
+
+        """Apply the transformation form the input tilt-series"""
+        # Use Xmipp interpolation via Scipion
+        outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+        ts.applyTransform(outputTsFileName)
+
+        """Generate angle file"""
+        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+        utils.writeXmippTiltAngleList(ts, angleFilePath)
+
+    def detectMisalignment(self, tsObjId):
+        pass

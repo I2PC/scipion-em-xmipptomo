@@ -41,7 +41,7 @@ def calculateRotationAngleFromTM(ti):
     return rotationAngle
 
 
-def retrieveXmipp3dCoordinatesIntoList(ts, angleFilePath):
+def writeXmippTiltAngleList(ts, angleFilePath):
     """ This method takes a Scipion tilt-series object and return a xmipp metadata (xmd) tilt angle file contaiing
     every angle of each tilt-image. """
 
