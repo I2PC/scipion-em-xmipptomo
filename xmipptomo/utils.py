@@ -41,8 +41,8 @@ def calculateRotationAngleFromTM(ti):
     return rotationAngle
 
 
-def writeXmippTiltAngleList(ts, angleFilePath):
-    """ This method takes a Scipion tilt-series object and return a xmipp metadata (xmd) tilt angle file contaiing
+def writeXmippMetadataTiltAngleList(ts, angleFilePath):
+    """ This method takes a Scipion tilt-series object and return a Xmipp metadata (xmd) tilt angle file containing
     every angle of each tilt-image. """
 
     header = "# XMIPP_STAR_1 * " \
@@ -59,3 +59,26 @@ def writeXmippTiltAngleList(ts, angleFilePath):
     with open(angleFilePath, 'w') as f:
         f.write(header)
         f.writelines("%s\n" % angle for angle in angleList)
+
+
+def readXmippMetadataEnabledTiltImages(xmdPath):
+    """ This method takes an Xmipp metadata (xmd) file containing the enabled images from a tilt series and retrieves a
+     matrix containing the enable info and the tilt image location. """
+
+    enableInfoList = []
+
+    with open(xmdPath) as f:
+        enableInfoText = f.read().splitlines()
+
+    for line in enableInfoText:
+        # Remove header
+        if not line.startswith("#"):
+            vectorLine = line.split()
+
+            # Remove field names
+            if len(vectorLine) > 1:
+                locationInfo = vectorLine[1].split("@")
+                enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
+
+    return enableInfoList
+
