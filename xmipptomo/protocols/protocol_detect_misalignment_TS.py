@@ -33,6 +33,7 @@ import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
+
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     """
     Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
@@ -79,7 +80,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         for ts in self.inputSetOfTiltSeries.get():
             tsObjId = ts.getObjId()
             self._insertFunctionStep(self.convertInputStep, tsObjId)
-            self._insertFunctionStep(self.detectMisalignment, ts.getObjId())
+            self._insertFunctionStep(self.detectMisalignmentStep, ts.getObjId())
+            self._insertFunctionStep(self.generateOutputStep, ts.getObjId())
 
     # --------------------------- STEPS functions ----------------------------
     def convertInputStep(self, tsObjId):
@@ -101,34 +103,51 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         """Generate angle file"""
         angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-        utils.writeXmippTiltAngleList(ts, angleFilePath)
+        utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
-    def detectMisalignment(self, tsObjId):
+    def detectMisalignmentStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
         extraPrefix = self._getExtraPath(tsId)
         tmpPrefix = self._getTmpPath(tsId)
 
+        firstItem = ts.getFirstItem()
+
         angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
 
-        paramsCcderaser = {
-            'i': os.path.join(tmpPrefix, ts.getFirstItem().parseFileName() + ":mrcs"),
+        paramsDetectMisali = {
+            'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
             'tlt': angleFilePath,
-            'o': os.path.join(extraPrefix, ts.getFirstItem().parseFileName(suffix='coordinates', extension='.xmd')),
+            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='coordinates', extension='.xmd')),
             'sdThreshold': self.sdThreshold.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
             'fiducialSize': self.fiducialSize.get(),
         }
 
-        argsCcderaser = "-i %(i)s " \
-                        "--tlt %(tlt)s " \
-                        "-o %(o)d " \
-                        "--sdThreshold %(sdThreshold).2f " \
-                        "--numberOfCoordinatesThr %(numberOfCoordinatesThr).2f " \
-                        "--samplingRate %(samplingRate).2f " \
-                        "--fiducialSize %(fiducialSize)d " \
+        argsDetectMisali = "-i %(i)s " \
+                           "--tlt %(tlt)s " \
+                           "-o %(o)d " \
+                           "--sdThreshold %(sdThreshold).2f " \
+                           "--numberOfCoordinatesThr %(numberOfCoordinatesThr).2f " \
+                           "--samplingRate %(samplingRate).2f " \
+                           "--fiducialSize %(fiducialSize)d "
 
-        self.runJob(self, 'xmipp_tomo_detect_misalignment_trajectory', argsCcderaser % paramsCcderaser)
+        self.runJob(self, 'xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
+
+    def generateOutputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+        tmpPrefix = self._getTmpPath(tsId)
+
+        firstItem = ts.getFirstItem()
+
+        xmdEnableTiltImages = os.path.join(extraPrefix, "alignmentReport.xmd")
+
+        enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
+
+        print(enableInfoList)
