@@ -89,14 +89,12 @@ def readXmippMetadataEnabledTiltImages(xmdPath):
     with open(xmdPath) as f:
         enableInfoText = f.read().splitlines()
 
-    for line in enableInfoText:
-        # Remove header
-        if not line.startswith("#"):
-            vectorLine = line.split()
+    for line in enableInfoText[6:]:
+        # Split enable and location
+        vectorLine = line.split()
 
-            # Remove field names
-            if len(vectorLine) > 1:
-                locationInfo = vectorLine[1].split("@")
-                enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
+        # Split location in index and path
+        locationInfo = vectorLine[1].split("@")
+        enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
 
     return enableInfoList
