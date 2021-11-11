@@ -64,6 +64,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('sdThreshold',
                       params.FloatParam,
                       advanced=True,
+                      default=5,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
@@ -71,6 +72,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('numberOfCoordinatesThr',
                       params.IntParam,
                       advanced=True,
+                      default=10,
                       label='Number of coordinates threshold',
                       help='Minimum number of coordinates attracted to a center of mass to consider it as a high '
                            'contrast feature.')
@@ -135,7 +137,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            "--fiducialSize %(fiducialSize)d "
 
         self.runJob(self, 'xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
-
 
     def generateOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
