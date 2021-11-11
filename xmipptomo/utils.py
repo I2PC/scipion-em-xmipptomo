@@ -30,13 +30,32 @@ This module contains utils functions for xmipp tomo protocols
 import math
 
 
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
+    """ This method takes an xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
+    every coordinate. This method also transform the coordinates into the Scipion convention. """
+
+    coorList = []
+
+    with open(coordFilePath) as f:
+        inputLines = f.readlines()
+
+    for line in inputLines[7:]:
+        vector = line.split()
+
+        coorList.append([float(vector[0]),
+                         float(vector[1]),
+                         float(vector[2])])
+
+    return coorList
+
+
 def calculateRotationAngleFromTM(ti):
     """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
 
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
 
     return rotationAngle
 
@@ -81,4 +100,3 @@ def readXmippMetadataEnabledTiltImages(xmdPath):
                 enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
 
     return enableInfoList
-
