@@ -147,8 +147,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
-        xmdEnableTiltImages = os.path.join(extraPrefix, "alingmentReport.xmd")
+        xmdEnableTiltImages = os.path.join(extraPrefix, "alignmentReport.xmd")
 
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
+        coordinatesList = utils.retrieveXmipp3dCoordinatesIntoList(
+            os.path.join(extraPrefix, firstItem.parseFileName(suffix='_coordinates', extension='.xmd')))
 
         print(enableInfoList)
+        print(coordinatesList)
