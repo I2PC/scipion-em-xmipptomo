@@ -121,7 +121,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         paramsDetectMisali = {
             'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
             'tlt': angleFilePath,
-            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='coordinates', extension='.xmd')),
+            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_coordinates', extension='.xmd')),
             'sdThreshold': self.sdThreshold.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
@@ -130,13 +130,13 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         argsDetectMisali = "-i %(i)s " \
                            "--tlt %(tlt)s " \
-                           "-o %(o)d " \
+                           "-o %(o)s " \
                            "--sdThreshold %(sdThreshold).2f " \
                            "--numberOfCoordinatesThr %(numberOfCoordinatesThr).2f " \
                            "--samplingRate %(samplingRate).2f " \
-                           "--fiducialSize %(fiducialSize)d "
+                           "--fiducialSize %(fiducialSize).2f"
 
-        self.runJob(self, 'xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
+        self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
     def generateOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -147,7 +147,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
-        xmdEnableTiltImages = os.path.join(extraPrefix, "alignmentReport.xmd")
+        xmdEnableTiltImages = os.path.join(extraPrefix, "alingmentReport.xmd")
 
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
