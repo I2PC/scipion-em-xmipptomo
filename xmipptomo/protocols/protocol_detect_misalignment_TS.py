@@ -58,8 +58,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('fiducialSize',
                       params.FloatParam,
                       important=True,
-                      label='Fiducial size (A)',
-                      help='Fiducial size in Angstroms (A).')
+                      label='Fiducial size (nm)',
+                      help='Fiducial size in nanometers (nm).')
 
         form.addParam('sdThreshold',
                       params.FloatParam,
@@ -125,7 +125,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             'sdThreshold': self.sdThreshold.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
-            'fiducialSize': self.fiducialSize.get(),
+            'fiducialSize': self.fiducialSize.get() * 10,
         }
 
         argsDetectMisali = "-i %(i)s " \
