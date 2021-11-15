@@ -258,3 +258,24 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         return self.outputSetOfLandmarkModels
 
+    # --------------------------- INFO functions ----------------------------
+    def _summary(self):
+        summary = []
+
+        return summary
+
+    def _methods(self):
+        methods = []
+        if hasattr(self, 'outputSetOfTiltSeries'):
+            methods.append("%d tilt-series have been classified as properly aligned using the Xmipp program "
+                           "xmipp_tomo_detect_misalignment.\n"
+                           % (self.outputSetOfTiltSeries.getSize()))
+        elif hasattr(self, 'outputSetOfMisalignedTiltSeries'):
+            methods.append("%d tilt-series have been classified as misaligned using the Xmipp program "
+                           "xmipp_tomo_detect_misalignment.\n"
+                           % (self.outputSetOfMisalignedTiltSeries.getSize()))
+        else:
+            methods.append("Output classes not ready yet.")
+        return methods
+
+
