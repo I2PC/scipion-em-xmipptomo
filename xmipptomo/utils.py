@@ -64,11 +64,11 @@ def writeXmippMetadataTiltAngleList(ts, angleFilePath):
     """ This method takes a Scipion tilt-series object and return a Xmipp metadata (xmd) tilt angle file containing
     every angle of each tilt-image. """
 
-    header = "# XMIPP_STAR_1 * " \
-             "#" \
-             "data_noname" \
-             "loop_" \
-             "_angleTilt"
+    header = "# XMIPP_STAR_1 * \n" \
+             "#\n" \
+             "data_noname\n" \
+             "loop_\n" \
+             "_angleTilt\n"
 
     angleList = []
 
