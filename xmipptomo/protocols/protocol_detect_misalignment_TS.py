@@ -123,7 +123,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         paramsDetectMisali = {
             'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
             'tlt': angleFilePath,
-            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_coordinates', extension='.xmd')),
+            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
             'sdThreshold': self.sdThreshold.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
@@ -146,9 +146,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         extraPrefix = self._getExtraPath(tsId)
 
-        self.getOutputSetOfLandmarkModels()
+        firstItem = ts.getFirstItem()
 
-        xmdEnableTiltImages = os.path.join(extraPrefix, "alignmentReport.xmd")
+        xmdEnableTiltImages = os.path.join(extraPrefix,
+                                           firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
 
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
