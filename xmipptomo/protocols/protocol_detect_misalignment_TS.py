@@ -30,6 +30,7 @@ import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
+from pyworkflow.object import Set
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
@@ -84,6 +85,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self._insertFunctionStep(self.convertInputStep, tsObjId)
             self._insertFunctionStep(self.detectMisalignmentStep, ts.getObjId())
             self._insertFunctionStep(self.generateOutputStep, ts.getObjId())
+        self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEPS functions ----------------------------
     def convertInputStep(self, tsObjId):
@@ -143,15 +145,114 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
 
         extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
 
-        firstItem = ts.getFirstItem()
+        self.getOutputSetOfLandmarkModels()
 
         xmdEnableTiltImages = os.path.join(extraPrefix, "alignmentReport.xmd")
 
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
-        coordinatesList = utils.retrieveXmipp3dCoordinatesIntoList(
-            os.path.join(extraPrefix, firstItem.parseFileName(suffix='_coordinates', extension='.xmd')))
 
-        print(enableInfoList)
-        print(coordinatesList)
+        """ Generate output sets of aligned and misaligned tilt series """
+        aligned = True
+
+        # Check if some tilt image presents misalignment
+        for line in enableInfoList:
+            if line[0] == -1:
+                aligned = False
+
+        newTs = tomoObj.TiltSeries(tsId=tsId)
+        newTs.copyInfo(ts)
+
+        if aligned:
+            self.getOutputSetOfTiltSeries()
+            self.outputSetOfTiltSeries.append(newTs)
+
+        else:
+            self.getOutputSetOfMisalignedTiltSeries()
+            self.outputSetOfMisalignedTiltSeries.append(newTs)
+
+        for index, tiltImage in enumerate(ts):
+            newTi = tomoObj.TiltImage()
+            newTi.copyInfo(tiltImage, copyId=True)
+            newTi.setAcquisition(tiltImage.getAcquisition())
+            newTi.setLocation(tiltImage.getLocation())
+            newTs.append(newTi)
+
+        newTs.write(properties=False)
+
+        if aligned:
+            self.outputSetOfTiltSeries.update(newTs)
+            self.outputSetOfTiltSeries.write()
+
+        else:
+            self.outputSetOfMisalignedTiltSeries.update(newTs)
+            self.outputSetOfMisalignedTiltSeries.write()
+
+        self._store()
+
+    def closeOutputSetsStep(self):
+        if hasattr(self, "outputSetOfTiltSeries"):
+            self.outputSetOfTiltSeries.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfTiltSeries.write()
+
+        if hasattr(self, "outputSetOfMisalignedTiltSeries"):
+            self.outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfMisalignedTiltSeries.write()
+
+        self._store()
+
+    # --------------------------- UTILS functions ----------------------------
+    def getOutputSetOfTiltSeries(self):
+        """ Method to generate output classes of set of tilt-series"""
+
+        if hasattr(self, "outputSetOfTiltSeries"):
+            self.outputSetOfTiltSeries.enableAppend()
+
+        else:
+            outputSetOfTiltSeries = self._createSetOfTiltSeries()
+
+            outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+
+            outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
+
+        return self.outputSetOfTiltSeries
+
+    def getOutputSetOfMisalignedTiltSeries(self):
+        """ Method to generate output classes of set of tilt-series"""
+
+        if hasattr(self, "outputSetOfMisalignedTiltSeries"):
+            self.outputSetOfMisalignedTiltSeries.enableAppend()
+
+        else:
+            outputSetOfMisalignedTiltSeries = self._createSetOfTiltSeries()
+
+            outputSetOfMisalignedTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfMisalignedTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+
+            outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfMisalignedTiltSeries=outputSetOfMisalignedTiltSeries)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfMisalignedTiltSeries)
+
+        return self.outputSetOfMisalignedTiltSeries
+
+    def getOutputSetOfLandmarkModels(self):
+        if hasattr(self, "outputSetOfLandmarkModels"):
+            self.outputSetOfLandmarkModels.enableAppend()
+
+        else:
+            outputSetOfLandmarkModels = self._createSetOfLandmarkModels()
+
+            outputSetOfLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+
+            outputSetOfLandmarkModels.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfLandmarkModels=outputSetOfLandmarkModels)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfLandmarkModels)
+
+        return self.outputSetOfLandmarkModels
+
