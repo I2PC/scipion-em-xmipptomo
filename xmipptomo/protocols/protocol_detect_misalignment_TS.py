@@ -158,8 +158,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         # Check if some tilt image presents misalignment
         for line in enableInfoList:
-            if line[0] == -1:
+            if float(line[0]) != 1:
                 aligned = False
+                break
 
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
