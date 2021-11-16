@@ -30,7 +30,7 @@ import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
-from pyworkflow.object import Set, List
+from pyworkflow.object import Set, Dict
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
@@ -46,7 +46,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
 
-        self.alignmentReportDictionary = List([])
+        self.alignmentReportDictionary = Dict([])
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
@@ -155,6 +155,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
+        self.generateAlignmentReportDictionary(enableInfoList, tsId)
+
         """ Generate output sets of aligned and misaligned tilt series """
         aligned = True
 
@@ -210,20 +212,22 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         globalMisalignment = True
         aligned = True
 
-        misalignedTiltImages = "Misalignment detected in images: "
+        misalignedTiltImages = "misalignment detected in images: "
 
         for line in enableInfoList:
             if float(line[0]) != 1:
                 aligned = False
-                misalignedTiltImages.append(" " + line[0] + ",")
+                misalignedTiltImages = misalignedTiltImages + " " + line[0] + ","
             else:
                 globalMisalignment = False
 
         if globalMisalignment:
-            self.alignmentReportDictionary[tsId] = "Global misalignment detected"
+            self.alignmentReportDictionary[tsId] = "global misalignment detected"
         elif not aligned:
             # Remove final comma
             self.alignmentReportDictionary[tsId] = misalignedTiltImages[:-1]
+
+        print(self.alignmentReportDictionary)
 
     def getOutputSetOfTiltSeries(self):
         """ Method to generate output classes of set of tilt-series"""
@@ -281,8 +285,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
-        summary = []
+        summary = ["MISALIGNMENT REPORT:"]
 
+        if len(self.alignmentReportDictionary) == 0:
+            summary.append("No tilt series present misalignment")
+        else:
+            summary.append("From the %d analyzed tilt series, %d presents misalignment:" %
+                           (self.outputSetOfTiltSeries.getSize(), self.outputSetOfMisalignedTiltSeries.getSize()))
+
+            for key in self.alignmentReportDictionary.keys():
+                summary.append("%s %s" % (key, self.alignmentReportDictionary[key]))
         return summary
 
     def _methods(self):
@@ -298,5 +310,3 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         else:
             methods.append("Output classes not ready yet.")
         return methods
-
-
