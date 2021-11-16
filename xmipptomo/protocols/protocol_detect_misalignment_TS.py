@@ -30,7 +30,7 @@ import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
-from pyworkflow.object import Set
+from pyworkflow.object import Set, List
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
@@ -45,6 +45,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
+
+        self.alignmentReportDictionary = List([])
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
@@ -204,6 +206,25 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
+    def generateAlignmentReportDictionary(self, enableInfoList, tsId):
+        globalMisalignment = True
+        aligned = True
+
+        misalignedTiltImages = "Misalignment detected in images: "
+
+        for line in enableInfoList:
+            if float(line[0]) != 1:
+                aligned = False
+                misalignedTiltImages.append(" " + line[0] + ",")
+            else:
+                globalMisalignment = False
+
+        if globalMisalignment:
+            self.alignmentReportDictionary[tsId] = "Global misalignment detected"
+        elif not aligned:
+            # Remove final comma
+            self.alignmentReportDictionary[tsId] = misalignedTiltImages[:-1]
+
     def getOutputSetOfTiltSeries(self):
         """ Method to generate output classes of set of tilt-series"""
 
