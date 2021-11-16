@@ -88,7 +88,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                            'location specified.\n*Binarize*: Copy a binarized version of the reference onto the '
                            'tomogram.')
         form.addParam('removeBackground', BooleanParam, default=False, label='Remove background',
-                      help="Set tomogram to 0", condition="paintingType == 0 or paintingType == 3")
+                      help="Set tomogram to 0", condition="paintingType == 0 or paintingType == 2 or paintingType == 3")
         form.addParam('threshold', FloatParam, default=0.5, label='Threshold',
                       help="threshold applied to tomogram", condition="paintingType == 1 or paintingType == 3")
         form.addParam('constant', FloatParam, default=2, label='Multiplier',
@@ -122,7 +122,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                 if self.invertContrast.get() == True:
                     self.runJob("xmipp_image_operate", " -i %s  --mult -1" % self.inputRef.get().getFileName())
 
-            if self.paintingType.get() == 0 or self.paintingType.get() == 3:
+            if self.paintingType.get() == 0 or self.paintingType.get() == 2 or self.paintingType.get() == 3:
                 if self.removeBackground.get() == True:
                     self.runJob("xmipp_image_operate", " -i %s  --mult 0" % fnTomo)
 
