@@ -90,9 +90,7 @@ class XmippProtResizeBase(EMProtocol, ProtTomoBase):
                            'a bilinear interpolation (to avoid having to produce the B-spline coefficients).')
 
     # --------------------------- UTILS functions -------------------------------
-    def resizeCommonArgsResize(cls, protocol):
-        samplingRate = protocol.inputSet.get().getSamplingRate()
-
+    def resizeCommonArgsResize(cls, protocol, samplingRate):
         if protocol.resizeOption == cls.RESIZE_SAMPLINGRATE:
             newSamplingRate = protocol.resizeSamplingRate.get()
             factor = samplingRate / newSamplingRate
