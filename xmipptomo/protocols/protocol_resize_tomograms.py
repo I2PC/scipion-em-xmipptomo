@@ -75,7 +75,7 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         '''
         This function resize the tomograms by means of xmipp_image_resize.
         The output is create in pseudo-streaming. pseudo because the input is
-        not open, but the output is updated during the execution of the protocl
+        not open, but the output is updated during the execution of the protocol
         '''
 
         #Defining the output folder
@@ -87,7 +87,8 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         # Launching the xmipp command
         params =  ' -i %s ' % inputTomo
         params += ' -o %s ' % outputTomo
-        params += self.resizeCommonArgsResize(self)
+        samplingRate = self.inputSet.get().getSamplingRate()
+        params += self.resizeCommonArgsResize(self, samplingRate)
 
         self.runJob("xmipp_image_resize", params)
 
