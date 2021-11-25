@@ -209,8 +209,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         self._store()
 
-        print(self.alignmentReport)
-
     # --------------------------- UTILS functions ----------------------------
     def generateAlignmentReportDictionary(self, enableInfoList, tsId):
         globalMisalignment = True
@@ -238,8 +236,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.alignmentReport.append(String(previousLine))
 
         self._store()
-
-        print(self.alignmentReport)
 
     def getOutputSetOfTiltSeries(self):
         """ Method to generate output classes of set of tilt-series"""
