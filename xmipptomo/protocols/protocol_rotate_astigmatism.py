@@ -85,9 +85,11 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                 newCTFTomoSeries.setTiltSeries(getTMTS)
                 newCTFTomoSeries.setTsId(tsId)
                 newCTFTomoSeries.setObjId(tsObjId)
-                newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
                 newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
-        
+
+                if hasattr(inputCtfTomoSeries, '_IMODDefocusFileFlag'):
+                    newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
+
                 self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
         
                 for index, (tiltImageGetTM, inputCtfTomo) in enumerate(zip(getTMTS, inputCtfTomoSeries)):
