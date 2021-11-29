@@ -72,7 +72,6 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
         getTMTS = self.getTMSetOfTiltSeries.get()[tsObjId]
         tsId = getTMTS.getTsId()
 
-        # inputCtfTomoSeries = self.inputSetOfCtfTomoSeries.get()[tsObjId]
         match = False
 
         for inputCtfTomoSeries in self.inputSetOfCtfTomoSeries.get():
@@ -133,7 +132,7 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                 
         if not match:
             raise Exception("There is no matching CtfTomoSeries for a tilt-series %s"
-                                % (tsId))
+                            % tsId)
 
     def closeOutputSetsStep(self):
         self.getOutputSetOfCTFTomoSeries().setStreamState(Set.STREAM_CLOSED)
@@ -176,7 +175,7 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
         summary = []
         if hasattr(self, 'outputSetOfCTFTomoSeries'):
             summary.append("Input pairs of Tilt-Series and CTF estimations: %d.\n"
-                           "CTF estiamtions astigmatically rotated: %d.\n"
+                           "CTF estimations astigmatically rotated: %d.\n"
                            % (self.getTMSetOfTiltSeries.get().getSize(),
                               self.outputSetOfCTFTomoSeries.getSize()))
         else:
