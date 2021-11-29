@@ -85,10 +85,13 @@ class XmippProtRotateAstigmatism(EMProtocol, ProtTomoBase):
                 newCTFTomoSeries.setTiltSeries(getTMTS)
                 newCTFTomoSeries.setTsId(tsId)
                 newCTFTomoSeries.setObjId(tsObjId)
-                newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
 
+                # Check IMOD specific fields
                 if hasattr(inputCtfTomoSeries, '_IMODDefocusFileFlag'):
                     newCTFTomoSeries.setIMODDefocusFileFlag(inputCtfTomoSeries.getIMODDefocusFileFlag())
+
+                if hasattr(inputCtfTomoSeries, '_estimationsInRange'):
+                    newCTFTomoSeries.setNumberOfEstimationsInRange(inputCtfTomoSeries.getNumberOfEstimationsInRange())
 
                 self.outputSetOfCTFTomoSeries.append(newCTFTomoSeries)
         
