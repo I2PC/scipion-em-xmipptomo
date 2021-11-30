@@ -64,7 +64,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       label='Fiducial size (nm)',
                       help='Fiducial size in nanometers (nm).')
 
-        form.addParam('sdThreshold',
+        form.addParam('thrSDHCC',
                       params.FloatParam,
                       advanced=True,
                       default=5,
@@ -72,13 +72,21 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
 
-        form.addParam('numberOfCoordinatesThr',
+        form.addParam('thrNumberCoords',
                       params.IntParam,
                       advanced=True,
                       default=10,
                       label='Number of coordinates threshold',
                       help='Minimum number of coordinates attracted to a center of mass to consider it as a high '
                            'contrast feature.')
+
+        form.addParam('thrChainDistanceAng',
+                      params.FloatParam,
+                      advanced=True,
+                      default=20,
+                      label='Landmark distance threshold',
+                      help='Threshold maximum distance in angstroms of a detected landmark to consider it belongs to '
+                           'a chain.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
@@ -128,19 +136,21 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
             'tlt': angleFilePath,
             'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
-            'sdThreshold': self.sdThreshold.get(),
-            'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
+            'thrSDHCC': self.thrSDHCC.get(),
+            'thrNumberCoords': self.thrNumberCoords.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
             'fiducialSize': self.fiducialSize.get() * 10,
+            'thrChainDistanceAng': self.thrChainDistanceAng.get(),
         }
 
         argsDetectMisali = "-i %(i)s " \
                            "--tlt %(tlt)s " \
                            "-o %(o)s " \
-                           "--sdThreshold %(sdThreshold).2f " \
-                           "--numberOfCoordinatesThr %(numberOfCoordinatesThr).2f " \
+                           "--thrSDHCC %(thrSDHCC).2f " \
+                           "--thrNumberCoords %(thrNumberCoords).2f " \
                            "--samplingRate %(samplingRate).2f " \
-                           "--fiducialSize %(fiducialSize).2f"
+                           "--fiducialSize %(fiducialSize).2f " \
+                           "--thrChainDistanceAng %(thrChainDistanceAng).2f"
 
         self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
