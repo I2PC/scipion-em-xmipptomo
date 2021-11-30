@@ -121,7 +121,7 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         avgImage = imgh.computeAverage(alignedSet)
         avgImage.write(avgFile)
         avg = AverageSubTomogram()
-        avg.setLocation(1, avgFile)
+        avg.setLocation(avgFile)
         avg.copyInfo(alignedSet)
         self._defineOutputs(outputAverage=avg)
         self._defineSourceRelation(self.inputSubtomograms, avg)
