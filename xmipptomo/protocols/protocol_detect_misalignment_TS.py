@@ -83,7 +83,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('thrChainDistanceAng',
                       params.FloatParam,
                       advanced=True,
-                      default=20,
+                      default=10,
                       label='Landmark distance threshold',
                       help='Threshold maximum distance in angstroms of a detected landmark to consider it belongs to '
                            'a chain.')
