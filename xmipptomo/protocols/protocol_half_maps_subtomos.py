@@ -147,7 +147,7 @@ class XmippProtHalfMapsSubtomo(EMProtocol, ProtTomoBase):
             avgImage = imgh.computeAverage(alignedSet)
             avgImage.write(avgFile)
             avg = AverageSubTomogram()
-            avg.setLocation(1, avgFile)
+            avg.setLocation(avgFile)
             avg.copyInfo(alignedSet)
             setOfAverageSubTomograms.append(avg)
         self._defineOutputs(halfMaps=setOfAverageSubTomograms)
