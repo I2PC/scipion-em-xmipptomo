@@ -28,9 +28,10 @@ import os
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
+from pyworkflow.object import Set, List, String
+from pyworkflow.protocol.constants import STEPS_PARALLEL
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
-from pyworkflow.object import Set, List, String
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
@@ -45,6 +46,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
+        ProtTomoBase.__init__(self)
+        self.stepsExecutionMode = STEPS_PARALLEL
 
         self.alignmentReport = List([])
 
@@ -92,12 +95,24 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         self.alignmentReport = List([])
 
+        allcossId = []
+
         for ts in self.inputSetOfTiltSeries.get():
             tsObjId = ts.getObjId()
-            self._insertFunctionStep(self.convertInputStep, tsObjId)
-            self._insertFunctionStep(self.detectMisalignmentStep, ts.getObjId())
-            self._insertFunctionStep(self.generateOutputStep, ts.getObjId())
-        self._insertFunctionStep(self.closeOutputSetsStep)
+            cisID = self._insertFunctionStep(self.convertInputStep,
+                                             tsObjId,
+                                             prerequisites=[])
+            dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
+                                             tsObjId,
+                                             prerequisites=[cisID])
+            gosID = self._insertFunctionStep(self.generateOutputStep,
+                                             tsObjId,
+                                             prerequisites=[dmsID])
+
+            allcossId.append(gosID)
+
+        self._insertFunctionStep(self.closeOutputSetsStep,
+                                 prerequisites=allcossId)
 
     # --------------------------- STEPS functions ----------------------------
     def convertInputStep(self, tsObjId):
