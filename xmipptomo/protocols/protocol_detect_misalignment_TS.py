@@ -196,13 +196,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
 
-        if aligned:
-            self.getOutputSetOfTiltSeries()
-            self.outputSetOfTiltSeries.append(newTs)
+        # if aligned:
+        #     self.getOutputSetOfTiltSeries()
+        #     self.outputSetOfTiltSeries.append(newTs)
+        #
+        # else:
+        #     self.getOutputSetOfMisalignedTiltSeries()
+        #     self.outputSetOfMisalignedTiltSeries.append(newTs)
 
-        else:
-            self.getOutputSetOfMisalignedTiltSeries()
-            self.outputSetOfMisalignedTiltSeries.append(newTs)
+        self.getOutputSetOfMisalignedTiltSeries()
+        self.outputSetOfMisalignedTiltSeries.append(newTs)
 
         for index, tiltImage in enumerate(ts):
             newTi = tomoObj.TiltImage()
@@ -213,13 +216,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         newTs.write(properties=False)
 
-        if aligned:
-            self.outputSetOfTiltSeries.update(newTs)
-            # self.outputSetOfTiltSeries.write()
+        # if aligned:
+        #     self.outputSetOfTiltSeries.update(newTs)
+        #     self.outputSetOfTiltSeries.write()
+        #
+        # else:
+        #     self.outputSetOfMisalignedTiltSeries.update(newTs)
+        #     self.outputSetOfMisalignedTiltSeries.write()
 
-        else:
-            self.outputSetOfMisalignedTiltSeries.update(newTs)
-            # self.outputSetOfMisalignedTiltSeries.write()
+        self.outputSetOfMisalignedTiltSeries.update(newTs)
+        self.outputSetOfMisalignedTiltSeries.write()
 
         self._store()
 
