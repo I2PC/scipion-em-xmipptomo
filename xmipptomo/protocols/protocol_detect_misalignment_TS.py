@@ -272,6 +272,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         """ Method to generate output classes of set of tilt-series"""
 
         if hasattr(self, "outputSetOfTiltSeries"):
+            self.outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
             self.outputSetOfTiltSeries.enableAppend()
 
         else:
@@ -291,6 +292,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         """ Method to generate output classes of set of tilt-series"""
 
         if hasattr(self, "outputSetOfMisalignedTiltSeries"):
+            self.outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_OPEN)
             self.outputSetOfMisalignedTiltSeries.enableAppend()
 
         else:
