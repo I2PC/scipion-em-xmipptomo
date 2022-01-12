@@ -175,8 +175,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         extraPrefix = self._getExtraPath(tsId)
 
-        # firstItem = ts.getFirstItem()
-        firstItem = ts[1]
+        firstItem = ts.getFirstItem()
 
         xmdEnableTiltImages = os.path.join(extraPrefix,
                                            firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
@@ -216,11 +215,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         if aligned:
             self.outputSetOfTiltSeries.update(newTs)
-            self.outputSetOfTiltSeries.write()
+            # self.outputSetOfTiltSeries.write()
 
         else:
             self.outputSetOfMisalignedTiltSeries.update(newTs)
-            self.outputSetOfMisalignedTiltSeries.write()
+            # self.outputSetOfMisalignedTiltSeries.write()
 
         self._store()
 
