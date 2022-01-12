@@ -170,62 +170,61 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
     def generateOutputStep(self, tsObjId):
-        try:
-            ts = self.inputSetOfTiltSeries.get()[tsObjId]
-            tsId = ts.getTsId()
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
 
-            extraPrefix = self._getExtraPath(tsId)
+        extraPrefix = self._getExtraPath(tsId)
 
-            firstItem = ts.getFirstItem()
+        firstItem = ts.getFirstItem()
 
-            xmdEnableTiltImages = os.path.join(extraPrefix,
-                                               firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
+        xmdEnableTiltImages = os.path.join(extraPrefix,
+                                           firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
 
-            enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
+        enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
-            self.generateAlignmentReportDictionary(enableInfoList, tsId)
+        self.generateAlignmentReportDictionary(enableInfoList, tsId)
 
-            """ Generate output sets of aligned and misaligned tilt series """
-            aligned = True
+        """ Generate output sets of aligned and misaligned tilt series """
+        aligned = True
 
-            # Check if some tilt image presents misalignment
-            for line in enableInfoList:
-                if float(line[0]) != 1:
-                    aligned = False
-                    break
+        # Check if some tilt image presents misalignment
+        for line in enableInfoList:
+            if float(line[0]) != 1:
+                aligned = False
+                break
 
-            newTs = tomoObj.TiltSeries(tsId=tsId)
-            newTs.copyInfo(ts)
+        newTs = tomoObj.TiltSeries(tsId=tsId)
+        newTs.copyInfo(ts)
 
-            if aligned:
-                self.getOutputSetOfTiltSeries()
-                self.outputSetOfTiltSeries.append(newTs)
+        if aligned:
+            self.getOutputSetOfTiltSeries()
+            self.outputSetOfTiltSeries.append(newTs)
 
-            else:
-                self.getOutputSetOfMisalignedTiltSeries()
-                self.outputSetOfMisalignedTiltSeries.append(newTs)
+        else:
+            self.getOutputSetOfMisalignedTiltSeries()
+            self.outputSetOfMisalignedTiltSeries.append(newTs)
 
-            for index, tiltImage in enumerate(ts):
-                newTi = tomoObj.TiltImage()
-                newTi.copyInfo(tiltImage, copyId=True)
-                newTi.setAcquisition(tiltImage.getAcquisition())
-                newTi.setLocation(tiltImage.getLocation())
-                newTs.append(newTi)
+        for index, tiltImage in enumerate(ts):
+            newTi = tomoObj.TiltImage()
+            newTi.copyInfo(tiltImage, copyId=True)
+            newTi.setAcquisition(tiltImage.getAcquisition())
+            newTi.setLocation(tiltImage.getLocation())
+            newTs.append(newTi)
 
-            newTs.write(properties=False)
+        newTs.write(properties=False)
 
-            if aligned:
-                self.outputSetOfTiltSeries.update(newTs)
-                self.outputSetOfTiltSeries.write()
+            self.outputSetOfTiltSeries.update(newTs)
+            self.outputSetOfTiltSeries.write()
 
-            else:
-                self.outputSetOfMisalignedTiltSeries.update(newTs)
-                self.outputSetOfMisalignedTiltSeries.write()
+        # if aligned:
+        #     self.outputSetOfTiltSeries.update(newTs)
+        #     self.outputSetOfTiltSeries.write()
+        #
+        # else:
+        #     self.outputSetOfMisalignedTiltSeries.update(newTs)
+        #     self.outputSetOfMisalignedTiltSeries.write()
 
-            self._store()
-
-        except:
-            pass
+        self._store()
 
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
