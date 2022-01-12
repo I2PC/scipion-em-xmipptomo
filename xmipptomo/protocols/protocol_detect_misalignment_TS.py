@@ -196,13 +196,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         newTs = tomoObj.TiltSeries(tsId=tsId)
         newTs.copyInfo(ts)
 
-        if aligned:
-            self.getOutputSetOfTiltSeries()
-            self.outputSetOfTiltSeries.append(newTs)
+        self.getOutputSetOfTiltSeries()
+        self.outputSetOfTiltSeries.append(newTs)
 
-        else:
-            self.getOutputSetOfMisalignedTiltSeries()
-            self.outputSetOfMisalignedTiltSeries.append(newTs)
+        # if aligned:
+        #     self.getOutputSetOfTiltSeries()
+        #     self.outputSetOfTiltSeries.append(newTs)
+        #
+        # else:
+        #     self.getOutputSetOfMisalignedTiltSeries()
+        #     self.outputSetOfMisalignedTiltSeries.append(newTs)
 
         for index, tiltImage in enumerate(ts):
             newTi = tomoObj.TiltImage()
