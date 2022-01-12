@@ -213,8 +213,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         newTs.write(properties=False)
 
-            self.outputSetOfTiltSeries.update(newTs)
-            self.outputSetOfTiltSeries.write()
+        self.outputSetOfTiltSeries.update(newTs)
+        self.outputSetOfTiltSeries.write()
 
         # if aligned:
         #     self.outputSetOfTiltSeries.update(newTs)
