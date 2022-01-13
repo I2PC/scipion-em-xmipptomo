@@ -214,15 +214,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         newTs.write(properties=False)
 
         if aligned:
-            # self.outputSetOfTiltSeries.update(newTs)
+            self.outputSetOfTiltSeries.update(newTs)
             self.outputSetOfTiltSeries.write()
-            self._store(self.outputSetOfTiltSeries)
-            self.outputSetOfTiltSeries.close()
+            # self._store(self.outputSetOfTiltSeries)
         else:
-            # self.outputSetOfMisalignedTiltSeries.update(newTs)
+            self.outputSetOfMisalignedTiltSeries.update(newTs)
             self.outputSetOfMisalignedTiltSeries.write()
-            self._store(self.outputSetOfMisalignedTiltSeries)
-            self.outputSetOfMisalignedTiltSeries.close()
+            # self._store(self.outputSetOfMisalignedTiltSeries)
+
+        self._store()
 
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
