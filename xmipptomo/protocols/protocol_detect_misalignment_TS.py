@@ -271,7 +271,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.outputSetOfTiltSeries.enableAppend()
 
         else:
-            outputSetOfTiltSeries = self._createSetOfTiltSeries()
+            outputSetOfTiltSeries = self._createSetOfTiltSeries(suffix="_ali")
 
             outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
@@ -291,7 +291,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.outputSetOfMisalignedTiltSeries.enableAppend()
 
         else:
-            outputSetOfMisalignedTiltSeries = self._createSetOfTiltSeries()
+            outputSetOfMisalignedTiltSeries = self._createSetOfTiltSeries(suffix="_misali")
 
             outputSetOfMisalignedTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputSetOfMisalignedTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
