@@ -41,7 +41,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
     """
 
-    _label = 'detect misaligned tilt-series '
+    _label = 'detect misaligned TS'
     _devStatus = BETA
 
     def __init__(self, **kwargs):
