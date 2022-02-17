@@ -32,7 +32,7 @@ from pyworkflow.protocol.params import FloatParam, PointerParam
 from pyworkflow.protocol import params
 
 
-from tomo.protocols import ProtTomoBase, ProtImport, ProtTomoPicking
+from tomo.protocols import ProtTomoBase, ProtTomoPicking
 
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
@@ -45,15 +45,15 @@ METADATA_INPUT_COORDINATES = "inputCoordinates"
 XMD_EXT = '.xmd'
 
 
-class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
+class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
     '''Filter coordinate by map both given a mask or a resolucion map from a tomogram'''
 
     _label = 'Filter coordinates by map'
     _devStatus = BETA
 
-    # def __init__(self, **args):
-    #     EMProtocol.__init__(self, **args)
-    #     ProtTomoBase.__init__(self)
+    def __init__(self, **args):
+        EMProtocol.__init__(self, **args)
+        ProtTomoBase.__init__(self)
 
     def _defineParams(self, form):
         form.addSection(label='Input')
@@ -84,13 +84,9 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        print("sssssssssssssssssssssssssssssssssssssssss")
-
         self.tomos = self.inputCoordinates.get().getPrecedents()
 
-        print("sssssssssssssssssssssssssssssssssssssssss")
-
-        for tomo in self.inputCoordinates.get().getPrecedents():#self.tomos:
+        for tomo in self.inputCoordinates.get().getPrecedents():
             tomoId = tomo.getObjId()
             self._insertFunctionStep(self.generateSideInfo, tomoId)
             self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
@@ -119,7 +115,7 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
         params = ' --inTomo %s' % self.retrieveMap(tomId).getFileName()
         params += ' --coordinates %s' % fnInCoord
         params += ' --radius %f' % self.radius.get()
-        params += ' -o %s' % self._getExtraPath(os.join.path(str(tomId), fnOut))
+        params += ' -o %s' % self._getExtraPath(os.path.join(str(tomId), fnOut))
 
         self.runJob('xmipp_tomo_filter_coordinates', params)
 
@@ -130,7 +126,7 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
         found = False
 
         for tomo in self.inputSetOfTomograms.get():
-            if tomo.getVolId() == tomoId:
+            if tomo.getObjId() == tomoId:
                 found = True
                 return tomo
 
