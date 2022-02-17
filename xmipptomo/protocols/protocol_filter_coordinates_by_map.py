@@ -25,29 +25,22 @@
 # *
 # **************************************************************************
 
-import numpy as np
-from scipy.spatial import cKDTree
+import os
 
 from pyworkflow import BETA
-import pyworkflow.protocol.params as params
-import pyworkflow.utils as pwutils
-from pyworkflow.object import Float
+from pyworkflow.protocol.params import FloatParam, PointerParam
+from pyworkflow.protocol import params
 
-from pwem.emlib.image import ImageHandler
-import pwem.emlib.metadata as md
 
-from xmipp3.convert import (openMd, readPosCoordinates, rowToCoordinate,
-                            rowFromMd)
-from xmipp_base import createMetaDataFromPattern
+from tomo.protocols import ProtTomoBase, ProtImport, ProtTomoPicking
 
-from tomo.protocols import ProtTomoPicking
-from tomo.utils import extractVesicles, initDictVesicles
-import tomo.constants as const
+import pyworkflow.utils.path as path
+from pwem.protocols import EMProtocol
 
 from xmipptomo import Plugin
-from xmipptomo import utils as utils
+from xmipptomo import utils
 
-METADATA_COORDINATES_STATS = 'coordinateStars_'
+METADATA_COORDINATES_STATS = 'coordinateStats_'
 METADATA_INPUT_COORDINATES = "inputCoordinates"
 XMD_EXT = '.xmd'
 
@@ -58,40 +51,60 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
     _label = 'Filter coordinates by map'
     _devStatus = BETA
 
+    # def __init__(self, **args):
+    #     EMProtocol.__init__(self, **args)
+    #     ProtTomoBase.__init__(self)
+
     def _defineParams(self, form):
         form.addSection(label='Input')
-        form.addParam('inputCoordinates', params.PointerParam,
+
+        form.addParam('inputCoordinates',
+                      params.PointerParam,
                       pointerClass='SetOfCoordinates3D',
-                      label="Input 3D coordinates", important=True,
+                      label="Input 3D coordinates",
+                      important=True,
                       help='Select the set of 3D coordinates to be filtered')
-        form.addParam('inputSetOfTomograms', params.PointerParam,
+
+        form.addParam('inputSetOfTomograms',
+                      params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      label="Input Tomogram", important=True,
+                      label="Input Tomogram",
+                      important=True,
                       help='Select the Set Of Tomograms to be used. The coordinates'
                            'make references to their corresponding tomograms, then, the'
                            'statistics of the the enviroment of each coordinates will'
                            'be calculated. Thus it is possible to associate a mean, and'
                            'a standard deviation to each coordinate.')
-        form.addParam('radius', params.FloatParam,
+
+        form.addParam('radius',
+                      params.FloatParam,
                       default=50,
                       label="Radius",
                       help='Radius of the ball with center at the coordinate')
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
+        print("sssssssssssssssssssssssssssssssssssssssss")
+
         self.tomos = self.inputCoordinates.get().getPrecedents()
 
-        for tomo in self.tomos:
-            tomoId = tomo.getTomoId()
-            self._insertFunctionStep(self.generateSideInfo(), tomoId)
-            self._insertFunctionStep(self.calculatingStatisticsStep(), tomoId)
+        print("sssssssssssssssssssssssssssssssssssssssss")
+
+        for tomo in self.inputCoordinates.get().getPrecedents():#self.tomos:
+            tomoId = tomo.getObjId()
+            self._insertFunctionStep(self.generateSideInfo, tomoId)
+            self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
 
     # --------------------------- STEPS functions ----------------------------
     def generateSideInfo(self, tomoId):
         """ Generates side information and input files to feed the Xmipp filter coordinates algorithm """
 
-        utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
-                                              os.path.join(self._getExtraPath(tomoId),
+        extraPrefix = self._getExtraPath(str(tomoId))
+        path.makePath(extraPrefix)
+
+
+        utils.writeOutputCoordinates3dXmdFile(self.inputCoordinates.get(),
+                                              os.path.join(self._getExtraPath(str(tomoId)),
                                                            METADATA_INPUT_COORDINATES + XMD_EXT),
                                               tomoId)
 
@@ -101,7 +114,7 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
          are calculated and generated in a metadata """
 
         fnOut = METADATA_COORDINATES_STATS+ str(tomId) + XMD_EXT
-        fnInCoord = self._getExtraPath(os.join.path(str(tomId), METADATA_INPUT_COORDINATES + XMD_EXT))
+        fnInCoord = self._getExtraPath(os.path.join(str(tomId), METADATA_INPUT_COORDINATES + XMD_EXT))
 
         params = ' --inTomo %s' % self.retrieveMap(tomId).getFileName()
         params += ' --coordinates %s' % fnInCoord
@@ -117,17 +130,14 @@ class XmippProtFilterCoordinatesByMap(ProtTomoPicking):
         found = False
 
         for tomo in self.inputSetOfTomograms.get():
-            if tomo.getTomoId() == tomoId:
+            if tomo.getVolId() == tomoId:
                 found = True
                 return tomo
 
         if not found:
             raise Exception("Not map found in input set with tomoId with value" + tomoId)
 
-
-
     # --------------------------- INFO functions ------------------------------
-
     def _methods(self):
         messages = []
 
