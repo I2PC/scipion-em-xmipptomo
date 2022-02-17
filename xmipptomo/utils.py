@@ -49,13 +49,13 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
      its tomo tomoId). If no tomoId is input the the xmd output file will contain all the coordinates belonging to the
      set. """
 
-    xmdHeader = "# XMIPP_STAR_1 *" \
-                "#" \
-                "data_noname" \
-                "loop_" \
-                " _xcoor" \
-                " _ycoor" \
-                " _zcoor"
+    xmdHeader = "# XMIPP_STAR_1 *\n" \
+                "#\n" \
+                "data_noname\n" \
+                "loop_\n" \
+                " _xcoor\n" \
+                " _ycoor\n" \
+                " _zcoor\n"
 
     coordinatesInfo = []
     fieldNames = ['x', 'y', 'z']
