@@ -39,3 +39,34 @@ def calculateRotationAngleFromTM(ti):
     rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
 
     return rotationAngle
+
+
+def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
+    """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
+     its tomo tomoId). If no tomoId is input the the xmd output file will contain all the coordinates belonging to the
+     set. """
+
+    xmdHeader = "# XMIPP_STAR_1 *" \
+                "#" \
+                "data_noname" \
+                "loop_" \
+                " _xcoor" \
+                " _ycoor" \
+                " _zcoor"
+
+    coordinatesInfo = []
+    fieldNames = ['x', 'y', 'z']
+
+    for coord in self.inputSetOfCoordinates.iterCoordinates(tomoId):
+        coordinatesInfo.append([coord.getX(), coord.getY(), coord.getZ()])
+
+    with open(filePath, 'w') as f:
+        f.write(xmdHeader)
+        writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldNames)
+
+        for ci in coordinatesInfo:
+            writer.writerow({'x': ci[0],
+                             'y': ci[1],
+                             'z': ci[2]})
+
+
