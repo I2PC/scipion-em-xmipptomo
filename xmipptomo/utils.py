@@ -28,6 +28,9 @@ This module contains utils functions for xmipp tomo protocols
 """
 
 import math
+import csv
+
+from tomo.constants import BOTTOM_LEFT_CORNER
 
 
 def calculateRotationAngleFromTM(ti):
@@ -57,8 +60,10 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     coordinatesInfo = []
     fieldNames = ['x', 'y', 'z']
 
-    for coord in self.inputSetOfCoordinates.iterCoordinates(tomoId):
-        coordinatesInfo.append([coord.getX(), coord.getY(), coord.getZ()])
+    for coord in soc.iterCoordinates(tomoId):
+        coordinatesInfo.append([coord.getX(BOTTOM_LEFT_CORNER),
+                                coord.getY(BOTTOM_LEFT_CORNER),
+                                coord.getZ(BOTTOM_LEFT_CORNER)])
 
     with open(filePath, 'w') as f:
         f.write(xmdHeader)
@@ -68,5 +73,3 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
-
-
