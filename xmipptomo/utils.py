@@ -30,7 +30,9 @@ This module contains utils functions for xmipp tomo protocols
 import math
 import csv
 
+import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
+from pwem import emlib
 
 
 def calculateRotationAngleFromTM(ti):
@@ -42,6 +44,25 @@ def calculateRotationAngleFromTM(ti):
     rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
 
     return rotationAngle
+
+
+def readXmdStatisticsFile(fnmd):
+    x_pos = []
+    y_pos = []
+    z_pos = []
+    avg = []
+    std = []
+
+    table = emtable.Table(fileName=fnmd)
+
+    for row in table.iterRows(fileName='noname@'+fnmd):
+        avg.append(row.get('avg'))
+        std.append(row.get('stddev'))
+        x_pos.append(row.get('xcoor'))
+        y_pos.append(row.get('ycoor'))
+        z_pos.append(row.get('zcoor'))
+
+    return x_pos, y_pos, z_pos, avg, std
 
 
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
