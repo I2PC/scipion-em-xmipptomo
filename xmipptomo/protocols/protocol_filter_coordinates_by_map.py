@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors:    Jose Luis Vilas (jlvilas@cnb.csic.es)
-# * Authors:    Federico P. de Isidro-Gomez (fp.deisidro@cnb.csic.es)
+# *             Federico P. de Isidro-Gomez (fp.deisidro@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -29,13 +29,14 @@ import os
 
 from pyworkflow import BETA
 from pyworkflow.protocol.params import FloatParam, PointerParam
-from pyworkflow.protocol import params
-
 
 from tomo.protocols import ProtTomoBase, ProtTomoPicking
 
 import pyworkflow.utils.path as path
+from pyworkflow.object import Set
 from pwem.protocols import EMProtocol
+import pwem.emlib as emlib
+import pwem.emlib.metadata as md
 
 from xmipptomo import Plugin
 from xmipptomo import utils
@@ -43,6 +44,7 @@ from xmipptomo import utils
 METADATA_COORDINATES_STATS = 'coordinateStats_'
 METADATA_INPUT_COORDINATES = "inputCoordinates"
 XMD_EXT = '.xmd'
+OUTPUT_XMD_COORS = 'outCoors.xmd'
 
 
 class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
@@ -59,14 +61,14 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
         form.addSection(label='Input')
 
         form.addParam('inputCoordinates',
-                      params.PointerParam,
+                      PointerParam,
                       pointerClass='SetOfCoordinates3D',
                       label="Input 3D coordinates",
                       important=True,
                       help='Select the set of 3D coordinates to be filtered')
 
         form.addParam('inputSetOfTomograms',
-                      params.PointerParam,
+                      PointerParam,
                       pointerClass='SetOfTomograms',
                       label="Input Tomogram",
                       important=True,
@@ -77,7 +79,7 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
                            'a standard deviation to each coordinate.')
 
         form.addParam('radius',
-                      params.FloatParam,
+                      FloatParam,
                       default=50,
                       label="Radius",
                       help='Radius of the ball with center at the coordinate')
@@ -90,6 +92,8 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
             tomoId = tomo.getObjId()
             self._insertFunctionStep(self.generateSideInfo, tomoId)
             self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
+        self._insertFunctionStep(self.createOutpuStep)
+
 
     # --------------------------- STEPS functions ----------------------------
     def generateSideInfo(self, tomoId):
@@ -97,7 +101,6 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
         extraPrefix = self._getExtraPath(str(tomoId))
         path.makePath(extraPrefix)
-
 
         utils.writeOutputCoordinates3dXmdFile(self.inputCoordinates.get(),
                                               os.path.join(self._getExtraPath(str(tomoId)),
@@ -119,6 +122,63 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_tomo_filter_coordinates', params)
 
+
+    def createOutpuStep(self):
+        self.writeOutputStatisticsFile()
+        outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3D()
+
+        coordFilePath = os.path.join(
+            extraPrefix,
+            firstItem.parseFileName(suffix="_fid", extension=".xyz")
+        )
+
+        coordList = utils.format3DCoordinatesList(coordFilePath)
+
+        for element in coordList:
+            newCoord3D = tomoObj.Coordinate3D()
+            newCoord3D.setVolume(ts)
+            newCoord3D.setX(element[0], constants.BOTTOM_LEFT_CORNER)
+            newCoord3D.setY(element[1], constants.BOTTOM_LEFT_CORNER)
+            newCoord3D.setZ(element[2], constants.BOTTOM_LEFT_CORNER)
+
+            newCoord3D.setVolId(tsObjId)
+            outputSetOfCoordinates3D.append(newCoord3D)
+            outputSetOfCoordinates3D.update(newCoord3D)
+        outputSetOfCoordinates3D.write()    
+        self._store()
+
+    def writeOutputStatisticsFile(self):
+        """"aaa"""
+
+
+        fnCoors = self._getExtraPath(OUTPUT_XMD_COORS)
+        for tomo in self.tomos:
+            tomoId = tomo.getObjId()
+            fnOut = METADATA_COORDINATES_STATS + str(tomoId) + XMD_EXT
+
+            mdCoor = md.MetaData()
+
+            tom_fn = self.retrieveMap(tomoId).getFileName()
+            x_pos, y_pos, z_pos, avg, std = utils.readXmdStatisticsFile(
+                self._getExtraPath(os.path.join(str(tomoId), fnOut)))
+
+            for i in range(len(x_pos)):
+                print(avg[i])
+                print(std[i])
+                mdRow = md.Row()
+                mdRow.setValue(emlib.MDL_IMAGE, tom_fn)
+                mdRow.setValue(emlib.MDL_AVG, avg[i])
+                mdRow.setValue(emlib.MDL_STDDEV, std[i])
+                mdRow.setValue(emlib.MDL_XCOOR, x_pos[i])
+                mdRow.setValue(emlib.MDL_YCOOR, y_pos[i])
+                mdRow.setValue(emlib.MDL_ZCOOR, z_pos[i])
+                mdRow.writeToMd(mdCoor, mdCoor.addObject())
+            mdCoor.write(fnCoors)
+
+
+
+
+
     # --------------------------- UTILS functions --------------------------------------------
     def retrieveMap(self, tomoId):
         """ This method return a the given mask/resolution map from the input set given the correspondent tomoId. """
@@ -132,6 +192,24 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
         if not found:
             raise Exception("Not map found in input set with tomoId with value" + tomoId)
+
+    def getOutputSetOfCoordinates3D(self):
+        if hasattr(self, "outputSetOfCoordinates3D"):
+            self.outputSetOfCoordinates3D.enableAppend()
+
+        else:
+            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.inputSetOfTomograms.get(),
+                                                                      suffix='_filtered')
+
+            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfTomograms.get().getSamplingRate())
+            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfTomograms.get())
+
+            outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
+            self._defineSourceRelation(self.inputSetOfTomograms.get(), outputSetOfCoordinates3D)
+
+        return self.outputSetOfCoordinates3D
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
