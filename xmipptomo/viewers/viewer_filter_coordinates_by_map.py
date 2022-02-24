@@ -35,12 +35,12 @@ from pyworkflow.protocol.params import (LabelParam, EnumParam,
                                         IntParam, LEVEL_ADVANCED, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER
 from pwem.viewers import DataView, EmPlotter
-from pwem.viewers.viewer_localres import LocalResolutionViewer
+
 from pwem.emlib.metadata import MetaData, MDL_X, MDL_COUNT
 
 from xmipp3.viewers.plotter import XmippPlotter
 
-from xmipptomo.protocols.protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
+from xmipptomo.protocols.protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap, METADATA_COORDINATES_STATS, XMD_EXT, OUTPUT_XMD_COORS
 
 
 class XmippProtFilterCoordinatesByMapViewer(ProtocolViewer):
@@ -69,16 +69,17 @@ class XmippProtFilterCoordinatesByMapViewer(ProtocolViewer):
 
 
     def _getVisualizeDict(self):
-        return {'doShowOriginalVolumeSlices': self._showOriginalVolumeSlices,
-                'doShowCreateHistogram': self._showHistogram,
+        return {'doShowCreateHistogram': self._showHistogram
                 }
 
     def _showResolutionSlices(self, param=None):
+        fnCoor = METADATA_COORDINATES_STATS + str(tomId) + XMD_EXT
+        fn = self.protocol._getExtraPath(fnCoor)
         cm = DataView(STATISTICS_METADATA)
         return [cm]
 
     def _showHistogram(self, param=None):
-        cm = DataView(STATISTICS_METADATA)
+        cm = DataView('/home/fdeisidro/ScipionUserData/projects/filterCoords/Runs/000906_XmippProtFilterCoordinatesByMap/extra/outCoors.xmd') #self._getExtraPath(OUTPUT_XMD_COORS))
         return [cm]
 
     def _plotHistogram(self, param=None):
@@ -106,8 +107,8 @@ class XmippProtFilterCoordinatesByMapViewer(ProtocolViewer):
         plotter.createSubPlot("Histogram",
                               "Tomogram Value (a.u.)", "# of Counts")
 
-    barwidth = x1 - x0
+        barwidth = x1 - x0
 
-    plotter.plotDataBar(x_axis, y_axis, barwidth)
+        plotter.plotDataBar(x_axis, y_axis, barwidth)
 
-    return [plotter]
+        return [plotter]
