@@ -30,7 +30,8 @@ import os
 from pyworkflow import BETA
 from pyworkflow.protocol.params import FloatParam, PointerParam
 
-from tomo.protocols import ProtTomoBase, ProtTomoPicking
+from tomo.protocols import ProtTomoBase
+from tomo.objects import Coordinate3D
 
 import pyworkflow.utils.path as path
 from pyworkflow.object import Set
@@ -38,7 +39,6 @@ from pwem.protocols import EMProtocol
 import pwem.emlib as emlib
 import pwem.emlib.metadata as md
 
-from xmipptomo import Plugin
 from xmipptomo import utils
 
 METADATA_COORDINATES_STATS = 'coordinateStats_'
@@ -92,7 +92,7 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
             tomoId = tomo.getObjId()
             self._insertFunctionStep(self.generateSideInfo, tomoId)
             self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
-        self._insertFunctionStep(self.createOutpuStep)
+        self._insertFunctionStep(self.createOutputStep)
 
 
     # --------------------------- STEPS functions ----------------------------
@@ -122,10 +122,11 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_tomo_filter_coordinates', params)
 
+    def createOutputStep(self):
+        """ Generates a Xmipp metadata file (.xmd) containing the statistical information associated to
+        the each coordinate with information extracted from the resolution map. """
 
-    def createOutpuStep(self):
-        self.writeOutputStatisticsFile()
-        outputSetOfCoordinates3D = self.getOutputSetOfCoordinates3D()
+        self.getOutputSetOfCoordinates3D()
 
         coordFilePath = os.path.join(
             extraPrefix,
@@ -144,12 +145,8 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
             newCoord3D.setVolId(tsObjId)
             outputSetOfCoordinates3D.append(newCoord3D)
             outputSetOfCoordinates3D.update(newCoord3D)
-        outputSetOfCoordinates3D.write()    
+        outputSetOfCoordinates3D.write()
         self._store()
-
-    def writeOutputStatisticsFile(self):
-        """"aaa"""
-
 
         fnCoors = self._getExtraPath(OUTPUT_XMD_COORS)
         for tomo in self.tomos:
@@ -174,10 +171,6 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
                 mdRow.setValue(emlib.MDL_ZCOOR, z_pos[i])
                 mdRow.writeToMd(mdCoor, mdCoor.addObject())
             mdCoor.write(fnCoors)
-
-
-
-
 
     # --------------------------- UTILS functions --------------------------------------------
     def retrieveMap(self, tomoId):
