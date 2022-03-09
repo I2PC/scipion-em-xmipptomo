@@ -240,7 +240,11 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         This function returns the output path corresponding to a tomogram id, tomId, with
         a filename (fn) and an extension, ext
         '''
-        tomId = int(self._getIdFromString(self.inputTomogram))
+
+        tomId = self._getIdFromString(self.inputTomogram)
+        print('..................')
+        print(self.protocol.createOutputPath(fn, tomId, ext))
+        print('..................')
         return self.protocol.createOutputPath(fn, tomId, ext)
 
     def validateTomogram(self):

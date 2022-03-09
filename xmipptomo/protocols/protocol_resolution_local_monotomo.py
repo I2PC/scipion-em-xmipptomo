@@ -148,13 +148,20 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         self.vol1Fn = oddTomos[tomId].getFileName()
         self.vol2Fn = evenTomos[tomId].getFileName()
 
+        ts = self.oddTomograms.get()[tomId]
+        tsId = ts.getTsId()
+
+        print('..........')
+        print(tsId)
+        print('..........')
+
         #Defining the output folder
-        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + str(tomId))
+        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + tsId)
         os.mkdir(tomoPath)
 
         #Defining outfiles
-        outputlocalResTomoFn = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tomId, MRCEXT)
-        fullTomogramName = self.createOutputPath(FULL_TOMOGRAM_FILE, tomId, MRCEXT)
+        outputlocalResTomoFn = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
+        fullTomogramName = self.createOutputPath(FULL_TOMOGRAM_FILE, tsId, MRCEXT)
 
         # Number of frequencies
         if self.stepSize.hasValue():
@@ -207,8 +214,10 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         The histogram of local resolution values of the output tomogram is computed
         '''
         print(tomId)
-        fnLocRes = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tomId, MRCEXT)
-        fnHist = self.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tomId, XMDEXT)
+        ts = self.oddTomograms.get()[tomId]
+        tsId = ts.getTsId()
+        fnLocRes = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
+        fnHist = self.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tsId, XMDEXT)
         m, M = self.getMinMax(fnLocRes)
 
         freq_step = self.stepSize.get() if self.stepSize.hasValue() else 10
