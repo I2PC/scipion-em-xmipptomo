@@ -151,10 +151,6 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         ts = self.oddTomograms.get()[tomId]
         tsId = ts.getTsId()
 
-        print('..........')
-        print(tsId)
-        print('..........')
-
         #Defining the output folder
         tomoPath = self._getExtraPath(TOMOGRAMFOLDER + tsId)
         os.mkdir(tomoPath)

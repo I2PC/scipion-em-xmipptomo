@@ -242,9 +242,6 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         '''
 
         tomId = self._getIdFromString(self.inputTomogram)
-        print('..................')
-        print(self.protocol.createOutputPath(fn, tomId, ext))
-        print('..................')
         return self.protocol.createOutputPath(fn, tomId, ext)
 
     def validateTomogram(self):
