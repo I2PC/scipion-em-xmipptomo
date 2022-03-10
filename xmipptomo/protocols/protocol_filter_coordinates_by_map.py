@@ -28,13 +28,14 @@
 import os
 
 from pyworkflow import BETA
-from pyworkflow.protocol.params import FloatParam, PointerParam
+from pyworkflow.protocol.params import FloatParam, BooleanParam, PointerParam, EnumParam, LEVEL_ADVANCED
 
+from tomo import constants
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Coordinate3D
 
 import pyworkflow.utils.path as path
-from pyworkflow.object import Set
+from pyworkflow.object import Set, Float
 from pwem.protocols import EMProtocol
 import pwem.emlib as emlib
 import pwem.emlib.metadata as md
@@ -52,6 +53,10 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
     _label = 'Filter coordinates by map'
     _devStatus = BETA
+
+    NO_FILTER = 0
+    FILTER_AVERAGE = 1
+    FILTER_STD = 2
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -84,6 +89,37 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
                       label="Radius",
                       help='Radius of the ball with center at the coordinate')
 
+        form.addParam('filterOption',
+                      EnumParam,
+                      choices=['No Filter', 'Average', 'Standard Deviation'],
+                      default=self.NO_FILTER,
+                      label="Filter option",
+                      isplay=EnumParam.DISPLAY_COMBO,
+                      help='Select an option to filter the coordinates: \n '
+                           '_Average_: Filter by Average value. \n'
+                           '_StandardDeviation_: Filter by Standard deviation value.')
+
+        form.addParam('averageFilter',
+                      FloatParam,
+                      allowsNull=True,
+                      condition='filterOption==%d' % self.FILTER_AVERAGE,
+                      label="Average",
+                      help='Average value as threshold')
+
+        form.addParam('stdFilter',
+                      FloatParam,
+                      allowsNull=True,
+                      condition='filterOption==%d' % self.FILTER_STD,
+                      label="std",
+                      help='std value as threshold')
+
+        form.addParam('thresholdDirection',
+                      BooleanParam,
+                      condition='filterOption',
+                      label="keep greater than the threshold",
+                      help='Set true if you want to keep values greater than the threshold. And set false'
+                           'if the values lesser than the threshold will be discarded')
+
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self.tomos = self.inputCoordinates.get().getPrecedents()
@@ -93,7 +129,7 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
             self._insertFunctionStep(self.generateSideInfo, tomoId)
             self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
         self._insertFunctionStep(self.createOutputStep)
-
+        self._insertFunctionStep(self.closeOutputSets)
 
     # --------------------------- STEPS functions ----------------------------
     def generateSideInfo(self, tomoId):
@@ -112,7 +148,7 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
          the statistic of the tomogram inside the ball with center at the coordiante
          are calculated and generated in a metadata """
 
-        fnOut = METADATA_COORDINATES_STATS+ str(tomId) + XMD_EXT
+        fnOut = METADATA_COORDINATES_STATS + str(tomId) + XMD_EXT
         fnInCoord = self._getExtraPath(os.path.join(str(tomId), METADATA_INPUT_COORDINATES + XMD_EXT))
 
         params = ' --inTomo %s' % self.retrieveMap(tomId).getFileName()
@@ -128,49 +164,66 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
 
         self.getOutputSetOfCoordinates3D()
 
-        coordFilePath = os.path.join(
-            extraPrefix,
-            firstItem.parseFileName(suffix="_fid", extension=".xyz")
-        )
+        outputMdFile = self._getExtraPath(OUTPUT_XMD_COORS)
+        print(outputMdFile)
 
-        coordList = utils.format3DCoordinatesList(coordFilePath)
-
-        for element in coordList:
-            newCoord3D = tomoObj.Coordinate3D()
-            newCoord3D.setVolume(ts)
-            newCoord3D.setX(element[0], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setY(element[1], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setZ(element[2], constants.BOTTOM_LEFT_CORNER)
-
-            newCoord3D.setVolId(tsObjId)
-            outputSetOfCoordinates3D.append(newCoord3D)
-            outputSetOfCoordinates3D.update(newCoord3D)
-        outputSetOfCoordinates3D.write()
-        self._store()
-
-        fnCoors = self._getExtraPath(OUTPUT_XMD_COORS)
         for tomo in self.tomos:
             tomoId = tomo.getObjId()
-            fnOut = METADATA_COORDINATES_STATS + str(tomoId) + XMD_EXT
+            inputMdFileName = METADATA_COORDINATES_STATS + str(tomoId) + XMD_EXT
+            print(inputMdFileName)
+            inputMdFile = self._getExtraPath(os.path.join(str(tomoId), inputMdFileName))
+
+            print(inputMdFile)
 
             mdCoor = md.MetaData()
 
             tom_fn = self.retrieveMap(tomoId).getFileName()
-            x_pos, y_pos, z_pos, avg, std = utils.readXmdStatisticsFile(
-                self._getExtraPath(os.path.join(str(tomoId), fnOut)))
+            x_pos, y_pos, z_pos, avg, std = utils.readXmdStatisticsFile(inputMdFile)
 
             for i in range(len(x_pos)):
-                print(avg[i])
-                print(std[i])
-                mdRow = md.Row()
-                mdRow.setValue(emlib.MDL_IMAGE, tom_fn)
-                mdRow.setValue(emlib.MDL_AVG, avg[i])
-                mdRow.setValue(emlib.MDL_STDDEV, std[i])
-                mdRow.setValue(emlib.MDL_XCOOR, x_pos[i])
-                mdRow.setValue(emlib.MDL_YCOOR, y_pos[i])
-                mdRow.setValue(emlib.MDL_ZCOOR, z_pos[i])
-                mdRow.writeToMd(mdCoor, mdCoor.addObject())
-            mdCoor.write(fnCoors)
+                avg_i = avg[i]
+                std_i = std[i]
+
+                if (self.filterOption == self.NO_FILTER) or \
+                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() > avg_i) or \
+                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() < avg_i) or \
+                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() > std_i) or \
+                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() < std_i):
+
+                    # Fill metadata
+                    mdRow = md.Row()
+                    mdRow.setValue(emlib.MDL_IMAGE, tom_fn)
+                    mdRow.setValue(emlib.MDL_AVG, avg_i)
+                    mdRow.setValue(emlib.MDL_STDDEV, std_i)
+                    mdRow.setValue(emlib.MDL_XCOOR, x_pos[i])
+                    mdRow.setValue(emlib.MDL_YCOOR, y_pos[i])
+                    mdRow.setValue(emlib.MDL_ZCOOR, z_pos[i])
+                    mdRow.writeToMd(mdCoor, mdCoor.addObject())
+
+                    # Create output object
+                    newCoord3D = Coordinate3D()
+                    newCoord3D.setVolume(tomo)
+                    newCoord3D.setX(x_pos[i], constants.BOTTOM_LEFT_CORNER)
+                    newCoord3D.setY(y_pos[i], constants.BOTTOM_LEFT_CORNER)
+                    newCoord3D.setZ(z_pos[i], constants.BOTTOM_LEFT_CORNER)
+
+                    newCoord3D._resAvg = Float(avg_i)
+                    newCoord3D._resStd = Float(std_i)
+
+                    newCoord3D.setVolId(tomoId)
+                    self.outputSetOfCoordinates3D.append(newCoord3D)
+                    self.outputSetOfCoordinates3D.update(newCoord3D)
+
+            mdCoor.write(outputMdFile)
+
+            self.outputSetOfCoordinates3D.write()
+            self._store()
+
+    def closeOutputSets(self):
+        if hasattr(self, "outputSetOfCoordinates3D"):
+            self.outputSetOfCoordinates3D.setStreamState(Set.STREAM_CLOSED)
+
+        self._store()
 
     # --------------------------- UTILS functions --------------------------------------------
     def retrieveMap(self, tomoId):
