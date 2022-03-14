@@ -27,7 +27,7 @@ from os.path import exists, join, split
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from tomo.protocols import ProtImportTomograms
 from xmipptomo.protocols import XmippProtResizeTomograms, XmippProtResizeTiltSeries
-from xmipptomo.protocols.protocol_resize_base import XmippProtResizeBase
+from xmipptomo.protocols.protocol_crop_resize_base import XmippProtResizeBase
 import os
 
 
@@ -63,19 +63,11 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_SAMPLINGRATE,
                                     resizeSamplingRate = 32.28)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
-        cond1 = exists(reSize._getExtraPath(join('tomo_1',tail1)))
-        cond2 = exists(reSize._getExtraPath(join('tomo_2',tail2)))
+        self.assertTrue(reSize)
+        self.assertSetSize(reSize.outputSetOfTomograms, 2,
+                           "resize has failed in the samplingrate option probably related with the use "
+                           "of a SetOfTomograms (processing the second tomogram)")
 
-        errstr = ''
-        if not cond1:
-            errstr = 'resize has failed in the samplingrate option'
-        if not cond2:
-            errstr = errstr + '\n resize has failed in the samplingrate option probably related with the use ' \
-                     'of a SetOfTomograms (processing the second tomogram)'
-
-        self.assertTrue(cond1 and cond2, errstr)
 
     def testReSizeTomogramsFactor(self):
         Rrb = XmippProtResizeTomograms()
@@ -85,19 +77,11 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_FACTOR,
                                     resizeFactor = 0.5)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
-        cond1 = exists(reSize._getExtraPath(join('tomo_1',tail1)))
-        cond2 = exists(reSize._getExtraPath(join('tomo_2',tail2)))
+        self.assertTrue(reSize)
+        self.assertSetSize(reSize.outputSetOfTomograms, 2,
+                           "resize has failed in the Factor option probably related with the use "
+                           "of a SetOfTomograms (processing the second tomogram)")
 
-        errstr = ''
-        if not cond1:
-            errstr = 'resize has failed in the Factor option'
-        if not cond2:
-            errstr = errstr + '\n resize has failed in the Factor option probably related with the use ' \
-                     'of a SetOfTomograms (processing the second tomogram)'
-
-        self.assertTrue(cond1 and cond2, errstr)
 
     def testReSizeTomogramsPiramid(self):
         Rrb = XmippProtResizeTomograms()
@@ -107,18 +91,9 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_PYRAMID,
                                     resizeLevel = 0)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
-        cond1 = exists(reSize._getExtraPath(join('tomo_1', tail1)))
-        cond2 = exists(reSize._getExtraPath(join('tomo_2', tail2)))
-
-        errstr = ''
-        if not cond1:
-            errstr = 'resize has failed in the pyramid option'
-        if not cond2:
-            errstr = errstr + '\n resize has failed in the pyramid option probably related with the use ' \
-                              'of a SetOfTomograms (processing the second tomogram)'
-
-        self.assertTrue(cond1 and cond2, errstr)
+        self.assertTrue(reSize)
+        self.assertSetSize(reSize.outputSetOfTomograms, 2,
+                           "Resize has failed in the pyramid option probably related with the use "
+                           "of a SetOfTomograms (processing the second tomogram)")
 
 
