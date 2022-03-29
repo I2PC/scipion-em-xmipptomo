@@ -81,7 +81,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('zmin', IntParam, label='Min shift in z', default=0)
         form.addParam('zmax', IntParam, label='Max shift in z', default=5)
 
-        form.addSection(label='Others')
+        form.addSection(label='Coordinates')
         form.addParam('coords', BooleanParam, label='Assign random coordinates?', default=False,
                       help='Create random x, y, z coordinates for each subtomogram.')
         form.addParam('tomos', PointerParam, pointerClass="SetOfTomograms", label='Tomograms',
