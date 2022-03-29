@@ -49,21 +49,21 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                       display=EnumParam.DISPLAY_HLIST, label=' ',
                       help="Import a volume or create 'base' phantom manually")
         form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
-                      condition="option==0", help="Volume used as 'base' phantom")
+                      condition="option==0", help="Volume used as 'base' phantom", allowsNull=True)
         form.addParam('create', TextParam, label='Create phantom', condition="option==1",
                       default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
                               'sph + 1 0 -5 5 2',
                       help="create a phantom description: x y z backgroundValue geometry(cyl, sph...) +(superimpose) "
-                           "desnsityValue origin radius height rot tilt psi")
+                           "density value origin radius height rot tilt psi. More info at https://web.archive.org/web/20180813105422/http://xmipp.cnb.csic.es/twiki/bin/view/Xmipp/FileFormats#Phantom_metadata_file")
         form.addParam('sampling', FloatParam, label='Sampling rate', default=4)
+        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=50,
+                      help="How many phantom subtomograms")
         form.addParam('mwfilter', BooleanParam, label='Apply missing wedge?', default=False,
                       help='Apply a filter to simulate the missing wedge along Y axis.')
         form.addParam('mwangle', IntParam, label='Missing wedge angle', default=60, condition='mwfilter==True',
                       help='Missing wedge (along y) for data between +- this angle.')
-
-        form.addSection(label='Transform')
-        form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=50,
-                      help="How many phantom subtomograms")
+        # Angles
+        form.addSection(label='Rotation')
         form.addParam('rotmin', IntParam, label='Min rot angle', default=0,
                       help='Minimum and maximum range for each Euler angle in degrees')
         form.addParam('rotmax', IntParam, label='Max rot angle', default=60)
@@ -71,6 +71,17 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('tiltmax', IntParam, label='Max tilt angle', default=60)
         form.addParam('psimin', IntParam, label='Min psi angle', default=0)
         form.addParam('psimax', IntParam, label='Max psi angle', default=60)
+
+        # Shifts
+        form.addSection(label='Shifts')
+        form.addParam('xmin', IntParam, label='Min shift in x', default=0)
+        form.addParam('xmax', IntParam, label='Max shift in x', default=5)
+        form.addParam('ymin', IntParam, label='Min shift in y', default=0)
+        form.addParam('ymax', IntParam, label='Max shift in y', default=5)
+        form.addParam('zmin', IntParam, label='Min shift in z', default=0)
+        form.addParam('zmax', IntParam, label='Max shift in z', default=5)
+
+        form.addSection(label='Others')
         form.addParam('coords', BooleanParam, label='Assign random coordinates?', default=False,
                       help='Create random x, y, z coordinates for each subtomogram.')
         form.addParam('tomos', PointerParam, pointerClass="SetOfTomograms", label='Tomograms',
@@ -91,7 +102,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         psimin = self.psimin.get()
         psimax = self.psimax.get()
 
-        fnVol = self._getExtraPath("phantom000.vol")
+        fnVol = self._getExtraPath("phantom000.mrc")
         if self.option.get() == 0:
             inputVol = self.inputVolume.get()
             fnInVol = inputVol.getLocation()[1]
@@ -133,6 +144,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         acq = TomoAcquisition()
         acq.setAngleMax(mwangle)
         acq.setAngleMin(mwangle*-1)
+        subtomobase.setObjComment("Base volume")
         subtomobase.setAcquisition(acq)
         subtomobase.setLocation(fnVol)
         subtomobase.setSamplingRate(self.sampling.get())
@@ -156,8 +168,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             rot = np.random.randint(rotmin, rotmax)
             tilt = np.random.randint(tiltmin, tiltmax)
             psi = np.random.randint(psimin, psimax)
-            self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d "
-                        % (fnVol, fnPhantomi, rot, tilt, psi))
+
+            # Shifts
+            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
+            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
+            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
+
+            self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d"
+                        % (fnVol, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ))
 
             if mwfilter:
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
@@ -167,6 +185,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             subtomo.setAcquisition(acq)
             subtomo.setLocation(fnPhantomi)
             subtomo.setSamplingRate(self.sampling.get())
+            subtomo.setObjComment("Rot, tilt, psi: %d, %d, %d ; Shifts X,Y,Z: %d, %d, %d" % (rot, tilt, psi, shiftX, shiftY, shiftZ))
             A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
             transform = Transform()
             transform.setMatrix(A)
