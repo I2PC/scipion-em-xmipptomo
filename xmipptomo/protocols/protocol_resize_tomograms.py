@@ -47,7 +47,7 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
     """
 
     TOMOGRAMFOLDER = 'tomo_'
-    SUFIXRESIZE = '_resized.mrc'
+    SUFIXRESIZE = '.mrc'
 
     _label = 'resize tomograms'
     _devStatus = BETA
@@ -81,11 +81,12 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         #Defining the output folder
         os.mkdir(self._getExtraPath(self.TOMOGRAMFOLDER + str(tomId)))
 
-        inputTomo = tomoSet[tomId].getFileName()
-        outputTomo = self.outputTomoFileName(tomoSet, tomId)
+        tomo = tomoSet[tomId]
+        inputTomoFn = tomo.getFileName()
+        outputTomo = self.outputTomoFileName(tomo)
 
         # Launching the xmipp command
-        params =  ' -i %s ' % inputTomo
+        params =  ' -i %s ' % inputTomoFn
         params += ' -o %s ' % outputTomo
         samplingRate = self.inputSet.get().getSamplingRate()
         params += self.resizeCommonArgsResize(self, samplingRate)
@@ -107,11 +108,11 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         outputresizedSetOfTomograms.write()
         self._store()
 
-    def outputTomoFileName(self, tomoSet, tomId):
-        tomoPath = self._getExtraPath(self.TOMOGRAMFOLDER + str(tomId))
-        auxfn = os.path.basename(tomoSet.getFileName())
-        outputTomo = os.path.splitext(auxfn)[0] + str(tomId) + self.SUFIXRESIZE
-        return os.path.join(tomoPath, outputTomo)
+    def outputTomoFileName(self, tomo):
+        tomoId = tomo.getObjId()
+        tomoPath = self._getExtraPath(self.TOMOGRAMFOLDER + str(tomoId))
+        tomoName = tomo.getTsId() + self.SUFIXRESIZE
+        return os.path.join(tomoPath, tomoName)
 
     def closeStreamStep(self):
         self.getOutputSetOfTomograms().setStreamState(Set.STREAM_CLOSED)

@@ -63,8 +63,8 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_SAMPLINGRATE,
                                     resizeSamplingRate = 32.28)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
+        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[1]))
+        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[2]))
         cond1 = exists(reSize._getExtraPath(join('tomo_1',tail1)))
         cond2 = exists(reSize._getExtraPath(join('tomo_2',tail2)))
 
@@ -85,8 +85,8 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_FACTOR,
                                     resizeFactor = 0.5)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
+        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[1]))
+        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[2]))
         cond1 = exists(reSize._getExtraPath(join('tomo_1',tail1)))
         cond2 = exists(reSize._getExtraPath(join('tomo_2',tail2)))
 
@@ -107,8 +107,8 @@ class TestReSizeTomograms(TestReSizeBase):
                                     resizeOption = Rrb.RESIZE_PYRAMID,
                                     resizeLevel = 0)
         self.launchProtocol(reSize)
-        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 1))
-        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms, 2))
+        head1, tail1 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[1]))
+        head2, tail2 = split(Rrb.outputTomoFileName(self.protImportTomos.outputTomograms[2]))
         cond1 = exists(reSize._getExtraPath(join('tomo_1', tail1)))
         cond2 = exists(reSize._getExtraPath(join('tomo_2', tail2)))
 
