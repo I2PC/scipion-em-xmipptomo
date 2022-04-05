@@ -28,6 +28,9 @@ This module contains utils functions for xmipp tomo protocols
 """
 
 import math
+import csv
+
+from tomo.constants import BOTTOM_LEFT_CORNER
 
 
 def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
@@ -98,3 +101,34 @@ def readXmippMetadataEnabledTiltImages(xmdPath):
         enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
 
     return enableInfoList
+
+
+def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
+    """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
+     its tomo tomoId). If no tomoId is input the xmd output file will contain all the coordinates belonging to the
+     set. """
+
+    xmdHeader = "# XMIPP_STAR_1 *\n" \
+                "#\n" \
+                "data_noname\n" \
+                "loop_\n" \
+                " _xcoor\n" \
+                " _ycoor\n" \
+                " _zcoor\n"
+
+    coordinatesInfo = []
+    fieldNames = ['x', 'y', 'z']
+
+    for coord in soc.iterCoordinates(tomoId):
+        coordinatesInfo.append([coord.getX(BOTTOM_LEFT_CORNER),
+                                coord.getY(BOTTOM_LEFT_CORNER),
+                                coord.getZ(BOTTOM_LEFT_CORNER)])
+
+    with open(filePath, 'w') as f:
+        f.write(xmdHeader)
+        writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldNames)
+
+        for ci in coordinatesInfo:
+            writer.writerow({'x': ci[0],
+                             'y': ci[1],
+                             'z': ci[2]})
