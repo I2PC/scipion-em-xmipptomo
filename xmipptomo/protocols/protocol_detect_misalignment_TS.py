@@ -36,6 +36,9 @@ from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
 
+METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
+
+
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     """
     Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
@@ -60,6 +63,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       pointerClass='SetOfTiltSeries',
                       important=True,
                       label='Input set of tilt-series')
+
+        form.addParam('inputSetOfCoordinates',
+                      params.PointerParam,
+                      pointerClass='SetOfCoordinates3D',
+                      important=True,
+                      label='Input set of coordinates 3D',
+                      help='Set of 3D coordinates indicating the position in space of the fiducials. This set should '
+                           'be obtained from the previous alignment step of the tilt-series.')
 
         form.addParam('fiducialSize',
                       params.FloatParam,
@@ -135,6 +146,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         """Generate angle file"""
         angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
         utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
+
+        """Generate 3D coordinates metadata"""
+        utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
+                                              os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
+                                              tsObjId)
 
     def detectMisalignmentStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
