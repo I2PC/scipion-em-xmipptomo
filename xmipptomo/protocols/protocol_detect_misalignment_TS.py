@@ -165,6 +165,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         paramsDetectMisali = {
             'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
+            'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
             'tlt': angleFilePath,
             'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
             'thrSDHCC': self.thrSDHCC.get(),
@@ -176,6 +177,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         argsDetectMisali = "-i %(i)s " \
                            "--tlt %(tlt)s " \
+                           "--inputCoord %(inputCoord)s " \
                            "-o %(o)s " \
                            "--thrSDHCC %(thrSDHCC).2f " \
                            "--thrNumberCoords %(thrNumberCoords).2f " \
