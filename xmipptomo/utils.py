@@ -185,7 +185,7 @@ def readResidualStatisticsXmdFile(xmdFilePath):
 
             # Failed tests
             elif parType == 2 and en == -1:
-                statisticsInfoTable[key][2].append(test)
+                statisticsInfoTable[key][3].append(test)
 
         else:
             # Convex hull area
