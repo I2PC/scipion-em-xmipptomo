@@ -35,7 +35,6 @@ import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
-
 METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
 
 
@@ -335,9 +334,20 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         return self.outputSetOfLandmarkModels
 
+    def convertResidualStatisticInString(self, tsId):
+        extraPrefix = self._getExtraPath(tsId)
+        statisticsInfoTable = utils.readResidualStatisticsXmdFile(os.path.join(extraPrefix, "residualStatistics.xmd"))
+
+        outputString = ""
+
+        for key in statisticsInfoTable.keys():
+            outputString += "Convex hull area: " + str(statisticsInfoTable[key][0]) + \
+                            ", convex hull perimeter\t" + str(statisticsInfoTable[key][1]) + \
+                            ", passed test\t" + str(statisticsInfoTable)
+
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
-        summary = ["MISALIGNMENT REPORT:"]
+        summary = ["MISALIGNMENT REPORT"]
 
         if not hasattr(self, 'outputSetOfMisalignedTiltSeries'):
             summary.append("No tilt series present misalignment")
