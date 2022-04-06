@@ -30,6 +30,7 @@ This module contains utils functions for xmipp tomo protocols
 import math
 import csv
 
+import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
 
 
@@ -132,3 +133,75 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
+
+
+def readResidualStatisticsXmdFile(xmdFilePath):
+    """ This method takes the file path of a Xmipp metadata file (.xmd) and generates a dictionary with all the
+    information associated to the residuals from each landmark model: convex hull area and perimeter, statistical
+    tests passed and failed, and its associated coordinate. """
+
+    def paramType(string):
+        """
+            0: convex hull area
+            1: convex hull parameter
+            2: statistical test
+        """
+
+        if string == "chArea":
+            return 0
+        elif string == "chPerim":
+            return 1
+        else:
+            return 2
+
+    statisticsInfoTable = {}
+
+    table = emtable.Table(fileName=xmdFilePath)
+
+    for row in table.iterRows(fileName='noname@'+xmdFilePath):
+        en = row.get('enabled')
+        name = str(row.get('image'))
+        min = row.get('min')  # convex hull area/parameter or p-value
+        _ = row.get('max')  # convex hull area/parameter or p-value pondered by FDR
+        xCoor = row.get('xcoor')
+        yCoor = row.get('ycoor')
+        zCoor = row.get('zcoor')
+
+        key, test = name.split('_')
+        parType = paramType(test)
+
+        if key in statisticsInfoTable.keys():
+            # Convex hull area
+            if parType == 0:
+                statisticsInfoTable[key][0] = min
+
+            # Convex hull perimeter
+            elif parType == 1:
+                statisticsInfoTable[key][1] = min
+
+            # Passed tests
+            elif parType == 2 and en == 1:
+                statisticsInfoTable[key][2].append(test)
+
+            # Failed tests
+            elif parType == 2 and en == -1:
+                statisticsInfoTable[key][2].append(test)
+
+        else:
+            # Convex hull area
+            if parType == 0:
+                statisticsInfoTable[key] = [min, 0, [], [], [xCoor, yCoor, zCoor]]
+
+            # Convex hull perimeter
+            elif parType == 1:
+                statisticsInfoTable[key] = [0, min, [], [], [xCoor, yCoor, zCoor]]
+
+            # Passed tests
+            elif parType == 2 and en == 1:
+                statisticsInfoTable[key] = [0, 0, [test], [], [xCoor, yCoor, zCoor]]
+
+            # Failed tests
+            elif parType == 2 and en == -1:
+                statisticsInfoTable[key] = [0, 0, [], [test], [xCoor, yCoor, zCoor]]
+
+    return statisticsInfoTable
