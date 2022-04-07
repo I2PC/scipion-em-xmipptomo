@@ -26,7 +26,6 @@
 # *
 # **************************************************************************
 import enum
-
 import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform, Integer
@@ -34,7 +33,7 @@ from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D, SetOfTomograms
 import tomo.constants as const
 from pwem.convert.headers import setMRCSamplingRate
 
@@ -198,9 +197,15 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
         # Scipion alignment matrix
         A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
-        A[:3, 3] = [shiftX, shiftY, shiftZ]
+        shifts = np.transpose(np.array([-shiftX, -shiftY, -shiftZ]))
+
+        # Translation matrix
+        T = np.eye(4)
+        T[:3, 3] = shifts
+        M = A@T
+
         transform = Transform()
-        transform.setMatrix(A)
+        transform.setMatrix(M)
         subtomo.setTransform(transform)
 
         self._addCoordinate(subtomo, tomo)

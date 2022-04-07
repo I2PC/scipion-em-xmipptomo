@@ -37,6 +37,7 @@ from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_misalignTS import XmippProtMisalignTiltSeries
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
+from .protocol_phantom_tomo import XmippProtPhantomTomo
 from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_resizeTS import XmippProtResizeTiltSeries
 from .protocol_resize_tomograms import XmippProtResizeTomograms
