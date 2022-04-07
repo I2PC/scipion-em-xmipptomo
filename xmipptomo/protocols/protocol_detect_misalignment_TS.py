@@ -200,7 +200,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
         self.generateAlignmentReportDictionary(enableInfoList, tsId)
-        self.convertResidualStatisticInString(tsId)
 
         """ Generate output sets of aligned and misaligned tilt series """
         aligned = True
@@ -217,7 +216,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         if aligned:
             self.getOutputSetOfTiltSeries()
             self.outputSetOfTiltSeries.append(newTs)
-
         else:
             self.getOutputSetOfMisalignedTiltSeries()
             self.outputSetOfMisalignedTiltSeries.append(newTs)
@@ -276,6 +274,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             previousLine = misalignedTiltImages.get()
             previousLine = previousLine[:-1]
             self.alignmentReport.append(String(previousLine))
+
+        for line in self.convertResidualStatisticInString(tsId):
+            self.alignmentReport.append(String(line))
 
         self._store()
 
@@ -348,8 +349,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                  ", passed tests: " + str(statisticsInfoTable[key][2]) +
                                  ", failed test: " + str(statisticsInfoTable[key][3])))
 
-        print(outputStrings)
-
         return outputStrings
 
     # --------------------------- INFO functions ----------------------------
@@ -359,15 +358,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         if not hasattr(self, 'outputSetOfMisalignedTiltSeries'):
             summary.append("No tilt series present misalignment")
 
-            for ts in self.outputSetOfTiltSeries:
-                summary.extend(self.convertResidualStatisticInString(ts.getTsId()))
+            # for ts in self.outputSetOfTiltSeries:
+            #     summary.extend(self.convertResidualStatisticInString(ts.getTsId()))
         else:
             summary.append("From the %d analyzed tilt series, %d presents misalignment:" %
                            (self.inputSetOfTiltSeries.get().getSize(),
                             self.outputSetOfMisalignedTiltSeries.getSize()))
 
-            for ts in self.outputSetOfMisalignedTiltSeries:
-                summary.extend(self.convertResidualStatisticInString(ts.getTsId()))
+            # for ts in self.outputSetOfMisalignedTiltSeries:
+            #     summary.extend(self.convertResidualStatisticInString(ts.getTsId()))
 
             for line in self.alignmentReport:
                 summary.append(line.get())
