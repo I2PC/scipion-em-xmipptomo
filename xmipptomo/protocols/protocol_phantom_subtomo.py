@@ -25,23 +25,28 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import enum
 import numpy as np
 from pwem.convert.transformations import euler_matrix
-from pwem.objects.data import Transform
+from pwem.objects.data import Transform, Integer
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D, SetOfTomograms
 import tomo.constants as const
+from pwem.convert.headers import setMRCSamplingRate
 
+class OutputPhantomSubtomos(enum.Enum):
+    outputSubtomograms = SetOfSubTomograms
+    outputCoord = SetOfCoordinates3D
 
 class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     """ Create subtomogram phantoms """
 
     _label = 'phantom create subtomo'
     _devStatus = BETA
-
+    _possibleOutputs = OutputPhantomSubtomos
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
@@ -122,6 +127,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             fhDescr.close()
             dim = [desc.split()[0], desc.split()[1], desc.split()[2]]
             self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+            setMRCSamplingRate(fnVol, self.sampling.get())
             if mwfilter:
                 mwangle = self.mwangle.get()
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
@@ -133,6 +139,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         self.outputSet.setDim(dim)
         self.outputSet.setSamplingRate(self.sampling.get())
 
+        tomo = None
         coordsBool = self.coords.get()
         if coordsBool:
             tomos = self.tomos.get()
@@ -140,31 +147,16 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             tomoDim = tomo.getDim()
             self.coords = self._createSetOfCoordinates3D(tomos)
 
-        subtomobase = SubTomogram()
+        # Create acquisition
         acq = TomoAcquisition()
         acq.setAngleMax(mwangle)
-        acq.setAngleMin(mwangle*-1)
-        subtomobase.setObjComment("Base volume")
-        subtomobase.setAcquisition(acq)
-        subtomobase.setLocation(fnVol)
-        subtomobase.setSamplingRate(self.sampling.get())
-        transformBase = Transform()
-        transformBase.setMatrix(np.identity(4))
-        subtomobase.setTransform(transformBase)
-        if coordsBool:
-            coor = Coordinate3D()
-            coor.setVolume(tomo)
-            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
-            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
-            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
-            subtomobase.setCoordinate3D(coor)
-            subtomobase.setVolName(tomo.getFileName())
-            self.coords.append(coor)
-            self.coords.setBoxSize(subtomobase.getDim()[0])
-        self.outputSet.append(subtomobase)
+        acq.setAngleMin(mwangle * -1)
+
+        #Create the base subtomogram
+        self._addSubtomogram(tomo,acq,fnVol,0,0,0,0,0,0)
 
         for i in range(int(self.nsubtomos.get())-1):
-            fnPhantomi = self._getExtraPath("phantom%03d.vol" % int(i+1))
+            fnPhantomi = self._getExtraPath("phantom%03d.mrc" % int(i+1))
             rot = np.random.randint(rotmin, rotmax)
             tilt = np.random.randint(tiltmin, tiltmax)
             psi = np.random.randint(psimin, psimax)
@@ -174,41 +166,73 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
             shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
 
-            self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d"
+            self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
                         % (fnVol, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ))
 
             if mwfilter:
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
                             % (mwangle, mwangle, fnPhantomi, fnPhantomi))
 
-            subtomo = SubTomogram()
-            subtomo.setAcquisition(acq)
-            subtomo.setLocation(fnPhantomi)
-            subtomo.setSamplingRate(self.sampling.get())
-            subtomo.setObjComment("Rot, tilt, psi: %d, %d, %d ; Shifts X,Y,Z: %d, %d, %d" % (rot, tilt, psi, shiftX, shiftY, shiftZ))
-            A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
-            transform = Transform()
-            transform.setMatrix(A)
-            subtomo.setTransform(transform)
-            if coordsBool:
-                coor = Coordinate3D()
-                coor.setVolume(tomo)
-                coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
-                coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
-                coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
-                subtomo.setCoordinate3D(coor)
-                subtomo.setVolName(tomo.getFileName())
-                self.coords.append(coor)
-            self.outputSet.append(subtomo)
+            # Add the subtomogram and the coordinate if applies
+            self._addSubtomogram(tomo, acq, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ)
+
         if coordsBool:
             self.outputSet.setCoordinates3D(self.coords)
 
+    def _addSubtomogram(self, tomo, acq, phantomfn, rot, tilt, psi, shiftX, shiftY, shiftZ):
+        """ Creates and adds a the phantom subtomogram to the set. It creates the coordinate as well if active"""
+        subtomo = SubTomogram()
+        subtomo.setAcquisition(acq)
+        subtomo.setLocation(phantomfn)
+        subtomo.setSamplingRate(self.sampling.get())
+        subtomo.setObjComment(
+            "Angle Rot, tilt, psi: %d, %d, %d \nShifts X,Y,Z: %d, %d, %d" % (rot, tilt, psi, shiftX, shiftY, shiftZ))
+
+        subtomo.phantom_rot = Integer(rot)
+        subtomo.phantom_tilt = Integer(tilt)
+        subtomo.phantom_psi = Integer(psi)
+        subtomo.phantom_shiftX = Integer(shiftX)
+        subtomo.phantom_shiftY = Integer(shiftY)
+        subtomo.phantom_shiftZ = Integer(shiftZ)
+
+        # Scipion alignment matrix
+        A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
+        shifts = np.transpose(np.array([-shiftX, -shiftY, -shiftZ]))
+
+        # Translation matrix
+        T = np.eye(4)
+        T[:3, 3] = shifts
+        M = A@T
+
+        transform = Transform()
+        transform.setMatrix(M)
+        subtomo.setTransform(transform)
+
+        self._addCoordinate(subtomo, tomo)
+
+        self.outputSet.append(subtomo)
+
+    def _addCoordinate(self, subtomo, tomo):
+        """ Adds a Coordinate3D (if apply) to the coordinate set and fills the subtomogram with the coordinate"""
+
+        if self.coords.get():
+            coor = Coordinate3D()
+            coor.setVolume(tomo)
+            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            subtomobase.setCoordinate3D(coor)
+            subtomobase.setVolName(tomo.getFileName())
+            self.coords.append(coor)
+            self.coords.setBoxSize(subtomobase.getDim()[0])
+
     def createOutputStep(self):
-        self._defineOutputs(outputCoord=self.coords)
+
         self._defineOutputs(outputSubtomograms=self.outputSet)
         if self.option.get() == 0:
             self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
         if self.coords.get():
+            self._defineOutputs(outputCoord=self.coords)
             self._defineSourceRelation(self.tomos.get(), self.outputSet)
 
     # --------------------------- INFO functions --------------------------------------------
