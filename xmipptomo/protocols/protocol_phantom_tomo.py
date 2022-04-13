@@ -92,6 +92,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Create the set of coordinates
         self.coords = self._createSetOfCoordinates3D(self.tomoSet)
+        self.coords.setSamplingRate(self.sampling.get())
 
         # Create acquisition
         mwangle= self.mwangle.get()
@@ -100,7 +101,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         acq.setAngleMin(mwangle * -1)
 
         # Description string to generate the phantom
-        desc = self.dimensions.get() + " 0 \n"
+        desc = self.dimensions.get() + " 1 \n"
         dims = desc.split()
         xT, yT, zT = int(dims[0]), int(dims[1]), int(dims[2])
         minDim = min(xT, yT, zT)
@@ -141,7 +142,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
                 z = np.random.randint(-zT, zT)
 
                 # Want to generate a cone --> con + 3 0 0 0 8 30 0 0 0
-                desc += "con = 1 %s %s %s %s %s %s %s %s\n" % (x, y, z, radius, height, rot, tilt, psi)
+                desc += "con = %s %s %s %s %s %s %s %s %s\n" % (-100-i, x, y, z, radius, height, rot, tilt, psi)
 
                 coords.append(self._createCoordinate(x,y,z,height, rot, tilt, psi))
 
