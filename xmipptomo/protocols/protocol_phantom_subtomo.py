@@ -118,7 +118,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                             % (mwangle, mwangle, fnInVol, fnVol))
             else:
                 mwangle = 90
-                self.runJob("xmipp_image_convert", " -i %s -o %s" % (fnInVol, fnVol))
+                self.runJob("xmipp_image_convert", " -i %s -o %s --type vol" % (fnInVol, fnVol))
         else:
             desc = self.create.get()
             fnDescr = self._getExtraPath("phantom.descr")
@@ -168,7 +168,6 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
             self.runJob("xmipp_transform_geometry", " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
                         % (fnVol, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ))
-
             if mwfilter:
                 self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
                             % (mwangle, mwangle, fnPhantomi, fnPhantomi))
