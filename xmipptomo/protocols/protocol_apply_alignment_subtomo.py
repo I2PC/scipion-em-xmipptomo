@@ -93,7 +93,6 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
             id = id.split('@')[0]
             id = id.lstrip('0')
             objId = (idList[int(id)-1])
-            self.debug("Xmipp Id, ObjId: %s, %s" % (id, objId))
             alignmentToRow(inputSt[objId].getTransform(), rowOut, pwem.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
