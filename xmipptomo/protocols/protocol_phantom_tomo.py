@@ -226,18 +226,17 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         if not hasattr(self, self._possibleOutputs.tomograms.name):
             summary.append("Output phantom not ready yet.")
         else:
-            summary.append("%s phantoms created with random orientations" % self.nsubtomos.get())
-            if self.mwfilter.get():
-                summary.append("Missing wedge applied between +-%d along Y axis" % self.mwangle.get())
+            summary.append("%s phantom tomograms created with %s cones with random orientations" % (self.ntomos ,self.nparticles))
         return summary
 
     def _methods(self):
         methods = []
-        if not hasattr(self, self._possibleOutputs.tomograms.name):
-            methods.append("Output phantoms not ready yet.")
-            return methods
-        else:
-            methods.append("%s phantoms created with random orientations." % self.nsubtomos.get())
-            # if self.mwfilter.get():
-            #     methods.append("Missing wedge applied between +-%d along Y axis." % self.mwangle.get())
-            return methods
+
+        methods.append("%s synthetic tomograms were created with %s cone particles each." % (self.ntomos, self.nparticles))
+        methods.append("Particle's angles were randomly assigned following the criteria:")
+        methods.append("Rot : %s --> %s" % (self.rotmin, self.rotmax))
+        methods.append("Tilt: %s --> %s" % (self.tiltmin, self.tiltmax))
+        methods.append("Psi : %s --> %s" % (self.psimin, self.psimax))
+        methods.append("The corresponding set of 3D coordinates was created with %s elements." % (self.ntomos.get() * self.nparticles.get()))
+
+        return methods
