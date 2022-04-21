@@ -112,3 +112,41 @@ class XmippProtResizeBase(EMProtocol, ProtTomoBase):
         protocol.factor = factor
 
         return args
+
+class XmippProtCropBase2D(EMProtocol, ProtTomoBase):
+    """
+    Base class to crop 2D objects in tomography
+    """
+    _devStatus = BETA
+
+    # --------------------------- DEFINE param functions ------------------------
+    @classmethod
+    def _defineParamsReSize2D(self, form):
+        linex = form.addLine('Keep pixels along X',
+                             help='Select the number of pixels to be cropped from the borders'
+                                  ' along the x axis')
+        linex.addParam('xcrop0', FloatParam, default=100, label='from')
+        linex.addParam('xcropF', FloatParam, default=100, label='to')
+
+        liney = form.addLine('Keep pixels along Y',
+                             help='Select the number of pixels to be cropped from the borders'
+                                  ' along the y axis')
+        liney.addParam('ycrop0', FloatParam, default=100, label='from')
+        liney.addParam('ycropF', FloatParam, default=100, label='to')
+
+
+class XmippProtCropBase3D(XmippProtCropBase2D):
+    """
+    Base class to crop 3D objects in tomography
+    """
+    _devStatus = BETA
+
+    # --------------------------- DEFINE param functions ------------------------
+    @classmethod
+    def _defineParamsReSize3D(self, form):
+
+        linez = form.addLine('Keep pixels along Z',
+                             help='Select the number of pixels to be cropped from the borders'
+                                  ' along the z axis')
+        linez.addParam('zcrop0', FloatParam, default=100, label='from')
+        linez.addParam('zcropF', FloatParam, default=100, label='to')
