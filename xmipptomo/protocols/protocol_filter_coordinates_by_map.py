@@ -165,15 +165,11 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
         self.getOutputSetOfCoordinates3D()
 
         outputMdFile = self._getExtraPath(OUTPUT_XMD_COORS)
-        print(outputMdFile)
 
         for tomo in self.tomos:
             tomoId = tomo.getObjId()
             inputMdFileName = METADATA_COORDINATES_STATS + str(tomoId) + XMD_EXT
-            print(inputMdFileName)
             inputMdFile = self._getExtraPath(os.path.join(str(tomoId), inputMdFileName))
-
-            print(inputMdFile)
 
             mdCoor = md.MetaData()
 
