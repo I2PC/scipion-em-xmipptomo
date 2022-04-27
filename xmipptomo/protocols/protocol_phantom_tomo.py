@@ -26,12 +26,14 @@
 # *
 # **************************************************************************
 import enum
+import math
+
 import numpy as np
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Integer
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol.params import IntParam, FloatParam, StringParam
+from pyworkflow.protocol.params import IntParam, FloatParam, StringParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import TomoAcquisition, Coordinate3D, SetOfCoordinates3D, SetOfTomograms,Tomogram
 import tomo.constants as const
@@ -66,6 +68,9 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         #               help='Apply a filter to simulate the missing wedge along Y axis.')
         form.addParam('mwangle', IntParam, label='Missing wedge angle', default=60, #condition='mwfilter==True',
                       help='Missing wedge (along y) for data between +- this angle.')
+
+        form.addParam('addNoise', BooleanParam, label="Add noise to the tomogram.", default=True,
+                      help="Add noise using xmipp_transform.")
 
         # Angles
         form.addSection(label='Rotation')
@@ -107,22 +112,16 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         minDim = min(xT, yT, zT)
         self.info("Minimum dimension: %s" % minDim)
 
-        radius = max(4, int(minDim * 0.05))
-        height = max(10, int(minDim * 0.1))
-        self.info("Cone radius, height :%s, %s" % (radius, height))
+        boxSize = max(32, int(minDim * 0.1))
+        self.info("BoxSize :%s" % boxSize)
 
-        # Reduce dimensions form center to avoid particles in the border
-        xT = xT/2 - height
-        yT = yT/2 - height
-        zT = zT/2 - height
-        self.info("Valid offset form center, x, y,z: %s, %s, %s" % (xT, yT, zT))
         # Create as many tomograms as indicated
         for i in range(self.ntomos.get()):
 
-            self._addTomogram(i, acq, xT, yT, zT, radius, height, desc)
+            self._addTomogram(i, acq, xT, yT, zT, boxSize, desc)
 
 
-    def _addTomogram(self, index, acq, xT, yT, zT, radius, height, desc):
+    def _addTomogram(self, index, acq, xT, yT, zT, boxSize, desc):
         """ Creates creates and adds a phantom tomogram as specified"""
 
         # Temporary list to keep Coordinated3D
@@ -131,20 +130,56 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Write the description file
         fnDescr = self._getExtraPath("phantom.descr")
 
+        # Reduce dimensions from center to avoid particles in the border
+        halfHeight = boxSize/2
+        xT = xT - halfHeight
+        yT = yT - halfHeight
+        zT = zT - halfHeight
+        self.info("Valid offset from center, x, y,z: %s, %s, %s" % (xT, yT, zT))
+
+        # Create a list with possible positions to warranty no overlapping
+        xLen = math.floor(xT/boxSize)
+        yLen = math.floor(yT/boxSize)
+        zLen = math.floor(zT/boxSize)
+        self.info("Possible position matrix (x, y, z): %s, %s, %s." % (xLen, yLen, zLen))
+
+        positions = []
+
+        # Calculate halves of the dimensions
+        xHalf = int(xT / 2)
+        yHalf = int(yT / 2)
+        zHalf = int(zT / 2)
+
+        for z in range(0,zLen):
+            for y in range(0, yLen):
+                for x in range(0, xLen):
+
+                    # Convert positions to actual coordinates with the origin in the center
+                    xPos = int((x * boxSize) + halfHeight) - xHalf
+                    yPos = int((y * boxSize) + halfHeight) - yHalf
+                    zPos = int((z * boxSize) + halfHeight) - zHalf
+                    positions.append((xPos,yPos,zPos))
+
         with open(fnDescr, 'w') as fhDescr:
 
             # For each particle
             for i in range(self.nparticles.get()):
 
+                if len(positions) == 0:
+                    self.warning("There is no more space to add subtomograms without overlapping")
+                    break
+
                 rot, tilt, psi = self._getRandomAngles()
-                x = np.random.randint(-xT, xT)
-                y = np.random.randint(-yT, yT)
-                z = np.random.randint(-zT, zT)
+
+                posIndex = np.random.randint(0, len(positions))
+                pos = positions[posIndex]
+                del positions[posIndex]
 
                 # Want to generate a cone --> con + 3 0 0 0 8 30 0 0 0
-                desc += "con = %s %s %s %s %s %s %s %s %s\n" % (-100-i, x, y, z, radius, height, rot, tilt, psi)
+                desc += self.getParticleShape(boxSize, i, pos, rot, tilt, psi)
 
-                coords.append(self._createCoordinate(x,y,z,height, rot, tilt, psi))
+                coords.append(self._createCoordinate(pos[0],pos[1],pos[2], rot, tilt, psi))
+
 
             # Write the description
             fhDescr.write(desc)
@@ -152,6 +187,11 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Create the phantom based on the description file
         fnVol = self._getExtraPath("phantom_tomo%d.mrc" % index)
         self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+
+        # Add noise
+        if self.addNoise.get():
+            self.runJob("xmipp_transform_add_noise",  "-i %s -o %s --type gaussian -80 5" % (fnVol, fnVol))
+
         setMRCSamplingRate(fnVol, self.sampling.get())
 
         # Instantiate the Tomogram object
@@ -162,10 +202,29 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         self.tomoSet.append(tomo)
 
         # Now that we have the tomogram persisted, we persist the coordinates
-        self.coords.setBoxSize(height)
+        self.coords.setBoxSize(boxSize)
         for coord in coords:
             coord.setVolume(tomo)
             self.coords.append(coord)
+
+    def getParticleShape(self, boxSize, i, pos, rot, tilt, psi):
+        """ Returns the description for the phantom create. See specs here:
+        https://web.archive.org/web/20180813105422/http://xmipp.cnb.csic.es/twiki/bin/view/Xmipp/FileFormats#Phantom_metadata_file
+        """
+
+        value = -100 - i
+        # Do not use the whole boxSize. Provide some padding
+        maxDim = int(boxSize*0.75)
+
+        # Try a more sophisticated one
+        # X axis: a bar
+        shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-2, pos[1], pos[2], maxDim, rot, tilt, psi)
+        # # Y axis: an ellipsoid
+        shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s'\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
+        # # Z axis: a cone
+        shape = shape + "con = %s %s %s %s %s %s %s %s %s\n" % (value, pos[0], pos[1], pos[2], maxDim/4, maxDim, rot, tilt, psi)
+
+        return shape
 
     def _getRandomAngles(self):
         """ Returns random rot, tilt, psi in range"""
@@ -177,7 +236,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Get the random values
         return rot, tilt, psi
 
-    def _createCoordinate(self, x, y, z, height, rot, tilt, psi):
+    def _createCoordinate(self, x, y, z, rot, tilt, psi):
         """ Creates a Coordinate3D with the right transfomation matrix"""
 
         coord = Coordinate3D()
@@ -198,6 +257,12 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Translation matrix
         T = np.eye(4)
         T[:3, 3] = shifts
+
+        # Phantom create assumes that rot, tilt, psi moves the particle to the reference
+        # In Scipion convention rot, tilt, psi move the reference to the particle position
+        # therefore we need the inverse rotation matrix
+        A=np.linalg.inv(A)
+
         M = A@T
 
         coord.setMatrix(M)
@@ -223,20 +288,31 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
     def _summary(self):
         summary = []
-        if not hasattr(self, self._possibleOutputs.tomograms.name):
+        if not self._hasOutputs():
             summary.append("Output phantom not ready yet.")
         else:
-            summary.append("%s phantom tomograms created with %s cones with random orientations" % (self.ntomos ,self.nparticles))
+            # In case not all requested particles fit in the tomogram we calculate the final count
+            summary.append("%s phantom tomograms created with %s asymmetric "
+                           "anvil-like particles with random orientations" % (self.ntomos ,self._getParticlesPerTomogram()))
         return summary
+
+    def _hasOutputs(self):
+        return hasattr(self, self._possibleOutputs.tomograms.name)
+
+    def _getParticlesPerTomogram(self):
+        if self._hasOutputs():
+            return int(self.coordinates3D.getSize()/self.tomograms.getSize())
+        else:
+            return self.nparticles.get()
 
     def _methods(self):
         methods = []
 
-        methods.append("%s synthetic tomograms were created with %s cone particles each." % (self.ntomos, self.nparticles))
+        methods.append("%s synthetic tomograms were created with %s asymmetric anvil-like particles each." % (self.ntomos, self._getParticlesPerTomogram()))
         methods.append("Particle's angles were randomly assigned following the criteria:")
         methods.append("Rot : %s --> %s" % (self.rotmin, self.rotmax))
         methods.append("Tilt: %s --> %s" % (self.tiltmin, self.tiltmax))
         methods.append("Psi : %s --> %s" % (self.psimin, self.psimax))
-        methods.append("The corresponding set of 3D coordinates was created with %s elements." % (self.ntomos.get() * self.nparticles.get()))
+        methods.append("The corresponding set of 3D coordinates was created with %s elements." % (self.ntomos.get() * self._getParticlesPerTomogram()))
 
         return methods
