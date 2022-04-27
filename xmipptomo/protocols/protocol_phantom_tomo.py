@@ -112,8 +112,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         minDim = min(xT, yT, zT)
         self.info("Minimum dimension: %s" % minDim)
 
-        boxSize = max(30, int(minDim * 0.1))
-
+        boxSize = max(32, int(minDim * 0.1))
         self.info("BoxSize :%s" % boxSize)
 
         # Create as many tomograms as indicated
@@ -131,12 +130,12 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Write the description file
         fnDescr = self._getExtraPath("phantom.descr")
 
-        # Reduce dimensions form center to avoid particles in the border
+        # Reduce dimensions from center to avoid particles in the border
         halfHeight = boxSize/2
         xT = xT - halfHeight
         yT = yT - halfHeight
         zT = zT - halfHeight
-        self.info("Valid offset form center, x, y,z: %s, %s, %s" % (xT, yT, zT))
+        self.info("Valid offset from center, x, y,z: %s, %s, %s" % (xT, yT, zT))
 
         # Create a list with possible positions to warranty no overlapping
         xLen = math.floor(xT/boxSize)
@@ -191,7 +190,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Add noise
         if self.addNoise.get():
-            self.runJob("xmipp_transform_add_noise",  "-i %s -o %s --type gaussian 10 5" % (fnVol, fnVol))
+            self.runJob("xmipp_transform_add_noise",  "-i %s -o %s --type gaussian -80 5" % (fnVol, fnVol))
 
         setMRCSamplingRate(fnVol, self.sampling.get())
 
@@ -214,17 +213,12 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         """
 
         value = -100 - i
-        halfBox = round(boxSize/2)
         # Do not use the whole boxSize. Provide some padding
         maxDim = int(boxSize*0.75)
-        #shape = "con = %s %s %s %s %s %s %s %s %s\n" % (value, pos[0], pos[1], pos[2], halfBox, boxSize, rot, tilt, psi)
 
         # Try a more sophisticated one
-        # Have a central sphere
-        shape = ""
-        # shape = "sph = %s %s %s %s %s\n" % (value, pos[0], pos[1], pos[2], halfBox/4)
         # X axis: a bar
-        shape = shape + "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-2, pos[1], pos[2], maxDim, rot, tilt, psi)
+        shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-2, pos[1], pos[2], maxDim, rot, tilt, psi)
         # # Y axis: an ellipsoid
         shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s'\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
         # # Z axis: a cone
@@ -294,20 +288,31 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
     def _summary(self):
         summary = []
-        if not hasattr(self, self._possibleOutputs.tomograms.name):
+        if not self._hasOutputs():
             summary.append("Output phantom not ready yet.")
         else:
-            summary.append("%s phantom tomograms created with %s cones with random orientations" % (self.ntomos ,self.nparticles))
+            # In case not all requested particles fit in the tomogram we calculate the final count
+            summary.append("%s phantom tomograms created with %s asymmetric "
+                           "anvil-like particles with random orientations" % (self.ntomos ,self._getParticlesPerTomogram()))
         return summary
+
+    def _hasOutputs(self):
+        return hasattr(self, self._possibleOutputs.tomograms.name)
+
+    def _getParticlesPerTomogram(self):
+        if self._hasOutputs():
+            return int(self.coordinates3D.getSize()/self.tomograms.getSize())
+        else:
+            return self.nparticles.get()
 
     def _methods(self):
         methods = []
 
-        methods.append("%s synthetic tomograms were created with %s cone particles each." % (self.ntomos, self.nparticles))
+        methods.append("%s synthetic tomograms were created with %s asymmetric anvil-like particles each." % (self.ntomos, self._getParticlesPerTomogram()))
         methods.append("Particle's angles were randomly assigned following the criteria:")
         methods.append("Rot : %s --> %s" % (self.rotmin, self.rotmax))
         methods.append("Tilt: %s --> %s" % (self.tiltmin, self.tiltmax))
         methods.append("Psi : %s --> %s" % (self.psimin, self.psimax))
-        methods.append("The corresponding set of 3D coordinates was created with %s elements." % (self.ntomos.get() * self.nparticles.get()))
+        methods.append("The corresponding set of 3D coordinates was created with %s elements." % (self.ntomos.get() * self._getParticlesPerTomogram()))
 
         return methods
