@@ -34,7 +34,7 @@ import pyworkflow.utils.path as path
 from pyworkflow.object import Set
 import tomo.objects as tomoObj
 from pwem.emlib.image import ImageHandler
-from xmipptomo.protocols.protocol_resize_base import XmippProtResizeBase
+from xmipptomo.protocols.protocol_crop_resize_base import XmippProtResizeBase
 
 
 class XmippProtResizeTiltSeries(XmippProtResizeBase):
@@ -67,14 +67,14 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
     # --------------------------- STEP functions --------------------------------
     def resizeTiltSeries(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        print(ts)
         tsId = ts.getTsId()
-        print(tsId)
         extraPrefix = self._getExtraPath(tsId)
-        print(extraPrefix)
+
         path.makePath(extraPrefix)
 
-        args = self._resizeCommonArgs(self)
+        samplingRate = self.inputSetOfTiltSeries.get().getSamplingRate()
+
+        args = self.resizeCommonArgsResize(self, samplingRate)
 
         for ti in ts:
             self.runJob("xmipp_image_resize", self._ioArgs(ti)+args)

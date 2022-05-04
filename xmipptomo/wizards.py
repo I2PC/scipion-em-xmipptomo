@@ -48,7 +48,7 @@ class XmippConnectedCompWizard(Wizard):
         form.setVar('distance', distance)
 
 
-class ColorScaleWizard(ColorScaleWizardBase):
+class ColorScaleWizardXmippTomo(ColorScaleWizardBase):
     _targets = ColorScaleWizardBase.defineTargets(XmippMonoTomoViewer)
 
 

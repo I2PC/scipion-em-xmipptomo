@@ -92,8 +92,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         form.addParam('threshold', FloatParam, default=0.5, label='Threshold',
                       help="threshold applied to tomogram", condition="paintingType == 1 or paintingType == 3")
         form.addParam('constant', FloatParam, default=2, label='Multiplier',
-                      help="constant to multiply the reference",
-                      condition="paintingType == 2")
+                      help="constant to multiply the reference", condition="paintingType == 2 or paintingType == 0")
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -142,6 +141,14 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             else:
                 inputSet = self.inputSubtomos.get()
                 ref = self.inputRef.get().getFileName()
+
+            if self.paintingType.get() == 0 and self.constant.get() != 1:
+                initialref = self.inputRef.get().getFileName()
+                if initialref.endswith('.mrc'):
+                    initialref += ':mrc'
+                ref = self._getExtraPath("ref_mult.mrc")
+                self.runJob("xmipp_image_operate", " -i %s  --mult %d -o %s" %
+                            (initialref, self.constant.get(), ref))
 
             for subtomo in inputSet.iterItems():
                 fn = subtomo.getFileName()

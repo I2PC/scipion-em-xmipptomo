@@ -25,6 +25,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import enum
 
 import pwem
 from pwem.emlib import MDL_IMAGE
@@ -35,16 +36,21 @@ import pwem.emlib.metadata as md
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam
 
-from tomo.objects import AverageSubTomogram
+from tomo.objects import AverageSubTomogram, SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
 
+
+class OutputApplyTransform(enum.Enum):
+    outputAverage = AverageSubTomogram
+    outputSubtomograms = SetOfSubTomograms
 
 class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
     """ Apply alignment matrix and produce a new setOfSubtomograms, with each subtomogram aligned to its reference. """
 
     _label = 'apply alignment subtomo'
     _devStatus = BETA
+    _possibleOutputs = OutputApplyTransform
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -55,9 +61,9 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         subtomosFn = self._getPath('input_subtomos.xmd')
-        self._insertFunctionStep('convertInputStep', subtomosFn)
-        self._insertFunctionStep('applyAlignmentStep', subtomosFn)
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.convertInputStep, subtomosFn)
+        self._insertFunctionStep(self.applyAlignmentStep, subtomosFn)
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self, outputFn):
@@ -91,8 +97,9 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
             rowOut.copyFromRow(row)
             id = row.getValue(MDL_IMAGE)
             id = id.split('@')[0]
-            id = id.strip('0')
-            alignmentToRow(inputSt[(idList[int(id)-1])].getTransform(), rowOut, pwem.ALIGN_3D)
+            id = id.lstrip('0')
+            objId = (idList[int(id)-1])
+            alignmentToRow(inputSt[objId].getTransform(), rowOut, pwem.ALIGN_3D)
             rowOut.addToMd(mdWindowTransform)
         mdWindowTransform.write(self._getExtraPath("window_with_original_geometry.xmd"))
         # Align subtomograms
@@ -121,11 +128,13 @@ class XmippProtApplyTransformSubtomo(EMProtocol, ProtTomoBase):
         avgImage = imgh.computeAverage(alignedSet)
         avgImage.write(avgFile)
         avg = AverageSubTomogram()
-        avg.setLocation(1, avgFile)
+        avg.setLocation(avgFile)
         avg.copyInfo(alignedSet)
-        self._defineOutputs(outputAverage=avg)
+
+        outputDic = {self._possibleOutputs.outputAverage.name:avg,
+                     self._possibleOutputs.outputSubtomograms.name:alignedSet}
+        self._defineOutputs(** outputDic)
         self._defineSourceRelation(self.inputSubtomograms, avg)
-        self._defineOutputs(outputSubtomograms=alignedSet)
         self._defineSourceRelation(self.inputSubtomograms, alignedSet)
 
     # --------------------------- INFO functions --------------------------------------------
