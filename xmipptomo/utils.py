@@ -125,6 +125,9 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
                                 coord.getY(BOTTOM_LEFT_CORNER),
                                 coord.getZ(BOTTOM_LEFT_CORNER)])
 
+    if len(coordinatesInfo) == 0:
+        return False
+
     with open(filePath, 'w') as f:
         f.write(xmdHeader)
         writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldNames)
@@ -133,6 +136,8 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
+
+    return True
 
 
 def readResidualStatisticsXmdFile(xmdFilePath):

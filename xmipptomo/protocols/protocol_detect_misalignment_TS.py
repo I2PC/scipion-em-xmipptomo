@@ -53,6 +53,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         self.alignmentReport = List([])
 
+        # Global variable to check if coordinates have been input for a specific tilt-series
+        self.check = True
+
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         form.addSection('Input')
@@ -125,6 +128,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                  prerequisites=allcossId)
 
     # --------------------------- STEPS functions ----------------------------
+
     def convertInputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
@@ -147,96 +151,101 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
         """Generate 3D coordinates metadata"""
-        utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
+        self.check = utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
                                               os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
                                               tsObjId)
 
+        if not self.check:
+            print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
+
     def detectMisalignmentStep(self, tsObjId):
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
+        if self.check:
+            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            tsId = ts.getTsId()
 
-        extraPrefix = self._getExtraPath(tsId)
-        tmpPrefix = self._getTmpPath(tsId)
+            extraPrefix = self._getExtraPath(tsId)
+            tmpPrefix = self._getTmpPath(tsId)
 
-        firstItem = ts.getFirstItem()
+            firstItem = ts.getFirstItem()
 
-        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
 
-        paramsDetectMisali = {
-            'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
-            'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
-            'tlt': angleFilePath,
-            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
-            'thrSDHCC': self.thrSDHCC.get(),
-            'thrNumberCoords': self.thrNumberCoords.get(),
-            'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
-            'fiducialSize': self.fiducialSize.get() * 10,
-            'thrChainDistanceAng': self.thrChainDistanceAng.get(),
-        }
+            paramsDetectMisali = {
+                'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
+                'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
+                'tlt': angleFilePath,
+                'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
+                'thrSDHCC': self.thrSDHCC.get(),
+                'thrNumberCoords': self.thrNumberCoords.get(),
+                'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+                'fiducialSize': self.fiducialSize.get() * 10,
+                'thrChainDistanceAng': self.thrChainDistanceAng.get(),
+            }
 
-        argsDetectMisali = "-i %(i)s " \
-                           "--tlt %(tlt)s " \
-                           "--inputCoord %(inputCoord)s " \
-                           "-o %(o)s " \
-                           "--thrSDHCC %(thrSDHCC).2f " \
-                           "--thrNumberCoords %(thrNumberCoords).2f " \
-                           "--samplingRate %(samplingRate).2f " \
-                           "--fiducialSize %(fiducialSize).2f " \
-                           "--thrChainDistanceAng %(thrChainDistanceAng).2f"
+            argsDetectMisali = "-i %(i)s " \
+                               "--tlt %(tlt)s " \
+                               "--inputCoord %(inputCoord)s " \
+                               "-o %(o)s " \
+                               "--thrSDHCC %(thrSDHCC).2f " \
+                               "--thrNumberCoords %(thrNumberCoords).2f " \
+                               "--samplingRate %(samplingRate).2f " \
+                               "--fiducialSize %(fiducialSize).2f " \
+                               "--thrChainDistanceAng %(thrChainDistanceAng).2f"
 
-        self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
+            self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
     def generateOutputStep(self, tsObjId):
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
+        if self.check:
+            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            tsId = ts.getTsId()
 
-        extraPrefix = self._getExtraPath(tsId)
+            extraPrefix = self._getExtraPath(tsId)
 
-        firstItem = ts.getFirstItem()
+            firstItem = ts.getFirstItem()
 
-        xmdEnableTiltImages = os.path.join(extraPrefix,
-                                           firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
+            xmdEnableTiltImages = os.path.join(extraPrefix,
+                                               firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
 
-        enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
+            enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
 
-        self.generateAlignmentReportDictionary(enableInfoList, tsId)
+            self.generateAlignmentReportDictionary(enableInfoList, tsId)
 
-        """ Generate output sets of aligned and misaligned tilt series """
-        aligned = True
+            """ Generate output sets of aligned and misaligned tilt series """
+            aligned = True
 
-        # Check if some tilt image presents misalignment
-        for line in enableInfoList:
-            if float(line[0]) != 1:
-                aligned = False
-                break
+            # Check if some tilt image presents misalignment
+            for line in enableInfoList:
+                if float(line[0]) != 1:
+                    aligned = False
+                    break
 
-        newTs = tomoObj.TiltSeries(tsId=tsId)
-        newTs.copyInfo(ts)
+            newTs = tomoObj.TiltSeries(tsId=tsId)
+            newTs.copyInfo(ts)
 
-        if aligned:
-            self.getOutputSetOfTiltSeries()
-            self.outputSetOfTiltSeries.append(newTs)
-        else:
-            self.getOutputSetOfMisalignedTiltSeries()
-            self.outputSetOfMisalignedTiltSeries.append(newTs)
+            if aligned:
+                self.getOutputSetOfTiltSeries()
+                self.outputSetOfTiltSeries.append(newTs)
+            else:
+                self.getOutputSetOfMisalignedTiltSeries()
+                self.outputSetOfMisalignedTiltSeries.append(newTs)
 
-        for index, tiltImage in enumerate(ts):
-            newTi = tomoObj.TiltImage()
-            newTi.copyInfo(tiltImage, copyId=True)
-            newTi.setAcquisition(tiltImage.getAcquisition())
-            newTi.setLocation(tiltImage.getLocation())
-            newTs.append(newTi)
+            for index, tiltImage in enumerate(ts):
+                newTi = tomoObj.TiltImage()
+                newTi.copyInfo(tiltImage, copyId=True)
+                newTi.setAcquisition(tiltImage.getAcquisition())
+                newTi.setLocation(tiltImage.getLocation())
+                newTs.append(newTi)
 
-        newTs.write(properties=False)
+            newTs.write(properties=False)
 
-        if aligned:
-            self.outputSetOfTiltSeries.update(newTs)
-            self.outputSetOfTiltSeries.write()
-        else:
-            self.outputSetOfMisalignedTiltSeries.update(newTs)
-            self.outputSetOfMisalignedTiltSeries.write()
+            if aligned:
+                self.outputSetOfTiltSeries.update(newTs)
+                self.outputSetOfTiltSeries.write()
+            else:
+                self.outputSetOfMisalignedTiltSeries.update(newTs)
+                self.outputSetOfMisalignedTiltSeries.write()
 
-        self._store()
+            self._store()
 
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
