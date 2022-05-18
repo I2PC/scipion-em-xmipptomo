@@ -210,3 +210,18 @@ def readResidualStatisticsXmdFile(xmdFilePath):
                 statisticsInfoTable[key] = [0, 0, [], [test], [xCoor, yCoor, zCoor]]
 
     return statisticsInfoTable
+
+
+def calculateRotationAngleFromTM(ts):
+    """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
+    avgRotationAngle = 0
+
+    for ti in ts:
+        tm = ti.getTransform().getMatrix()
+        cosRotationAngle = tm[0][0]
+        sinRotationAngle = tm[1][0]
+        avgRotationAngle += math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+
+    avgRotationAngle = avgRotationAngle / ts.getSize()
+
+    return avgRotationAngle
