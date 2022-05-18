@@ -155,8 +155,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         """Generate 3D coordinates metadata"""
         self.check = utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
-                                              os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
-                                              tsObjId)
+                                                           os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
+                                                           tsObjId)
 
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
