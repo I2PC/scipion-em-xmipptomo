@@ -143,11 +143,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         """Apply the transformation form the input tilt-series"""
         # Use Xmipp interpolation via Scipion
-        avgRotAngle = utils.calculateRotationAngleFromTM(ts)
-        swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
+        if firstItem.hasTransform():
+            avgRotAngle = utils.calculateRotationAngleFromTM(ts)
+            swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
-        outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
-        ts.applyTransform(outputTsFileName, swapXY=swap)
+            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+            ts.applyTransform(outputTsFileName, swapXY=swap)
+
+        else:
+            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+            ts.applyTransform(outputTsFileName)
 
         """Generate angle file"""
         angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
