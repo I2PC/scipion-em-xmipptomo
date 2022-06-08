@@ -140,6 +140,53 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     return True
 
 
+def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, tsId=None):
+    """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tilt-series (identified by
+     its tomo tsId). If no tsId is input the xmd output file will contain all the coordinates belonging to the
+     set. """
+
+    xmdHeader = "# XMIPP_STAR_1 *\n" \
+                "#\n" \
+                "data_noname\n" \
+                "loop_\n" \
+                " _xcoor\n" \
+                " _ycoor\n" \
+                " _zcoor\n"
+
+    coordinatesInfo = []
+    fieldNames = ['x', 'y', 'z']
+
+    print(tsId)
+    if tsId is None:
+        for coord in soc:
+            coordinatesInfo.append([(coord.getX()/sr)-halfX,
+                                    (coord.getY()/sr)-halfY,
+                                    (coord.getZ()/sr)])
+    else:
+        for coord in soc:
+            if coord.getTsId() == tsId:
+                coordinatesInfo.append([(coord.getX()/sr)+halfX,
+                                        (coord.getY()/sr)+halfY,
+                                        (coord.getZ()/sr)])
+
+    print(coordinatesInfo)
+
+    if len(coordinatesInfo) == 0:
+        return False
+
+    with open(filePath, 'w') as f:
+        f.write(xmdHeader)
+        writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldNames)
+
+        for ci in coordinatesInfo:
+            writer.writerow({'x': ci[0],
+                             'y': ci[1],
+                             'z': ci[2]})
+
+    return True
+
+
+
 def readResidualStatisticsXmdFile(xmdFilePath):
     """ This method takes the file path of a Xmipp metadata file (.xmd) and generates a dictionary with all the
     information associated to the residuals from each landmark model: convex hull area and perimeter, statistical
