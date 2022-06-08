@@ -216,6 +216,9 @@ def calculateRotationAngleFromTM(ts):
     """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
     avgRotationAngle = 0
 
+    if not ts.getFirstItem().hasTransform():
+        return avgRotationAngle
+
     for ti in ts:
         tm = ti.getTransform().getMatrix()
         cosRotationAngle = tm[0][0]
