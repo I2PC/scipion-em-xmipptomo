@@ -68,7 +68,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         form.addParam('inputSetOfCoordinates',
                       params.PointerParam,
-                      pointerClass='SetOfCoordinates3D',
+                      pointerClass='SetOfTiltSeriesCoordinates',
                       important=True,
                       label='Input set of coordinates 3D',
                       help='Set of 3D coordinates indicating the position in space of the fiducials. This set should '
@@ -159,9 +159,22 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
         """Generate 3D coordinates metadata"""
-        self.check = utils.writeOutputCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
-                                                           os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
-                                                           tsObjId)
+        xDim, yDim, _ = firstItem.getDimensions()
+
+        if swap:
+            xHalf = yDim / 2
+            yHalf = xDim / 2
+        else:
+            xHalf = xDim / 2
+            yHalf = yDim / 2
+
+        self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
+                                                                     os.path.join(extraPrefix,
+                                                                                  METADATA_INPUT_COORDINATES),
+                                                                     ts.getSamplingRate(),
+                                                                     xHalf,
+                                                                     yHalf,
+                                                                     tsId)
 
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
@@ -361,10 +374,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         for key in statisticsInfoTable.keys():
             outputStrings.append("Info form coordinate " + str(str(statisticsInfoTable[key][4]) +
-                                 ":  convex hull area: " + str(statisticsInfoTable[key][0]) +
-                                 ", convex hull perimeter: " + str(statisticsInfoTable[key][1]) +
-                                 ", passed tests: " + str(statisticsInfoTable[key][2]) +
-                                 ", failed test: " + str(statisticsInfoTable[key][3])))
+                                                               ":  convex hull area: " + str(
+                statisticsInfoTable[key][0]) +
+                                                               ", convex hull perimeter: " + str(
+                statisticsInfoTable[key][1]) +
+                                                               ", passed tests: " + str(statisticsInfoTable[key][2]) +
+                                                               ", failed test: " + str(statisticsInfoTable[key][3])))
 
         return outputStrings
 
