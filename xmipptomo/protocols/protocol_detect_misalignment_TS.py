@@ -143,6 +143,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         """Apply the transformation form the input tilt-series"""
         # Use Xmipp interpolation via Scipion
+        swap = False
         if firstItem.hasTransform():
             avgRotAngle = utils.calculateRotationAngleFromTM(ts)
             swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
@@ -168,8 +169,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             xHalf = yDim / 2
             yHalf = xDim / 2
         else:
-            xHalf = xDim / 2
-            yHalf = yDim / 2
+            if xDim == firstItem.getDimensions()[0] and yDim == firstItem.getDimensions()[1]:
+                xHalf = xDim / 2
+                yHalf = yDim / 2
+            else:
+                xHalf = yDim / 2
+                yHalf = xDim / 2
 
         self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
                                                                      os.path.join(extraPrefix,
