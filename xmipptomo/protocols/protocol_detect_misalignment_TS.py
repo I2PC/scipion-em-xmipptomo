@@ -165,16 +165,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         xDim, yDim, _ = ts_soc.getFirstItem().getDimensions()
 
-        if swap:
-            xHalf = yDim / 2
-            yHalf = xDim / 2
-        else:
-            if xDim == firstItem.getDimensions()[0] and yDim == firstItem.getDimensions()[1]:
-                xHalf = xDim / 2
-                yHalf = yDim / 2
-            else:
+        if firstItem.hasTransform():
+            if swap:
                 xHalf = yDim / 2
                 yHalf = xDim / 2
+            else:
+                xHalf = xDim / 2
+                yHalf = yDim / 2
+        else:
+            xHalf = firstItem.getDimensions()[0] / 2
+            yHalf = firstItem.getDimensions()[1] / 2
 
         self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
                                                                      os.path.join(extraPrefix,
