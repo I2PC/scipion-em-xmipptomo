@@ -29,6 +29,7 @@
 from .protocol_align_transform import XmippProtAlignTransform
 from .protocol_apply_alignment_subtomo import XmippProtApplyTransformSubtomo
 from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
+from .protocol_average_view_tiltseries import XmippProtAverageViewTiltSeries
 from .protocol_cltomo import XmippProtCLTomo
 from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
