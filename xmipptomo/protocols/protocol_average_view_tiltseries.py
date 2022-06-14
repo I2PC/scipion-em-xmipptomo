@@ -44,7 +44,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
     Scipion protocol to average a subset of tilt-images for gaining SNR to posteriorly use a SPA 2D picker.
     """
 
-    _label = 'detect misaligned TS'
+    _label = 'Average tilt-series views'
     _devStatus = BETA
 
     def __init__(self, **kwargs):
@@ -128,26 +128,27 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         tiltAngleList = self.getTiltAngleList(ts)
 
-        outputFilePath = os.path.join(extraPrefix, tsId, firstItem.parseFileName())
+        outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName())
+        avgAngleList = self.avgAngleList.get().split(',')
 
         ih = ImageHandler()
         ih.createEmptyImage(fnOut=outputFilePath,
                             xDim=firstItem.getXDim(),
                             yDim=firstItem.getYDim(),
-                            nDim=len(self.avgAngleList.get()))
+                            nDim=len(avgAngleList))
 
-        for a, avgAngle in enumerate(self.avgAngleList.get()):
+        for a, avgAngle in enumerate(avgAngleList):
             difference = 999
 
             for i, angle in enumerate(tiltAngleList):
-                if abs(avgAngle - angle) < difference:
-                    difference = abs(avgAngle - angle)
+                if abs(float(avgAngle) - angle) < difference:
+                    difference = abs(float(avgAngle) - angle)
                     index = i
 
             for i in range(index - int(self.numberViewsAverage.get() / 2),
-                           index + int(self.numberViewsAverage.get() / 2)):
+                           index + int(self.numberViewsAverage.get() / 2) + 1):
                 paramsImageOperate = {
-                    'i1': str(index + i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
+                    'i1': str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
                     'i2': str(a + 1) + "@" + outputFilePath,
                     'out': str(a + 1) + "@" + outputFilePath,
 
