@@ -160,7 +160,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
         """Generate 3D coordinates metadata"""
-        sots_soc = self.inputSetOfCoordinates.get().getTiltSeries()
+        sots_soc = self.inputSetOfCoordinates.get().getSetOfTiltSeries()
         ts_soc = sots_soc.getTiltSeriesFromTsId(tsId)
 
         xDim, yDim, _ = ts_soc.getFirstItem().getDimensions()
