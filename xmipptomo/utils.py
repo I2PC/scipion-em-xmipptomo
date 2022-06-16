@@ -59,7 +59,7 @@ def calculateRotationAngleFromTM(ti):
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
+    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
 
     return rotationAngle
 
@@ -82,6 +82,25 @@ def writeXmippMetadataTiltAngleList(ts, angleFilePath):
     with open(angleFilePath, 'w') as f:
         f.write(header)
         f.writelines("%s\n" % angle for angle in angleList)
+
+
+def readXmdStatisticsFile(fnmd):
+    x_pos = []
+    y_pos = []
+    z_pos = []
+    avg = []
+    std = []
+
+    table = emtable.Table(fileName=fnmd)
+
+    for row in table.iterRows(fileName='noname@'+fnmd):
+        avg.append(row.get('avg'))
+        std.append(row.get('stddev'))
+        x_pos.append(row.get('xcoor'))
+        y_pos.append(row.get('ycoor'))
+        z_pos.append(row.get('zcoor'))
+
+    return x_pos, y_pos, z_pos, avg, std
 
 
 def readXmippMetadataEnabledTiltImages(xmdPath):
@@ -186,7 +205,6 @@ def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, t
     return True
 
 
-
 def readResidualStatisticsXmdFile(xmdFilePath):
     """ This method takes the file path of a Xmipp metadata file (.xmd) and generates a dictionary with all the
     information associated to the residuals from each landmark model: convex hull area and perimeter, statistical
@@ -275,3 +293,4 @@ def calculateRotationAngleFromTM(ts):
     avgRotationAngle = avgRotationAngle / ts.getSize()
 
     return avgRotationAngle
+

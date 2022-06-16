@@ -164,10 +164,11 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                     nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
                     nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
                     # Compute inverse matrix
-                    A = subtomo.getTransform().getMatrix()
-                    subtomo.getTransform().setMatrix(np.linalg.inv(A))
+                    #A = subtomo.getTransform().getMatrix()
+                    #subtomo.getTransform().setMatrix(np.linalg.inv(A))
                     # Convert transform matrix to Euler Angles (rot, tilt, psi)
-                    alignmentToRow(subtomo.getTransform(), nRow, ALIGN_3D)
+                    from pwem import ALIGN_PROJ
+                    alignmentToRow(subtomo.getTransform(convention="xmipp"), nRow, ALIGN_PROJ)
                     nRow.addToMd(mdGeometry)
             fnGeometry = self._getExtraPath("geometry%d.xmd" % classId)
             mdGeometry.write(fnGeometry)
