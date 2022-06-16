@@ -59,7 +59,7 @@ def calculateRotationAngleFromTM(ti):
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
 
     return rotationAngle
 
@@ -277,7 +277,7 @@ def readResidualStatisticsXmdFile(xmdFilePath):
     return statisticsInfoTable
 
 
-def calculateRotationAngleFromTM(ts):
+def calculateAverageRotationAngleFromTM(ts):
     """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
     avgRotationAngle = 0
 

@@ -145,7 +145,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         # Use Xmipp interpolation via Scipion
         swap = False
         if firstItem.hasTransform():
-            avgRotAngle = utils.calculateRotationAngleFromTM(ts)
+            avgRotAngle = utils.calculateAverageRotationAngleFromTM(ts)
             swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
             outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())

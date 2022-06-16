@@ -138,10 +138,10 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
         extraPrefix = self._getExtraPath(str(tomoId))
         path.makePath(extraPrefix)
 
-        utils.writeOutputCoordinates3dXmdFile(self.inputCoordinates.get(),
-                                              os.path.join(self._getExtraPath(str(tomoId)),
-                                                           METADATA_INPUT_COORDINATES + XMD_EXT),
-                                              tomoId)
+        _ = utils.writeOutputCoordinates3dXmdFile(self.inputCoordinates.get(),
+                                                  os.path.join(self._getExtraPath(str(tomoId)),
+                                                               METADATA_INPUT_COORDINATES + XMD_EXT),
+                                                  tomoId)
 
     def calculatingStatisticsStep(self, tomId):
         """ Given a tomogram and a set of coordinates, a ball around is considered and
@@ -181,11 +181,14 @@ class XmippProtFilterCoordinatesByMap(EMProtocol, ProtTomoBase):
                 std_i = std[i]
 
                 if (self.filterOption == self.NO_FILTER) or \
-                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() > avg_i) or \
-                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() < avg_i) or \
-                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() > std_i) or \
-                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() < std_i):
-
+                        (
+                                not self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() > avg_i) or \
+                        (
+                                self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() < avg_i) or \
+                        (
+                                not self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() > std_i) or \
+                        (
+                                self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() < std_i):
                     # Fill metadata
                     mdRow = md.Row()
                     mdRow.setValue(emlib.MDL_IMAGE, tom_fn)

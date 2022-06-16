@@ -65,7 +65,7 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
         path.makePath(extraPrefix)
         outputTsFileName = os.path.join(extraPrefix, "%s.mrc" % tsId)
 
-        avgRotAngle = utils.calculateRotationAngleFromTM(ts)
+        avgRotAngle = utils.calculateAverageRotationAngleFromTM(ts)
         swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
         ts.applyTransform(outputTsFileName, swapXY=swap)
