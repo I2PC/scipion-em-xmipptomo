@@ -34,7 +34,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
-    XmippProtHalfMapsSubtomo
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -220,24 +220,19 @@ class TestXmipptomoMapback(BaseTest):
 
         return protImportTomogram, protPhantom
 
-    def _mapback(self):
+    def test_mapback(self):
         protImportTomogram, protPhantom = self._runPreviousProtocols()
         mapback = self.newProtocol(XmippProtSubtomoMapBack,
                                    selection=1,
                                    inputSubtomos=protPhantom.outputSubtomograms,
                                    inputRef=protPhantom,
-                                   inputTomograms=protImportTomogram.outputTomograms,
                                    removeBackground=True)
+
         mapback.inputRef.setExtended("outputSubtomograms.1")
         self.launchProtocol(mapback)
-        self.assertIsNotNone(mapback.outputTomograms,
-                             "There was a problem with tomograms output")
-        return mapback
 
-    def test_mapback(self):
-        mapback = self._mapback()
-        self.assertTrue(getattr(mapback, 'outputTomograms'))
-        return mapback
+        self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name),
+                             "There was a problem with tomograms output")
 
 
 class TestXmipptomoPhantom(BaseTest):
