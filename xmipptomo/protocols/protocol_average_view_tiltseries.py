@@ -27,14 +27,15 @@
 
 import os
 
+import numpy as np
+
 from pwem.emlib.image import ImageHandler
+from pwem.objects import Micrograph
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, StringParam, IntParam
 import pyworkflow.utils.path as path
-from pyworkflow.object import Set, List, String
-from pyworkflow.protocol.constants import STEPS_PARALLEL
+from pyworkflow.object import String
 from pwem.protocols import EMProtocol
-import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 
@@ -85,6 +86,9 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             self._insertFunctionStep(self.averageViews,
                                      tsObjId)
 
+            self._insertFunctionStep(self.createOutputStep,
+                                     tsObjId)
+
     # --------------------------- STEPS functions ----------------------------
 
     def convertInputStep(self, tsObjId):
@@ -129,6 +133,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         tiltAngleList = self.getTiltAngleList(ts)
 
         outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName())
+        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp"))
         avgAngleList = self.avgAngleList.get().split(',')
 
         ih = ImageHandler()
@@ -136,6 +141,11 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                             xDim=firstItem.getXDim(),
                             yDim=firstItem.getYDim(),
                             nDim=len(avgAngleList))
+
+        ih.createEmptyImage(fnOut=tmpTiltImage,
+                            xDim=firstItem.getXDim(),
+                            yDim=firstItem.getYDim(),
+                            nDim=1)
 
         for a, avgAngle in enumerate(avgAngleList):
             difference = 999
@@ -147,11 +157,22 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
             for i in range(index - int(self.numberViewsAverage.get() / 2),
                            index + int(self.numberViewsAverage.get() / 2) + 1):
+
+                t = np.array([[np.cos(np.radians(tiltAngleList[index]) - np.radians(tiltAngleList[i])), 0, 0],
+                              [0, 1, 0],
+                              [0, 0, 1]])
+
+                print(t.flatten())
+
+                ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
+                                  outputFile=tmpTiltImage,
+                                  transformMatrix=t.flatten(),
+                                  shape=(firstItem.getYDim(), firstItem.getXDim()))
+
                 paramsImageOperate = {
-                    'i1': str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
+                    'i1': tmpTiltImage,
                     'i2': str(a + 1) + "@" + outputFilePath,
                     'out': str(a + 1) + "@" + outputFilePath,
-
                 }
 
                 argsImageOperate = "-i %(i1)s " \
@@ -160,7 +181,36 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 self.runJob('xmipp_image_operate', argsImageOperate % paramsImageOperate)
 
+    def createOutputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
 
+        extraPrefix = self._getExtraPath(tsId)
+
+        firstItem = ts.getFirstItem()
+
+        avgAngleList = self.avgAngleList.get().split(',')
+
+        outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName())
+
+        setOfMicrographs = self._createSetOfMicrographs(suffix='_ts_average')
+
+        for a, _ in enumerate(avgAngleList):
+            tsAvg = Micrograph()
+
+            tsAvg.setLocation((a, outputFilePath))
+            tsAvg.setSamplingRate(firstItem.getSamplingRate())
+            tsAvg._tsId = String(tsId)
+
+            setOfMicrographs.append(tsAvg)
+
+        setOfMicrographs.copyInfo(ts)
+        setOfMicrographs.setSamplingRate(ts.getSamplingRate())
+
+        self._defineOutputs(tsAverage=setOfMicrographs)
+        self._defineSourceRelation(self.inputSetOfTiltSeries, setOfMicrographs)
+
+    # --------------------------- UTILS functions ----------------------------
     @staticmethod
     def getTiltAngleList(ts):
         angleList = []
@@ -169,3 +219,5 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             angleList.append(ti.getTiltAngle())
 
         return angleList
+
+    # --------------------------- INFO functions ----------------------------
