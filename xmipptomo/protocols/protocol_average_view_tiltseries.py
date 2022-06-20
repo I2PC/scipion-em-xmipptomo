@@ -132,15 +132,10 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         tiltAngleList = self.getTiltAngleList(ts)
 
-        outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName())
-        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp"))
+        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp", extension=".mrc"))
         avgAngleList = self.avgAngleList.get().split(',')
 
         ih = ImageHandler()
-        ih.createEmptyImage(fnOut=outputFilePath,
-                            xDim=firstItem.getXDim(),
-                            yDim=firstItem.getYDim(),
-                            nDim=len(avgAngleList))
 
         ih.createEmptyImage(fnOut=tmpTiltImage,
                             xDim=firstItem.getXDim(),
@@ -155,6 +150,13 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                     difference = abs(float(avgAngle) - angle)
                     index = i
 
+            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + str(a), extension=".mrc"))
+
+            ih.createEmptyImage(fnOut=outputFilePath,
+                                xDim=firstItem.getXDim(),
+                                yDim=firstItem.getYDim(),
+                                nDim=1)
+
             for i in range(index - int(self.numberViewsAverage.get() / 2),
                            index + int(self.numberViewsAverage.get() / 2) + 1):
 
@@ -162,17 +164,15 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                               [0, 1, 0],
                               [0, 0, 1]])
 
-                print(t.flatten())
-
                 ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
-                                  outputFile=tmpTiltImage,
+                                  outputFile=str(1) + "@" + tmpTiltImage,
                                   transformMatrix=t.flatten(),
                                   shape=(firstItem.getYDim(), firstItem.getXDim()))
 
                 paramsImageOperate = {
-                    'i1': tmpTiltImage,
-                    'i2': str(a + 1) + "@" + outputFilePath,
-                    'out': str(a + 1) + "@" + outputFilePath,
+                    'i1': str(1) + "@" + tmpTiltImage,
+                    'i2': str(1) + "@" + outputFilePath,
+                    'out': str(1) + "@" + outputFilePath,
                 }
 
                 argsImageOperate = "-i %(i1)s " \
@@ -191,14 +191,14 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         avgAngleList = self.avgAngleList.get().split(',')
 
-        outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName())
-
         setOfMicrographs = self._createSetOfMicrographs(suffix='_ts_average')
 
         for a, _ in enumerate(avgAngleList):
             tsAvg = Micrograph()
 
-            tsAvg.setLocation((a, outputFilePath))
+            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_"+str(a), extension=".mrc"))
+
+            tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
             tsAvg._tsId = String(tsId)
 
