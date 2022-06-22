@@ -70,10 +70,39 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions ----------------------------
 
     def convertInputStep(self):
-        print(self.inputSetOfCoordinates.get().getMicrographs())
-        for c in self.inputSetOfCoordinates.get():
-            print(c)
-            print(c.getMicId())
+        for tsId in self.getTsIdList():
+            extraPrefix = self._getExtraPath(tsId)
+            tmpPrefix = self._getTmpPath(tsId)
+
+            path.makePath(tmpPrefix)
+            path.makePath(extraPrefix)
+
+        # Write coordinates info .xmd files
+        for m in self.inputSetOfCoordinates.get().iterMicrographs():
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print(m)
+            print(m.getObjId())
+            print(m._tsId.get())
+            print(m._avgAngle.get())
+
+            mObjId = m.getObjId()
+
+            coordList = []
+
+            for c in self.inputSetOfCoordinates.get():
+                if c.getMicId() == mObjId:  # We are doing this because interating sets in scipion is horrible and exasperating
+                    coordList.append([c.getObjId(), c.getX(), c.getY()])
+
+            tsId = m._tsId.get()
+            avgAngle = m._avgAngle.get()
+
+            extraPrefix = self._getExtraPath(tsId)
+            outputFilePath = os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId, avgAngle))
+
+            print(outputFilePath)
+
+            self.writeMicCoordinates(mObjId, coordList, outputFilePath)
+
         # """ Read the input metadatata. """
         # # Get the converted input micrographs in Xmipp format
         # makePath(self._getExtraPath("untilted"))
@@ -102,7 +131,6 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
         # writeSetOfCoordinates(self._getExtraPath("untilted"), uCoords)
         # writeSetOfCoordinates(self._getExtraPath("tilted"), tCoords)
 
-
     def assignmentStep(self, fnuntilt, fntilt, fnmicsize, fnposUntilt, fnposTilt):
         params = ' --untiltcoor %s' % fnuntilt
         params += ' --tiltcoor %s' % fntilt
@@ -118,3 +146,61 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
         params += ' --tilted %s' % fnposTilt
         params += ' -o %s' % self._getPath('input_micrographs.xmd')
         self.runJob('xmipp_angular_estimate_tilt_axis', params)
+
+    # --------------------------- UTILS functions ----------------------------
+    def getTsIdList(self):
+        tsIdList = []
+
+        for m in self.inputSetOfCoordinates.get().getMicrographs():
+            tsIdList.append(m._tsId.get())
+
+        # Remove tsId duplicated in list
+        tsIdList = list(dict.fromkeys(tsIdList))
+
+        return tsIdList
+
+    def writeMicCoordinates(self, micObjId, coordList, outputFn, isManual=True):
+        """ Write the pos file as expected by Xmipp with the coordinates
+        of a given micrograph.
+        Params:
+            mic: input micrograph.
+            coordList: list of (x, y) coordinates.
+            outputFn: output filename for the pos file .
+            isManual: if the coordinates are 'Manual' or 'Supervised'
+            getPosFunc: a function to get the positions from the coordinate,
+                it can be useful for scaling the coordinates if needed.
+        """
+        state = 'Manual' if isManual else 'Supervised'
+        f = self.openMd(outputFn, state)
+
+        for coord in coordList:
+            coordObjId = coord[0]
+            x = coord[1]
+            y = coord[2]
+            f.write(" %06d   1   %d  %d  %d   %06d \n"
+                    % (coordObjId, x, y, 1, micObjId))
+
+        f.close()
+
+    def openMd(self, fn, state='Manual'):
+        # We are going to write metadata directy to file to do it faster
+        f = open(fn, 'w')
+        ismanual = state == 'Manual'
+        block = 'data_particles' if ismanual else 'data_particles_auto'
+        s = """# XMIPP_STAR_1 *
+#
+data_header
+loop_
+ _pickingMicrographState
+%s
+%s
+loop_
+ _itemId
+ _enabled
+ _xcoor
+ _ycoor
+ _cost
+ _micrographId
+    """ % (state, block)
+        f.write(s)
+        return f
