@@ -34,7 +34,7 @@ from pwem.objects import Micrograph
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, StringParam, IntParam
 import pyworkflow.utils.path as path
-from pyworkflow.object import String
+from pyworkflow.object import String, Float
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
@@ -193,7 +193,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         setOfMicrographs = self._createSetOfMicrographs(suffix='_ts_average')
 
-        for a, _ in enumerate(avgAngleList):
+        for a, angle in enumerate(avgAngleList):
             tsAvg = Micrograph()
 
             outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_"+str(a), extension=".mrc"))
@@ -201,6 +201,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
             tsAvg._tsId = String(tsId)
+            tsAvg._avgAngle = Float(angle)
 
             setOfMicrographs.append(tsAvg)
 
