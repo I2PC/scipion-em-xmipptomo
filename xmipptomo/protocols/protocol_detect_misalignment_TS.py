@@ -107,6 +107,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         self.alignmentReport = List([])
+        self.alignmentReport.clear()
 
         allcossId = []
 
@@ -289,6 +290,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- UTILS functions ----------------------------
     def generateAlignmentReportDictionary(self, enableInfoList, tsId):
+        self.alignmentReport.clear()
+        self.alignmentReport = List([])
+
         globalMisalignment = True
         aligned = True
 
