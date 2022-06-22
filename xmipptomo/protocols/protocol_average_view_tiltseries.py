@@ -150,7 +150,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                     difference = abs(float(avgAngle) - angle)
                     index = i
 
-            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + str(a), extension=".mrc"))
+            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(), extension=".mrc"))
 
             ih.createEmptyImage(fnOut=outputFilePath,
                                 xDim=firstItem.getXDim(),
@@ -196,7 +196,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         for a, angle in enumerate(avgAngleList):
             tsAvg = Micrograph()
 
-            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_"+str(a), extension=".mrc"))
+            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_"+angle.strip(), extension=".mrc"))
 
             tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
