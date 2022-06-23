@@ -27,17 +27,11 @@
 
 import os
 
-import numpy as np
-
-from pwem.emlib.image import ImageHandler
-from pwem.objects import Micrograph
 from pyworkflow import BETA
-from pyworkflow.protocol.params import PointerParam, StringParam, IntParam
+from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils.path as path
-from pyworkflow.object import String
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-import xmipptomo.utils as utils
 
 
 class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
@@ -66,6 +60,7 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.assignTiltPairs)
 
     # --------------------------- STEPS functions ----------------------------
 
@@ -96,58 +91,55 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             tsId = m._tsId.get()
             avgAngle = m._avgAngle.get()
 
-            extraPrefix = self._getExtraPath(tsId)
-            outputFilePath = os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId, avgAngle))
+            tmpPrefix = self._getTmpPath(tsId)
+            outputFilePath = os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, avgAngle))
 
             print(outputFilePath)
 
             self.writeMicCoordinates(mObjId, coordList, outputFilePath)
 
-        # """ Read the input metadatata. """
-        # # Get the converted input micrographs in Xmipp format
-        # makePath(self._getExtraPath("untilted"))
-        # makePath(self._getExtraPath("tilted"))
-        #
-        # uSet = self.untiltedSet.get()
-        # tSet = self.tiltedSet.get()
-        #
-        # # Get the untilted and tilted coordinates, depending on the input type
-        # if isinstance(uSet, SetOfParticles):
-        #     uCoords = uSet.getCoordinates()
-        #     tCoords = tSet.getCoordinates()
-        #
-        #     # If there are not Coordinates associated to particles
-        #     # we need to create and fill the set of coordinates
-        #     if uCoords is None or tCoords is None:
-        #         micTiltedPairs = self.inputMicrographsTiltedPair.get()
-        #         uCoords = self._coordsFromParts(micTiltedPairs.getUntilted(),
-        #                                         uSet, '_untilted')
-        #         tCoords = self._coordsFromParts(micTiltedPairs.getTilted(),
-        #                                         tSet, '_tilted')
-        # else:
-        #     uCoords = uSet
-        #     tCoords = tSet
-        #
-        # writeSetOfCoordinates(self._getExtraPath("untilted"), uCoords)
-        # writeSetOfCoordinates(self._getExtraPath("tilted"), tCoords)
+    def assignTiltPairs(self):
 
-    def assignmentStep(self, fnuntilt, fntilt, fnmicsize, fnposUntilt, fnposTilt):
-        params = ' --untiltcoor %s' % fnuntilt
-        params += ' --tiltcoor %s' % fntilt
-        params += ' --tiltmicsize %s' % fnmicsize
-        params += ' --maxshift %f' % self.maxShift
-        params += ' --particlesize %d' % self._getBoxSize()
-        params += ' --threshold %f' % self.threshold
-        params += ' --odir %s' % self._getExtraPath()
-        self.runJob('xmipp_image_assignment_tilt_pair', params)
+        for m in self.inputSetOfCoordinates.get().iterMicrographs():
+            tsId = m._tsId.get()
 
-        # Estimate the tilt axis
-        params = ' --untilted %s' % fnposUntilt
-        params += ' --tilted %s' % fnposTilt
-        params += ' -o %s' % self._getPath('input_micrographs.xmd')
-        self.runJob('xmipp_angular_estimate_tilt_axis', params)
+            tmpPrefix = self._getTmpPath(tsId)
+            extraPrefix = self._getExtraPath(tsId)
+
+            # Tilt pair particles
+            fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, -15.0))
+            fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, 15.0))
+            fnmicsize = m.getFileName()
+            maxShift = 50
+            threshold = 0.25
+            odir = extraPrefix
+
+            params = ' --untiltcoor %s' % fnuntilt
+            params += ' --tiltcoor %s' % fntilt
+            params += ' --tiltmicsize %s' % fnmicsize
+            params += ' --maxshift %f' % maxShift
+            params += ' --particlesize %d' % self.getBoxSize()
+            params += ' --threshold %f' % threshold
+            params += ' --odir %s' % odir
+            self.runJob('xmipp_image_assignment_tilt_pair', params)
+
+            # Estimate the tilt axis
+            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
+            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
+            fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
+
+            params = ' --untilted %s' % fnposUntilt
+            params += ' --tilted %s' % fnposTilt
+            params += ' -o %s' % fnO
+            self.runJob('xmipp_angular_estimate_tilt_axis', params)
+
+            break
+
 
     # --------------------------- UTILS functions ----------------------------
+    def getBoxSize(self):
+        return self.inputSetOfCoordinates.get().getBoxSize()
+
     def getTsIdList(self):
         tsIdList = []
 
