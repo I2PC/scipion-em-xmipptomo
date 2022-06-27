@@ -35,6 +35,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
     XmippProtHalfMapsSubtomo, XmippProtPhantomTomo
+from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -235,7 +236,7 @@ class TestXmipptomoMapback(BaseTest):
                              "There was a problem with tomograms output")
 
 
-class TestXmipptomoPhantom(BaseTest):
+class TestXmippSubtomoPhantom(BaseTest):
     """This class check if the protocol create phantom subtomo works properly."""
 
     @classmethod
@@ -270,6 +271,31 @@ class TestXmipptomoPhantom(BaseTest):
         self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 60)
         self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMin(), -60)
         return phantomMW
+
+
+class TestXmippTomoPhantom(BaseTest):
+    """This class check if the protocol create phantom tomograms works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+
+    def test_phantom(self):
+
+        phantom = self.newProtocol(XmippProtPhantomTomo,
+                                   ntomos=2,
+                                   nparticles=10)
+        self.launchProtocol(phantom)
+        tomograms = getattr(phantom, OutputPhantomTomos.tomograms.name)
+        self.assertSetSize(tomograms, 2, "There was a problem with subtomograms output")
+
+        self.assertIsNotNone(tomograms.getAcquisition().getMagnification(), "Acquisition magnification not populated properly")
+
+        coordinates = getattr(phantom, OutputPhantomTomos.coordinates3D.name)
+        self.assertSetSize(coordinates, 20, "There was a problem with subtomograms output")
+
+        return phantom
 
 
 class XmippTomoScoreCoordinates(BaseTest):
