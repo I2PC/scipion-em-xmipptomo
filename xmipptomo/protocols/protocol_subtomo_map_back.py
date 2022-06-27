@@ -191,7 +191,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         return self.inputTomograms.get() is not None
 
     def getInputSetOfTomograms(self):
-        """ Returns the set of tomograms form the input"""
+        """ Returns the set of tomograms from the input"""
 
         if self.useOtherSetOfTomograms():
             return self.inputTomograms.get()
@@ -204,7 +204,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             return input.getPrecedents()
 
     def _getInput(self):
-        """ Returns the iterator on the input set that could be on classes, subtomograms ot coordinates"""
+        """ Returns the iterator on the input set that could be on classes, subtomograms or coordinates"""
         if self._useClasses():
             return self.inputClasses.get().getFirstItem()
         else:
@@ -223,7 +223,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         return isinstance(self.inputSubtomos.get(), SetOfSubTomograms)
 
     def _isInputASetOfCoordinates(self):
-        """ Returns true if the input is a set of subtomograms"""
+        """ Returns true if the input is a set of coordinates"""
         return isinstance(self.inputSubtomos.get(), SetOfCoordinates3D)
 
     def getTomogram(self, tsId):
