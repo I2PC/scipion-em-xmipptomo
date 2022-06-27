@@ -51,11 +51,11 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParam('inputSetOfVolumes',
+        form.addParam('inputSetOfTomograms',
                       params.PointerParam,
-                      pointerClass='SetOfVolumes',
+                      pointerClass='SetOfTomograms',
                       important=True,
-                      label='Input set of volumnes',
+                      label='Input set of tomograms',
                       help='Select a set of volumes to peak high contrast regions.')
 
         form.addParam('boxSize',
@@ -119,7 +119,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-        for vol in self.inputSetOfVolumes.get():
+        for vol in self.inputSetOfTomograms.get():
             peakId = self._insertFunctionStep('peakHighContrastStep',
                                               vol.getObjId(),
                                               prerequisites=[])
@@ -132,7 +132,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEP functions --------------------------------
     def peakHighContrastStep(self, volId):
-        vol = self.inputSetOfVolumes.get()[volId]
+        vol = self.inputSetOfTomograms.get()[volId]
 
         inputFilePath = vol.getFileName()
         outputFileName = os.path.splitext(os.path.split(inputFilePath)[1])[0] + ".xmd"
@@ -148,7 +148,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'numberCenterOfMass': self.numberCenterOfMass.get(),
             'distanceThr': self.distanceThr.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
-            'samplingRate': self.inputSetOfVolumes.get().getSamplingRate(),
+            'samplingRate': self.inputSetOfTomograms.get().getSamplingRate(),
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
@@ -162,13 +162,13 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
 
-        if(self.centerFeatures.get()):
+        if self.centerFeatures.get():
             argsPeakHighContrast += "--centerFeatures "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
     def createOutputStep(self, volId):
-        vol = self.inputSetOfVolumes.get()[volId]
+        vol = self.inputSetOfTomograms.get()[volId]
         volObjId = vol.getObjId()
 
         volFileName = vol.getFileName()
@@ -203,14 +203,14 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         if hasattr(self, "outputSetOfCoordinates3D"):
             self.outputSetOfCoordinates3D.enableAppend()
         else:
-            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.inputSetOfVolumes.get(),
+            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.inputSetOfTomograms.get(),
                                                                       suffix='')
-            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfVolumes.get().getSamplingRate())
-            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfVolumes)
+            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfTomograms.get().getSamplingRate())
+            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfTomograms)
             outputSetOfCoordinates3D.setBoxSize(self.boxSize.get())
             outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
-            self._defineSourceRelation(self.inputSetOfVolumes, outputSetOfCoordinates3D)
+            self._defineSourceRelation(self.inputSetOfTomograms, outputSetOfCoordinates3D)
         return self.outputSetOfCoordinates3D
 
     # --------------------------- INFO functions ----------------------------
@@ -218,7 +218,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         summary = []
         if hasattr(self, 'outputSetOfCoordinates3D'):
             summary.append("High contrast features found in %d volumes: %d."
-                           % (self.inputSetOfVolumes.get().getSize(),
+                           % (self.inputSetOfTomograms.get().getSize(),
                               self.outputSetOfCoordinates3D.getSize()))
 
         else:
@@ -230,7 +230,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         if hasattr(self, 'outputSetOfCoordinates3D'):
             methods.append("%d high contrast features have been found in %d volumes."
                            % (self.outputSetOfCoordinates3D.getSize(),
-                              self.inputSetOfVolumes.get().getSize()))
+                              self.inputSetOfTomograms.get().getSize()))
 
         else:
             methods.append("Output classes not ready yet.")
