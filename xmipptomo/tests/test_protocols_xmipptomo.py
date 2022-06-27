@@ -232,7 +232,7 @@ class TestXmipptomoMapback(BaseTest):
         mapback.inputRef.setExtended("outputSubtomograms.1")
         self.launchProtocol(mapback)
 
-        self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name),
+        self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name), 1,
                              "There was a problem with tomograms output")
 
 
