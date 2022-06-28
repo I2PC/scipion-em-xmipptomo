@@ -24,15 +24,20 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import enum
+
 import numpy as np
 from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
-from pwem.objects import Particle, Volume, Coordinate, Transform, String
+from pwem.objects import Particle, Volume, Transform, String, SetOfVolumes, SetOfParticles
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
-from tomo.objects import SubTomogram
-import tomo.constants as const
+from tomo.objects import SetOfSubTomograms
+
+class SubtomoProjectOutput(enum.Enum):
+    particles = SetOfParticles
+    average = Particle
 
 class XmippProtSubtomoProject(ProtAnalysis3D):
     """
@@ -40,11 +45,12 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     """
     _label = 'subtomo projection'
     _devStatus = BETA
+    _possibleOutputs = SubtomoProjectOutput
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='General parameters')
-        form.addParam('input', PointerParam, pointerClass="SetOfSubTomograms, SetOfVolumes",
+        form.addParam('input', PointerParam, pointerClass=[SetOfSubTomograms, SetOfVolumes],
                       label='Input Volumes', help='This protocol can *not* work with .em files *if* the input is a set'
                                                   ' of tomograms or a set of volumes, ')
         form.addParam('radAvg', BooleanParam, default=False, label='Compute radial average?',
@@ -75,7 +81,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         fnProj = self._getExtraPath("projections.mrcs")
         lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
 
-        for i, subtomo in enumerate(input.iterItems()):
+        for subtomo in input.iterItems():
             fn = subtomo.getLocation()
             if fn[1].endswith('.mrc'):
                 fn = list(fn)
@@ -111,33 +117,30 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                             proj[xi, yi] = np.sum(volData[:, yi, xi])
                 img.setData(proj)
 
-            img.write('%d@%s' % (i+1, fnProj))
+            img.write('%d@%s' % (subtomo.getObjId(), fnProj))
 
     def createOutputStep(self):
         input = self.input.get()
         imgSetOut = self._createSetOfParticles()
         imgSetOut.setSamplingRate(input.getSamplingRate())
         imgSetOut.setAlignmentProj()
-        for i, subtomo in enumerate(input.iterItems()):
-            idx = subtomo.getObjId()
+
+        # Input could be SetOfVolumes or SetOfSubtomograms
+        for item in input.iterItems():
+            idx = item.getObjId()
             p = Particle()
-            p.setLocation(ih._convertToLocation((i+1, self._getExtraPath("projections.mrcs"))))
+            p.setLocation(ih._convertToLocation((idx, self._getExtraPath("projections.mrcs"))))
             p._subtomogramID = String(idx)
-            if type(subtomo) == SubTomogram:
-                if subtomo.hasCoordinate3D():
-                    coord = Coordinate()
-                    coord.setX(subtomo.getCoordinate3D().getX(const.BOTTOM_LEFT_CORNER))
-                    coord.setY(subtomo.getCoordinate3D().getY(const.BOTTOM_LEFT_CORNER))
-                    p.setCoordinate(coord)
-                p.setClassId(subtomo.getClassId())
-            if subtomo.hasTransform():
+
+            if item.hasTransform():
                 transform = Transform()
-                transform.setMatrix(subtomo.getTransform().getMatrix())
+                transform.setMatrix(item.getTransform().getMatrix())
                 p.setTransform(transform)
             imgSetOut.append(p)
 
         imgSetOut.setObjComment(self.getSummary(imgSetOut))
-        self._defineOutputs(outputParticles=imgSetOut)
+
+        self._defineOutputs(**{SubtomoProjectOutput.particles.name:imgSetOut})
         self._defineSourceRelation(self.input, imgSetOut)
 
         if self.radAvg.get():
@@ -148,7 +151,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             avg = Particle()
             avg.setLocation(1, avgFile)
             avg.copyInfo(imgSetOut)
-            self._defineOutputs(outputAverage=avg)
+            self._defineOutputs(**{SubtomoProjectOutput.average.name:avg})
             self._defineSourceRelation(self.input, avg)
 
     # --------------------------- INFO functions ------------------------------
