@@ -99,6 +99,16 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         self.tomoSet = self._createSetOfTomograms(self._getOutputSuffix(SetOfTomograms))
         self.tomoSet.setSamplingRate(self.sampling.get())
 
+        # Hard coded Acquisition
+        acq = TomoAcquisition(angleMin=-60, angleMax=60, step=3,
+                              angleAxis1=90, angleAxis2=None,
+                              accumDose=0, tiltAxisAngle=90,
+                              voltage=300, amplitudeContrast= 0.1,
+                              sphericalAberration=2.0, magnification=20000,
+                              doseInitial=0, dosePerFrame=1
+                              )
+        self.tomoSet.setAcquisition(acq)
+
         # Create the set of coordinates
         self.coords = self._createSetOfCoordinates3D(self.tomoSet)
         self.coords.setSamplingRate(self.sampling.get())

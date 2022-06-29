@@ -240,6 +240,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         self.createOutputSet(dim)
         self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnVol)
 
+        self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
+        self.outputSet.setDim(dim)
+        self.outputSet.setSamplingRate(self.sampling.get())
+        self._store(self.outputSet)
 
     def createPhantomFromVolume(self):
         fnVol = self._getExtraPath("phantom000.mrc")
@@ -261,11 +265,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     def definingOrientationsAndRegisteringInformation(self, dim, mwangle, fnVol):
         self.createOutputSet(dim)
         tomo = None
-        coordsBool = self.coords.get()
+        coordsBool = self.generateCoordinates()
         if coordsBool:
             tomos = self.tomos.get()
             tomo = tomos.getFirstItem()
-            self.coords = self._createSetOfCoordinates3D(tomos)
+
+            tomoDim = tomo.getDim()
+            self.coordsSet = self._createSetOfCoordinates3D(tomos)
+            self._store(self.coordsSet)
 
         # Create acquisition
         acq = TomoAcquisition()
@@ -297,7 +304,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             self._addSubtomogram(tomo, acq, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ)
 
         if coordsBool:
-            self.outputSet.setCoordinates3D(self.coords)
+            self.outputSet.setCoordinates3D(self.coordsSet)
 
 
     def createOutputSet(self, dim):
@@ -341,23 +348,29 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     def _addCoordinate(self, subtomo, tomo):
         """ Adds a Coordinate3D (if apply) to the coordinate set and fills the subtomogram with the coordinate"""
 
-        if self.coords.get():
+        if self.generateCoordinates():
+            self.debug("Adding a coordinate to subtomo %s" % subtomo)
             coor = Coordinate3D()
             coor.setVolume(tomo)
+            tomoDim = tomo.getDim()
             coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
             coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
             coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
-            subtomobase.setCoordinate3D(coor)
-            subtomobase.setVolName(tomo.getFileName())
-            self.coords.append(coor)
-            self.coords.setBoxSize(subtomobase.getDim()[0])
+            self.coordsSet.append(coor)
+            self.coordsSet.setBoxSize(subtomo.getDim()[0])
+
+            subtomo.setCoordinate3D(coor)
+            subtomo.setVolName(tomo.getFileName())
+
+    def generateCoordinates(self):
+        return self.coords.get()
 
     def createOutputStep(self):
         self._defineOutputs(outputSubtomograms=self.outputSet)
         if self.option.get() == 0 or self.option.get() == 1:
             self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
-        if self.coords.get():
-            self._defineOutputs(outputCoord=self.coords)
+        if self.generateCoordinates():
+            self._defineOutputs(outputCoord=self.coordsSet)
             self._defineSourceRelation(self.tomos.get(), self.outputSet)
 
 

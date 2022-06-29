@@ -34,7 +34,9 @@ from tomo.protocols import (ProtImportCoordinates3D,
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
-    XmippProtHalfMapsSubtomo
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo
+from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
+from xmipptomo.protocols.protocol_project_top import SubtomoProjectOutput
 
 
 class TestXmipptomoProtCC(BaseTest):
@@ -79,26 +81,31 @@ class TestXmipptomoProtCC(BaseTest):
 class TestXmipptomoProtProjectZ(BaseTest):
     """This class check if the protocol project top works properly."""
 
+    importProt = None
+
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
         cls.dataset = DataSet.getDataSet('tomo-em')
         cls.setOfSubtomograms = cls.dataset.getFile('basename.hdf')
 
-    def _runPreviousProtocols(self):
-        protImport = self.newProtocol(ProtImportSubTomograms,
-                                      filesPath=self.setOfSubtomograms,
+    @classmethod
+    def _runPreviousProtocols(cls):
+        if cls.importProt is None:
+            protImport = cls.newProtocol(ProtImportSubTomograms,
+                                      filesPath=cls.setOfSubtomograms,
                                       samplingRate=5)
-        self.launchProtocol(protImport)
-        return protImport
+            cls.launchProtocol(protImport)
+            cls.importProt = protImport
+        return cls.importProt
 
     def _createProjZ(self):
         protImport = self._runPreviousProtocols()
         proj = self.newProtocol(XmippProtSubtomoProject,
                                 input=protImport.outputSubTomograms)
         self.launchProtocol(proj)
-        self.assertIsNotNone(proj.outputParticles,
-                             "There was a problem with particles output")
+        output = getattr(proj, SubtomoProjectOutput.particles.name)
+        self.assertSetSize(output, 4,"There was a problem with particles output")
         return proj
 
     def _createProjY(self):
@@ -107,8 +114,9 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 input=protImport.outputSubTomograms,
                                 dirParam=1)
         self.launchProtocol(proj)
-        self.assertIsNotNone(proj.outputParticles,
-                             "There was a problem with particles output")
+
+        output = getattr(proj, SubtomoProjectOutput.particles.name)
+        self.assertSetSize(output, 4,"There was a problem with particles output")
         return proj
 
     def _createProjZ_range(self):
@@ -118,8 +126,8 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 rangeParam=1,
                                 cropParam=20)
         self.launchProtocol(proj)
-        self.assertIsNotNone(proj.outputParticles,
-                             "There was a problem with particles output")
+        output = getattr(proj, SubtomoProjectOutput.particles.name)
+        self.assertSetSize(output,4, "There was a problem with particles output")
         return proj
 
     def _createRadAvgZ(self):
@@ -128,33 +136,21 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 input=protImport.outputSubTomograms,
                                 radAvg=True)
         self.launchProtocol(proj)
-        self.assertIsNotNone(proj.outputParticles,
-                             "There was a problem with particles output")
+        output = getattr(proj, SubtomoProjectOutput.particles.name)
+        self.assertSetSize(output,4, "There was a problem with particles output")
         return proj
 
     def test_top(self):
-        projection = self._createProjZ()
-        outputParticles = getattr(projection, 'outputParticles')
-        self.assertTrue(outputParticles)
-        return projection
+        self._createProjZ()
 
     def test_y(self):
-        projection = self._createProjY()
-        outputParticles = getattr(projection, 'outputParticles')
-        self.assertTrue(outputParticles)
-        return projection
+        self._createProjY()
 
     def test_top_range(self):
-        projection = self._createProjZ_range()
-        outputParticles = getattr(projection, 'outputParticles')
-        self.assertTrue(outputParticles)
-        return projection
+        self._createProjZ_range()
 
     def test_top_radAvg(self):
-        projection = self._createRadAvgZ()
-        outputParticles = getattr(projection, 'outputParticles')
-        self.assertTrue(outputParticles)
-        return projection
+        self._createRadAvgZ()
 
 
 class TestXmipptomoApplyTransf(BaseTest):
@@ -220,27 +216,22 @@ class TestXmipptomoMapback(BaseTest):
 
         return protImportTomogram, protPhantom
 
-    def _mapback(self):
+    def test_mapback(self):
         protImportTomogram, protPhantom = self._runPreviousProtocols()
         mapback = self.newProtocol(XmippProtSubtomoMapBack,
                                    selection=1,
                                    inputSubtomos=protPhantom.outputSubtomograms,
                                    inputRef=protPhantom,
-                                   inputTomograms=protImportTomogram.outputTomograms,
                                    removeBackground=True)
+
         mapback.inputRef.setExtended("outputSubtomograms.1")
         self.launchProtocol(mapback)
-        self.assertIsNotNone(mapback.outputTomograms,
+
+        self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name), 1,
                              "There was a problem with tomograms output")
-        return mapback
-
-    def test_mapback(self):
-        mapback = self._mapback()
-        self.assertTrue(getattr(mapback, 'outputTomograms'))
-        return mapback
 
 
-class TestXmipptomoPhantom(BaseTest):
+class TestXmippSubtomoPhantom(BaseTest):
     """This class check if the protocol create phantom subtomo works properly."""
 
     @classmethod
@@ -275,6 +266,31 @@ class TestXmipptomoPhantom(BaseTest):
         self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 60)
         self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMin(), -60)
         return phantomMW
+
+
+class TestXmippTomoPhantom(BaseTest):
+    """This class check if the protocol create phantom tomograms works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+
+    def test_phantom(self):
+
+        phantom = self.newProtocol(XmippProtPhantomTomo,
+                                   ntomos=2,
+                                   nparticles=10)
+        self.launchProtocol(phantom)
+        tomograms = getattr(phantom, OutputPhantomTomos.tomograms.name)
+        self.assertSetSize(tomograms, 2, "There was a problem with subtomograms output")
+
+        self.assertIsNotNone(tomograms.getAcquisition().getMagnification(), "Acquisition magnification not populated properly")
+
+        coordinates = getattr(phantom, OutputPhantomTomos.coordinates3D.name)
+        self.assertSetSize(coordinates, 20, "There was a problem with subtomograms output")
+
+        return phantom
 
 
 class XmippTomoScoreCoordinates(BaseTest):
