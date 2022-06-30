@@ -137,11 +137,6 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         ih = ImageHandler()
 
-        ih.createEmptyImage(fnOut=tmpTiltImage,
-                            xDim=firstItem.getXDim(),
-                            yDim=firstItem.getYDim(),
-                            nDim=1)
-
         for a, avgAngle in enumerate(avgAngleList):
             difference = 999
 
@@ -150,19 +145,26 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                     difference = abs(float(avgAngle) - angle)
                     index = i
 
-            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(), extension=".mrc"))
+            outputFilePathTmp = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+                                                                                extension=".mrc"))
+            outputFilePathExtra = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+                                                                                    extension=".mrc"))
 
-            ih.createEmptyImage(fnOut=outputFilePath,
+            ih.createEmptyImage(fnOut=outputFilePathTmp,
                                 xDim=firstItem.getXDim(),
                                 yDim=firstItem.getYDim(),
                                 nDim=1)
 
             for i in range(index - int(self.numberViewsAverage.get() / 2),
                            index + int(self.numberViewsAverage.get() / 2) + 1):
-
                 t = np.array([[np.cos(np.radians(tiltAngleList[index]) - np.radians(tiltAngleList[i])), 0, 0],
                               [0, 1, 0],
                               [0, 0, 1]])
+
+                ih.createEmptyImage(fnOut=tmpTiltImage,
+                                    xDim=firstItem.getXDim(),
+                                    yDim=firstItem.getYDim(),
+                                    nDim=1)
 
                 ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
                                   outputFile=str(1) + "@" + tmpTiltImage,
@@ -171,8 +173,8 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 paramsImageOperate = {
                     'i1': str(1) + "@" + tmpTiltImage,
-                    'i2': str(1) + "@" + outputFilePath,
-                    'out': str(1) + "@" + outputFilePath,
+                    'i2': str(1) + "@" + outputFilePathTmp,
+                    'out': str(1) + "@" + outputFilePathTmp,
                 }
 
                 argsImageOperate = "-i %(i1)s " \
@@ -180,6 +182,19 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                                    "-o %(out)s "
 
                 self.runJob('xmipp_image_operate', argsImageOperate % paramsImageOperate)
+
+            for i in range(len(avgAngleList)):
+                paramsTransformFilter = {
+                    'i': outputFilePathTmp,
+                    'out': outputFilePathExtra,
+                    'std': 5,
+                }
+
+                argsTransformFilter = "-i %(i)s " \
+                                      "-o %(out)s " \
+                                      "--fourier real_gaussian %(std)d"
+
+                self.runJob('xmipp_transform_filter', argsTransformFilter % paramsTransformFilter)
 
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -196,7 +211,8 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         for a, angle in enumerate(avgAngleList):
             tsAvg = Micrograph()
 
-            outputFilePath = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_"+angle.strip(), extension=".mrc"))
+            outputFilePath = os.path.join(extraPrefix,
+                                          firstItem.parseFileName(suffix="_" + angle.strip(), extension=".mrc"))
 
             tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
