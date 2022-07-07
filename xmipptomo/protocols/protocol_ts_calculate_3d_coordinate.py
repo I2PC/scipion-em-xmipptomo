@@ -27,17 +27,23 @@
 
 import os
 
+import numpy as np
+
+from pwem import emlib
 from pyworkflow import BETA
+from pyworkflow.object import Set
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils.path as path
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
+import pwem.emlib.metadata as md
+from tomo.objects import SetOfTiltSeriesCoordinates, TiltSeriesCoordinate
 
 
 class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
     """
     Scipion protocol to calculate the 3D coordinate based on a set of 2D coordinates obtained from the tilt-series
-    using a SPA 2D picker.
+    using an SPA 2D picker.
     """
 
     _label = 'Tilt-series calculate coordinates 3D'
@@ -51,6 +57,12 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection('Input')
 
+        form.addParam('inputSetOfTiltSeries',
+                      PointerParam,
+                      pointerClass='SetOfTiltSeries',
+                      important=True,
+                      label='Input set of tilt-series associated to the coordinates')
+
         form.addParam('inputSetOfCoordinates',
                       PointerParam,
                       pointerClass='SetOfCoordinates',
@@ -61,6 +73,7 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.assignTiltPairs)
+        self._insertFunctionStep(self.calculateCoordinates3D)
 
     # --------------------------- STEPS functions ----------------------------
 
@@ -74,12 +87,6 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
 
         # Write coordinates info .xmd files
         for m in self.inputSetOfCoordinates.get().iterMicrographs():
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(m)
-            print(m.getObjId())
-            print(m._tsId.get())
-            print(m._avgAngle.get())
-
             mObjId = m.getObjId()
 
             coordList = []
@@ -133,11 +140,67 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             params += ' -o %s' % fnO
             self.runJob('xmipp_angular_estimate_tilt_axis', params)
 
-            break # Esto es para comprobar unicamente una pareja
-    #
-    # def calculateCoordinates3D:
+            break  # Esto es para comprobar unicamente una pareja
 
+    def calculateCoordinates3D(self):
+        for m in self.inputSetOfCoordinates.get().iterMicrographs():
+            tsId = m._tsId.get()
 
+            extraPrefix = self._getExtraPath(tsId)
+
+            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
+            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
+
+            mdCoor1 = md.MetaData()
+            mdCoor2 = md.MetaData()
+
+            mdCoor1.read(fnposUntilt)
+            mdCoor2.read(fnposTilt)
+
+            # *** calculate from sqlite
+            a1 = np.radians(-15)
+            a2 = np.radians(15)
+
+            self.getOutputSetOfTiltSeriesCoordinates()
+
+            print("check1")
+
+            for objId in mdCoor1:
+
+                print(objId)
+
+                x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId)
+                x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId)
+                y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId)
+                y2 = mdCoor2.getValue(emlib.MDL_YCOOR, objId)
+
+                # x1 = x*cos(a1)+z*sin(a1)
+                # x2 = x*cos(a2)+z*sin(a2)
+
+                m = np.matrix([[np.cos(a1), np.sin(a1)], [np.cos(a2), np.sin(a2)]])
+                m_inv = np.linalg.pinv(m)
+
+                x = m_inv[0, 0] * x1 + m_inv[0, 1] * x2
+                y = (y1 + y2) / 2
+                z = m_inv[1, 0] * x1 + m_inv[1, 1] * x2
+
+                print(x)
+                print(y)
+                print(z)
+
+                newCoord3D = TiltSeriesCoordinate()
+                newCoord3D.setTsId(tsId)
+                newCoord3D.setPosition(x,
+                                       y,
+                                       z,
+                                       sampling_rate=self.inputSetOfTiltSeries.get().getSamplingRate())
+
+                self.tiltSeriesCoordinates.append(newCoord3D)
+
+            self.tiltSeriesCoordinates.write()
+            self._store()
+
+            break
 
     # --------------------------- UTILS functions ----------------------------
     def getBoxSize(self):
@@ -199,3 +262,18 @@ loop_
     """ % (state, block)
         f.write(s)
         return f
+
+    def getOutputSetOfTiltSeriesCoordinates(self):
+        if hasattr(self, "tiltSeriesCoordinates"):
+            self.tiltSeriesCoordinates.enableAppend()
+
+        else:
+            outputSetOfCoordinates3D = SetOfTiltSeriesCoordinates.create(self._getPath(), suffix='Fiducials3D')
+
+            outputSetOfCoordinates3D.setSetOfTiltSeries(self.inputSetOfTiltSeries)
+            outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(tiltSeriesCoordinates=outputSetOfCoordinates3D)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfCoordinates3D)
+
+        return self.tiltSeriesCoordinates
