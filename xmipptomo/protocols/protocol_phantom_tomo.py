@@ -34,6 +34,7 @@ from pwem.objects.data import Integer
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, StringParam, BooleanParam
+from pyworkflow.utils import removeBaseExt
 from tomo.protocols import ProtTomoBase
 from tomo.objects import TomoAcquisition, Coordinate3D, SetOfCoordinates3D, SetOfTomograms,Tomogram
 import tomo.constants as const
@@ -72,6 +73,9 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         form.addParam('addNoise', BooleanParam, label="Add noise to the tomogram.", default=True,
                       help="Add noise using xmipp_transform.")
 
+        form.addParam('heterogeneous', BooleanParam, label="2 particles?",
+                      default=False, help="Add 2 different particles to allow for 3d classification")
+
         # Angles
         form.addSection(label='Rotation')
         form.addParam('rotmin', IntParam, label='Min rot angle', default=0,
@@ -94,6 +98,16 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Create the set of tomograms
         self.tomoSet = self._createSetOfTomograms(self._getOutputSuffix(SetOfTomograms))
         self.tomoSet.setSamplingRate(self.sampling.get())
+
+        # Hard coded Acquisition
+        acq = TomoAcquisition(angleMin=-60, angleMax=60, step=3,
+                              angleAxis1=90, angleAxis2=None,
+                              accumDose=0, tiltAxisAngle=90,
+                              voltage=300, amplitudeContrast= 0.1,
+                              sphericalAberration=2.0, magnification=20000,
+                              doseInitial=0, dosePerFrame=1
+                              )
+        self.tomoSet.setAcquisition(acq)
 
         # Create the set of coordinates
         self.coords = self._createSetOfCoordinates3D(self.tomoSet)
@@ -175,10 +189,18 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
                 pos = positions[posIndex]
                 del positions[posIndex]
 
-                # Want to generate a cone --> con + 3 0 0 0 8 30 0 0 0
-                desc += self.getParticleShape(boxSize, i, pos, rot, tilt, psi)
+                # Heterogeneity, if active every even particle.
+                if i % 2 == 1 and self.heterogeneous.get():
+                    classId = 2
+                    altShape= True
+                else:
+                    classId = 1
+                    altShape = False
 
-                coords.append(self._createCoordinate(pos[0],pos[1],pos[2], rot, tilt, psi))
+                # Want to generate a cone --> con + 3 0 0 0 8 30 0 0 0
+                desc += self.getParticleShape(boxSize, i, pos, rot, tilt, psi, alternative=altShape)
+
+                coords.append(self._createCoordinate(pos[0],pos[1],pos[2], rot, tilt, psi, classId))
 
 
             # Write the description
@@ -190,7 +212,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Add noise
         if self.addNoise.get():
-            self.runJob("xmipp_transform_add_noise",  "-i %s -o %s --type gaussian -80 5" % (fnVol, fnVol))
+            self.runJob("xmipp_transform_add_noise",  "-i %s -o %s --type gaussian 60 0" % (fnVol, fnVol))
 
         setMRCSamplingRate(fnVol, self.sampling.get())
 
@@ -198,7 +220,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         tomo = Tomogram()
         tomo.setAcquisition(acq)
         tomo.setLocation(fnVol)
-
+        tomo.setTsId(removeBaseExt(fnVol))
         self.tomoSet.append(tomo)
 
         # Now that we have the tomogram persisted, we persist the coordinates
@@ -207,9 +229,12 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
             coord.setVolume(tomo)
             self.coords.append(coord)
 
-    def getParticleShape(self, boxSize, i, pos, rot, tilt, psi):
+    def getParticleShape(self, boxSize, i, pos, rot, tilt, psi, alternative=False):
         """ Returns the description for the phantom create. See specs here:
         https://web.archive.org/web/20180813105422/http://xmipp.cnb.csic.es/twiki/bin/view/Xmipp/FileFormats#Phantom_metadata_file
+
+
+            param: alternative (False) return an alternative shape to have a second particle
         """
 
         value = -100 - i
@@ -218,7 +243,10 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Try a more sophisticated one
         # X axis: a bar
-        shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-2, pos[1], pos[2], maxDim, rot, tilt, psi)
+
+        shift = 4 if not alternative else -4
+
+        shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-shift, pos[1], pos[2], maxDim, rot, tilt, psi)
         # # Y axis: an ellipsoid
         shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s'\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
         # # Z axis: a cone
@@ -236,16 +264,16 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
         # Get the random values
         return rot, tilt, psi
 
-    def _createCoordinate(self, x, y, z, rot, tilt, psi):
+    def _createCoordinate(self, x, y, z, rot, tilt, psi, groupId):
         """ Creates a Coordinate3D with the right transfomation matrix"""
 
         coord = Coordinate3D()
         coord.setX(x, const.SCIPION)
         coord.setY(y, const.SCIPION)
         coord.setZ(z, const.SCIPION)
-
+        coord.setGroupId(groupId)
         coord.setObjComment(
-            "Angle Rot, tilt, psi: %d, %d, %d" % (rot, tilt, psi))
+            "Angle Rot, tilt, psi: %d, %d, %d | group: %s" % (rot, tilt, psi, groupId))
         coord.phantom_rot = Integer(rot)
         coord.phantom_tilt = Integer(tilt)
         coord.phantom_psi = Integer(psi)

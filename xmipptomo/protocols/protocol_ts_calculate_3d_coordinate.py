@@ -134,8 +134,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             self.runJob('xmipp_angular_estimate_tilt_axis', params)
 
             break # Esto es para comprobar unicamente una pareja
-
-    def calculateCoordinates3D:
+    #
+    # def calculateCoordinates3D:
 
 
 

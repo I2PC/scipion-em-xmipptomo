@@ -99,8 +99,6 @@ class XmippProtResizeTomograms(XmippProtResizeBase):
         newTomogram = Tomogram()
         tomo = self.inputSet.get()[tomId]
         newTomogram.copyInfo(tomo)
-        newTomogram.copyAttributes(tomo, '_origin')
-
         newTomogram.setLocation(outputTomo)
 
         newTomogram.setSamplingRate(self.samplingRate)

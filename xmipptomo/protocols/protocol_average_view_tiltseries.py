@@ -190,6 +190,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                     'i1': str(1) + "@" + tmpTiltImage,
                     'i2': str(1) + "@" + outputFilePathTmp,
                     'out': str(1) + "@" + outputFilePathTmp,
+                }
 
                 argsImageOperate = "-i %(i1)s " \
                                    "--plus %(i2)s " \

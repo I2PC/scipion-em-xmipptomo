@@ -34,6 +34,25 @@ import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
 
 
+def readXmdStatisticsFile(fnmd):
+    x_pos = []
+    y_pos = []
+    z_pos = []
+    avg = []
+    std = []
+
+    table = emtable.Table(fileName=fnmd)
+
+    for row in table.iterRows(fileName='noname@'+fnmd):
+        avg.append(row.get('avg'))
+        std.append(row.get('stddev'))
+        x_pos.append(row.get('xcoor'))
+        y_pos.append(row.get('ycoor'))
+        z_pos.append(row.get('zcoor'))
+
+    return x_pos, y_pos, z_pos, avg, std
+
+
 def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
     """ This method takes an xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
     every coordinate. This method also transform the coordinates into the Scipion convention. """
