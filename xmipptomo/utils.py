@@ -186,7 +186,6 @@ def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, t
     return True
 
 
-
 def readResidualStatisticsXmdFile(xmdFilePath):
     """ This method takes the file path of a Xmipp metadata file (.xmd) and generates a dictionary with all the
     information associated to the residuals from each landmark model: convex hull area and perimeter, statistical
