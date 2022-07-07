@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors:       Jose Luis Vilas Prieto (jlvilas@cnb.csic.es) [1]
-# *                Federico P. de Isidro Gomez (fp.deisidro@cnb.csi.es) [1]
+# *                Federico P. de Isidro-Gomez (fp.deisidro@cnb.csi.es) [1]
 # *
 # * [1] Centro Nacional de Biotecnologia, CSIC, Spain
 # *
@@ -157,7 +157,22 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
             for i in range(index - int(self.numberViewsAverage.get() / 2),
                            index + int(self.numberViewsAverage.get() / 2) + 1):
-                t = np.array([[np.cos(np.radians(tiltAngleList[index]) - np.radians(tiltAngleList[i])), 0, 0],
+
+                centralAngle = tiltAngleList[index]
+                projectedAngle = tiltAngleList[i]
+
+                angleDiff = centralAngle - projectedAngle
+
+                print(a)
+                print(angleDiff)
+                print(i)
+
+                if np.sign(centralAngle) * angleDiff >= 0:
+                    cosineStretchingFactor = np.cos(np.radians(angleDiff))
+                else:
+                    cosineStretchingFactor = 1 / np.cos(np.radians(angleDiff))
+
+                t = np.array([[cosineStretchingFactor, 0, 0],
                               [0, 1, 0],
                               [0, 0, 1]])
 
@@ -175,7 +190,6 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                     'i1': str(1) + "@" + tmpTiltImage,
                     'i2': str(1) + "@" + outputFilePathTmp,
                     'out': str(1) + "@" + outputFilePathTmp,
-                }
 
                 argsImageOperate = "-i %(i1)s " \
                                    "--plus %(i2)s " \
