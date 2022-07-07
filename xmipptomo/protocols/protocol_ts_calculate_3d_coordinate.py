@@ -74,6 +74,7 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.assignTiltPairs)
         self._insertFunctionStep(self.calculateCoordinates3D)
+        self._insertFunctionStep(self._closeOutputSet)
 
     # --------------------------- STEPS functions ----------------------------
 
@@ -160,6 +161,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             # *** calculate from sqlite
             a1 = np.radians(-15)
             a2 = np.radians(15)
+            xdim2 = 960/2
+            ydim2 = 928/2
 
             self.getOutputSetOfTiltSeriesCoordinates()
 
@@ -169,15 +172,15 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
 
                 print(objId)
 
-                x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId)
-                x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId)
-                y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId)
-                y2 = mdCoor2.getValue(emlib.MDL_YCOOR, objId)
+                x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId) - xdim2
+                x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId) - xdim2
+                y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId) - ydim2
+                y2 = mdCoor2.getValue(emlib.MDL_YCOOR, objId) - ydim2
 
-                # x1 = x*cos(a1)+z*sin(a1)
-                # x2 = x*cos(a2)+z*sin(a2)
+                # x1 = x*cos(a1)-z*sin(a1)
+                # x2 = x*cos(a2)-z*sin(a2)
 
-                m = np.matrix([[np.cos(a1), np.sin(a1)], [np.cos(a2), np.sin(a2)]])
+                m = np.matrix([[np.cos(a1), -np.sin(a1)], [np.cos(a2), -np.sin(a2)]])
                 m_inv = np.linalg.pinv(m)
 
                 x = m_inv[0, 0] * x1 + m_inv[0, 1] * x2
@@ -201,6 +204,11 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             self._store()
 
             break
+
+    def CloseOutputStep(self):
+        self.getOutputSetOfTiltSeriesCoordinates().setStreamState(Set.STREAM_CLOSED)
+
+        self._store()
 
     # --------------------------- UTILS functions ----------------------------
     def getBoxSize(self):
