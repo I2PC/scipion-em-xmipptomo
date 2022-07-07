@@ -27,6 +27,7 @@
 
 import numpy as np
 
+from pyworkflow import BETA
 from pyworkflow.object import Float
 from pyworkflow.protocol import params
 
@@ -41,6 +42,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
     quaternion distance analysis'''
 
     _label = 'score transformations'
+    _devStatus = BETA
 
     def __init__(self, **args):
         ProtTomoPicking.__init__(self, **args)

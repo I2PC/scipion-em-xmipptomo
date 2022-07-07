@@ -28,9 +28,11 @@
 
 import os
 import numpy as np
+from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, PointerParam, EnumParam
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
+import tomo.constants as const
 
 
 class XmippProtCCroi(EMProtocol, ProtTomoBase):
@@ -38,6 +40,7 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
     connected componnent) to a ROI (region of interest) previously defined"""
 
     _label = 'connected components to ROIs'
+    _devStatus = BETA
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
@@ -123,8 +126,8 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
                         i = 0
                     else:
                         outputSetList = []
-                    for coorcc in cc:
-                        for meshPoint in mesh:
+                    for coorcc in cc.iterCoordinates():
+                        for meshPoint in mesh.iterCoordinates():
                             if self._euclideanDistance(coorcc, meshPoint) <= self.distance.get():
                                 if sel == 0:
                                     i += 1
@@ -174,8 +177,9 @@ class XmippProtCCroi(EMProtocol, ProtTomoBase):
         return (self.points.get()*inputSetCoor.getSize())/100
 
     def _euclideanDistance(self, coorcc, cm):
-        return np.sqrt((coorcc.getX() - int(cm.getX())) + (coorcc.getY() - int(cm.getY())) + (coorcc.getZ() -
-                                                                                              int(cm.getZ())))
+        return np.sqrt((coorcc.getX(const.BOTTOM_LEFT_CORNER) - int(cm.getX(const.BOTTOM_LEFT_CORNER))) +
+                       (coorcc.getY(const.BOTTOM_LEFT_CORNER) - int(cm.getY(const.BOTTOM_LEFT_CORNER))) +
+                       (coorcc.getZ(const.BOTTOM_LEFT_CORNER) - int(cm.getZ(const.BOTTOM_LEFT_CORNER))))
 
     def _updateItem(self, item, row):
         if item.getGroupId() != self.groupIdCoorCC:

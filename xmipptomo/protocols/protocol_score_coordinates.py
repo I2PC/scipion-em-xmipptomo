@@ -27,6 +27,7 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
+from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
 from pyworkflow.object import Float
@@ -40,14 +41,17 @@ from xmipp_base import createMetaDataFromPattern
 
 from tomo.protocols import ProtTomoPicking
 from tomo.utils import extractVesicles, initDictVesicles
+import tomo.constants as const
 
 from xmipptomo import Plugin
+
 
 class XmippProtScoreCoordinates(ProtTomoPicking):
     '''Scoring and (optional) filtering of coordinates based on different scoring
     functions (carbon distance, neighbour distance)'''
 
     _label = 'score/filter coordinates'
+    _devStatus = BETA
 
     def _defineParams(self, form):
         form.addSection(label='Input')
@@ -206,7 +210,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                 it can be useful for scaling the coordinates if needed.
         """
         if getPosFunc is None:
-            getPosFunc = lambda coord: coord.getPosition()
+            getPosFunc = lambda coord: coord.getPosition(const.BOTTOM_LEFT_CORNER)
 
         state = 'Manual' if isManual else 'Supervised'
         f = openMd(outputFn, state)

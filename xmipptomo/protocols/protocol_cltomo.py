@@ -26,14 +26,18 @@
 import os
 
 from pwem.protocols import ProtClassify3D
+from pyworkflow import BETA
 from pyworkflow.protocol import (IntParam, PointerParam, LEVEL_ADVANCED, BooleanParam, StringParam, FloatParam)
 from pyworkflow.utils import Environ
 from xmipp3 import Plugin
 from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
+
 class XmippProtCLTomo(ProtClassify3D):
     """ Averages a set of subtomograms taking into account the missing edge. """
+
     _label = 'cltomo'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions --------------------------------------------
     def _defineParams(self, form):

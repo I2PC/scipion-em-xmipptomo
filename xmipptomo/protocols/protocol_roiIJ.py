@@ -27,6 +27,7 @@
 import os
 import numpy as np
 
+from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam
 import pyworkflow.utils as pwutils
 from pwem.viewers.showj import *
@@ -35,11 +36,14 @@ from pwem.protocols import ProtAnalysis2D
 from tomo.objects import MeshPoint
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider, TomogramsDialog
 from tomo.protocols.protocol_base import ProtTomoBase
+import tomo.constants as const
 
 
 class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
     """ Tomogram ROI selection in IJ """
+
     _label = 'imagej roi'
+    _devStatus = BETA
 
     def __init__(self, **kwargs):
         ProtAnalysis2D.__init__(self, **kwargs)
@@ -66,9 +70,9 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
                 data = np.loadtxt(outFile, delimiter=',')
                 for coord in data:
                     mesh = MeshPoint()
-                    mesh.setPosition(coord[0], coord[1], coord[2])
-                    mesh.setGroupId(coord[3])
                     mesh.setVolume(tomo)
+                    mesh.setPosition(coord[0], coord[1], coord[2], const.BOTTOM_LEFT_CORNER)
+                    mesh.setGroupId(coord[3])
                     outSet.append(mesh)
         outSet.setPrecedents(inputTomos)
         self._defineOutputs(outputMeshes=outSet)
@@ -77,7 +81,16 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
     # --------------------------- STEPS functions -----------------------------
     def launchIJGUIStep(self):
 
-        tomoList = [tomo.clone() for tomo in self.inputTomos.get().iterItems()]
+        tomoList = []
+        for tomo in self.inputTomos.get().iterItems():
+            tomogram = tomo.clone()
+            tomoName = pwutils.removeBaseExt(tomo.getFileName())
+            outFile = self._getExtraPath(tomoName + '.txt')
+            if os.path.isfile(outFile):
+                tomogram.count = np.loadtxt(outFile, delimiter=',').shape[0]
+            else:
+                tomogram.count = 0
+            tomoList.append(tomogram)
 
         tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath(), 'txt')
 
