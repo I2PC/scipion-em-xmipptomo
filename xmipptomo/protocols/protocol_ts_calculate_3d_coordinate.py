@@ -107,8 +107,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             extraPrefix = self._getExtraPath(tsId)
 
             # Tilt pair particles
-            fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, -15.0))
-            fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, 15.0))
+            fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, 15.0))
+            fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, -15.0))
             fnmicsize = m.getFileName()
             maxShift = 50
             threshold = 0.25
@@ -124,8 +124,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             self.runJob('xmipp_image_assignment_tilt_pair', params)
 
             # Estimate the tilt axis
-            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
-            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
+            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
+            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
             fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
 
             params = ' --untilted %s' % fnposUntilt
@@ -133,7 +133,10 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             params += ' -o %s' % fnO
             self.runJob('xmipp_angular_estimate_tilt_axis', params)
 
-            break
+            break # Esto es para comprobar unicamente una pareja
+
+    def calculateCoordinates3D:
+
 
 
     # --------------------------- UTILS functions ----------------------------
