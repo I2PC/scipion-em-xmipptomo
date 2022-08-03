@@ -40,6 +40,8 @@ from pwem.convert.headers import setMRCSamplingRate
 
 FN_PARAMS = 'projection.params'
 FN_PHANTOM_DESCR = 'phantom.descr'
+FN_PHANTOM = 'phantom_'
+MRC_EXT = '.mrc'
 
 
 class OutputPhantomSubtomos(enum.Enum):
@@ -58,64 +60,88 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
         form.addParam('option', EnumParam,
-                      choices=['Simulate tilt Series', 'Applying Missing wedge', 'creating a phantom'], default=0,
+                      choices=['Import volume', 'creating a phantom'], default=0,
                       display=EnumParam.DISPLAY_HLIST, label=' ',
                       help="Import a volume or create 'base' phantom manually")
         form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
-                      condition="option==0 or option==1", help="Volume used as 'base' phantom", allowsNull=True)
-        form.addParam('create', TextParam, label='Create phantom', condition="option==2",
+                      condition="option==0", help="Volume used as 'base' phantom", allowsNull=True)
+        form.addParam('create', TextParam, label='Create phantom', condition="option==1",
                       default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
                               'sph + 1 0 -5 5 2',
                       help="create a phantom description: x y z backgroundValue geometry(cyl, sph...) +(superimpose) "
                            "density value origin radius height rot tilt psi. More info at https://web.archive.org/web/20180813105422/http://xmipp.cnb.csic.es/twiki/bin/view/Xmipp/FileFormats#Phantom_metadata_file")
-        form.addParam('sampling', FloatParam, label='Sampling rate', default=4)
+
+        form.addParam('simulateTiltSeries', BooleanParam, label='Simulating tilt series', default=False)
+        #lineAngSamp = form.addLine('Tilt Sampling (degrees)', condition='simulateTiltSeries',
+        #                           help='The tilt series is acquires from -angle to + angle, in steps of d degrees. '
+        #                                'Angular Sampling in degrees. The tilt series was acquired by taking images in intervals of X angles. X is the angualr sampling')
+        #lineAngSamp.addParam('mintilt', IntParam, label='min', default=-60)
+        #lineAngSamp.addParam('maxtilt', IntParam, label='max', default=60)
+        #lineAngSamp.addParam('angularSampling', IntParam, label='step', default=3)
+        form.addParam('sampling', FloatParam, label='Sampling rate (A/px)', default=1)
         form.addParam('nsubtomos', IntParam, label='Number of subtomograms', default=50,
                       help="How many phantom subtomograms")
-        form.addParam('angularSampling', IntParam, label='Angular Sampling (degrees)', default=3, condition='option==0',
-                      help="Angular Sampling in degrees. The tilt series was acquired by taking images in intervals of X angles. X is the angualr sampling")
+
         form.addParam('mwfilter', BooleanParam, label='Apply missing wedge?', default=False,
-                      condition='option==1 or option==2',
+                      condition='not simulateTiltSeries',
                       help='Apply a filter to simulate the missing wedge along Y axis.')
         form.addParam('mwangle', IntParam, label='Missing wedge angle', default=60,
-                      condition='mwfilter==True and (option==1 or option==2)',
+                      condition='mwfilter==True and (not simulateTiltSeries)',
                       help='Missing wedge (along y) for data between +- this angle.')
         # Angles
         form.addSection(label='Rotation')
+        form.addParam('rotate', BooleanParam, label='Apply rotation?', default=False,
+                      help='Apply a random rotation to the generated subtomograms. The subtomograms will present a random'
+                           'orientation.')
+        form.addParam('uniformAngularDistribution', BooleanParam, label='Randomly distributed?', default=True, condition='rotate',
+                      help='Apply a random rotation to the generated subtomograms. The subtomograms will present a random'
+                           'orientation.')
+
+        form.addParam('stdError', BooleanParam, label='Introduce random error with std', default=False, condition='rotate and uniformAngularDistribution',
+                      help='It introduces angular assignment errors with standard deviation given by the introduced value'
+                           'It is assumed that the errors are Gaussian.')
+        form.addParam('sigma', FloatParam, label='std', default=0,
+                      condition='rotate and uniformAngularDistribution and stdError',
+                      help='It introduces angular assignment errors with standard deviation given by the introduced value'
+                           'It is assumed that the errors are Gaussian.')
 
         lineRot = form.addLine('Rot Angle (degrees)',
-                               help="This is the rot angle (in-plane rotation). Minimum and maximum range for each Euler angle in degrees")
-        lineRot.addParam('rotmin', IntParam, label='Min', default=0)
-        lineRot.addParam('rotmax', IntParam, label='Max', default=60)
-        lineRot.addParam('rotStd', IntParam, label='error (std)', default=0)
+                               help="This is the rot angle (in-plane rotation). Minimum and maximum range for each Euler angle in degrees",
+                               condition='rotate and (not uniformAngularDistribution)')
+        lineRot.addParam('rotmin', IntParam, label='Min', default=0, condition='rotate and (not uniformAngularDistribution)')
+        lineRot.addParam('rotmax', IntParam, label='Max', default=60, condition='rotate and (not uniformAngularDistribution)')
         lineTilt = form.addLine('Tilt Angle (degrees)',
-                                help="This is the Tilt angle (latitude). Minimum and maximum range for each Euler angle in degrees")
-        lineTilt.addParam('tiltmin', IntParam, label='Min', default=0)
-        lineTilt.addParam('tiltmax', IntParam, label='Max', default=60)
-        lineTilt.addParam('tiltStd', IntParam, label='error (std)', default=0)
+                                help="This is the Tilt angle (latitude). Minimum and maximum range for each Euler angle in degrees",
+                                condition='rotate and (not uniformAngularDistribution)')
+        lineTilt.addParam('tiltmin', IntParam, label='Min', default=0, condition='rotate and (not uniformAngularDistribution)')
+        lineTilt.addParam('tiltmax', IntParam, label='Max', default=60, condition='rotate and (not uniformAngularDistribution)')
         linePsi = form.addLine('Psi Angle (degrees)',
                                help="This is the Psi angle. Minimum and maximum range for each Euler angle in degrees",
-                               condition='option==1 or option==2')
-        linePsi.addParam('psimin', IntParam, label='Min', default=0)
-        linePsi.addParam('psimax', IntParam, label='Max', default=60)
-        linePsi.addParam('psiStd', IntParam, label='error (std)', default=0)
+                               condition='rotate and (not uniformAngularDistribution)')
+        linePsi.addParam('psimin', IntParam, label='Min', default=0, condition='rotate and (not uniformAngularDistribution)')
+        linePsi.addParam('psimax', IntParam, label='Max', default=60, condition='rotate and (not uniformAngularDistribution)')
+
 
         # Shifts
         form.addSection(label='Shifts')
+        form.addParam('applyShift', BooleanParam, label='Apply random shift?', default=False,
+                      help='Apply a random shit to the generated subtomograms. The subtomograms will present a random'
+                           'displacement from the center of the box.')
         lineX = form.addLine('Shift along X-axis:',
                              help='It considers a random shift between the minumum and the maximum values, '
-                                  'following a uniform distribution.')
-        lineX.addParam('xmin', IntParam, label='Min (px)', default=0)
-        lineX.addParam('xmax', IntParam, label='Max (px)', default=5)
+                                  'following a uniform distribution.', condition='applyShift')
+        lineX.addParam('xmin', IntParam, label='Min (px)', default=0, condition='applyShift')
+        lineX.addParam('xmax', IntParam, label='Max (px)', default=5, condition='applyShift')
         lineY = form.addLine('Shift along Y-axis:',
                              help='It considers a random shift between the minumum and the maximum values, '
-                                  'following a uniform distribution.')
-        lineY.addParam('ymin', IntParam, label='Min (px)', default=0)
-        lineY.addParam('ymax', IntParam, label='Max (px)', default=5)
+                                  'following a uniform distribution.', condition='applyShift')
+        lineY.addParam('ymin', IntParam, label='Min (px)', default=0, condition='applyShift')
+        lineY.addParam('ymax', IntParam, label='Max (px)', default=5, condition='applyShift')
         lineZ = form.addLine('Shift along Z-axis:',
                              help='It considers a random shift between the minumum and the maximum values, '
-                                  'following a uniform distribution.')
-        lineZ.addParam('zmin', IntParam, label='Min (px)', default=0, condition='option==1 or option==2')
-        lineZ.addParam('zmax', IntParam, label='Max (px)', default=5, condition='option==1 or option==2')
+                                  'following a uniform distribution.', condition='applyShift')
+        lineZ.addParam('zmin', IntParam, label='Min (px)', default=0, condition='applyShift')
+        lineZ.addParam('zmax', IntParam, label='Max (px)', default=5, condition='applyShift')
 
         form.addSection(label='Coordinates')
         form.addParam('coords', BooleanParam, label='Assign random coordinates?', default=False,
@@ -132,57 +158,157 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                            'different subtomograms will follow two different Gaussian distributions. It means, given two subtomograms'
                            'A and B, the noise of the subtomogram A will follow a Gaussian distribution with mean mu_A, and std s_A,'
                            'in contrast, the subtomograms B will follow also a Gaussian distribution but with different mean, mu_B, '
-                           'and different standard defiation s_B. If True, the noise of both subtomograms will follow the same Gaussian'
+                           'and different standard deviation s_B. If True, the noise of both subtomograms will follow the same Gaussian'
                            'distribution')
 
-        lineStatsmean = form.addLine('Gaussian mean between',
-                                     help='The guassian mean will be a random number between the provided range (min,max)',
-                                     condition='differentStatistics')
-        lineStatsmean.addParam('minmean', IntParam, label='Min', default=0, condition='differentStatistics')
-        lineStatsmean.addParam('maxmean', IntParam, label='Max', default=5, condition='differentStatistics')
-        lineStatsStd = form.addLine('Gaussian standard deviation between',
-                                    help='The guassian standard deviation will be a random number between the provided range (min,max)')
+        lineStatsStd = form.addLine('range of standard deviation between',
+                                    help='The guassian standard deviation will be a random number between the provided range (min,max)',
+                                    condition='addNoise and differentStatistics')
         lineStatsStd.addParam('minstd', IntParam, label='Min', default=0, condition='differentStatistics')
-        lineStatsStd.addParam('maxstd', IntParam, label='Max', default=5, condition='differentStatistics')
-        lineStat = form.addLine('Noise mean and std',
+        lineStatsStd.addParam('maxstd', IntParam, label='Max', default=50, condition='differentStatistics')
+        lineStat = form.addLine('Gaussian Noise mean and std',
                                 help='Defines the statistics of noise by providing the mean and standard deviation'
                                      'of the Gaussian distribution.',
-                                condition='not differentStatistics')
+                                condition='addNoise and not differentStatistics')
         lineStat.addParam('meanNoise', IntParam, label='mean', default=0, condition='not differentStatistics')
-        lineStat.addParam('stdNoise', IntParam, label='std', default=0, condition='not differentStatistics')
+        lineStat.addParam('stdNoise', IntParam, label='std', default=40, condition='not differentStatistics')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
+
+        #NOTE: This protocol was discussed with the ScipionTeam about if the subtomograms have or do not have tomogramId.
+        # The agreement was that the tomogramId should not appear if subtomograms are imported or phantoms created
         self._insertFunctionStep(self.createSubtomogramsStep)
         self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def createSubtomogramsStep(self):
+        self.createPhantomSubtomograms()
 
+    def createPhantomSubtomograms(self):
+        if self.mwfilter.get():
+            mwangle = self.mwangle.get()
+        else:
+            mwangle = 90
+
+        fnInVol = None
+        dim = None
         if self.option == 0:
-            self.createPhantomsSimulatingTiltSeries()
+            inputVol = self.inputVolume.get()
+            fnInVol = inputVol.getFileName()
+            dim = inputVol.getDim()
         if self.option == 1:
-            self.createPhantomFromVolume()
-        if self.option == 2:
-            self.createGeometricalPhantom()
+            dim, fnVol = self.createGeometricalPhantom()
+
+        self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnInVol)
+
+
+    def definingOrientationsAndRegisteringInformation(self, dim, mwangle, fnVol):
+        self.createOutputSet(dim)
+        tomo = None
+        coordsBool = self.generateCoordinates()
+        if coordsBool:
+            tomos = self.tomos.get()
+            tomo = tomos.getFirstItem()
+            self.coordsSet = self._createSetOfCoordinates3D(tomos)
+            self._store(self.coordsSet)
+
+        # Create acquisition
+        acq = TomoAcquisition()
+        acq.setAngleMax(mwangle)
+        acq.setAngleMin(mwangle * -1)
+
+        for i in range(int(self.nsubtomos.get())):
+            fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
+
+            self.addNoiseToPhantom(fnVol, fnPhantomi)
+
+            rot, tilt, psi, shiftX, shiftY, shiftZ = self.applyRandomOrientation(fnPhantomi, fnPhantomi)
+
+            if self.mwfilter.get():
+                self.applyMissingWedge(mwangle, fnPhantomi, fnPhantomi)
+
+            # Add the subtomogram and the coordinate if applies
+            self._addSubtomogram(tomo, acq, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ)
+
+        if coordsBool:
+            self.outputSet.setCoordinates3D(self.coordsSet)
+
+    def createGeometricalPhantom(self):
+        fnVol = self._getExtraPath(FN_PHANTOM+MRC_EXT)
+        desc = self.create.get()
+        fnDescr = self._getExtraPath(FN_PHANTOM_DESCR)
+        fhDescr = open(fnDescr, 'w')
+        fhDescr.write(desc)
+        fhDescr.close()
+        dim = [desc.split()[0], desc.split()[1], desc.split()[2]]
+
+        self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
+        setMRCSamplingRate(fnVol, self.sampling.get())
+        return dim, fnVol
+
+
+    def applyRandomOrientation(self, fnIn, fnOut):
+        rot = 0
+        tilt = 0
+        psi = 0
+        shiftX = 0
+        shiftY = 0
+        shiftZ = 0
+
+        rotErr = 0
+        tiltErr = 0
+
+        if self.uniformAngularDistribution:
+            rot = 2*np.pi * np.random.uniform(0, 1)*180/np.pi
+            tilt = np.arccos(2*np.random.uniform(0, 1) - 1)*180/np.pi
+
+            #It is neccesary to create a new variable because of the random errors
+            rotErr = rot
+            tiltErr = tilt
+
+            if self.stdError:
+                rotErr = rot + np.random.normal(0, self.sigma.get())
+                tiltErr = tilt + np.random.normal(0, self.sigma.get())
+        else:
+            if self.rotate:
+                rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
+                tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
+                psi = np.random.randint(self.psimin.get(), self.psimax.get())
+                rotErr = rot
+                tiltErr = rot
+
+        if self.applyShift:
+            # Shifts
+            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
+            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
+            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
+
+        if self.rotate or self.applyShift:
+            self.runJob("xmipp_transform_geometry",
+                        " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
+                        % (fnIn, fnOut, rotErr, tiltErr, psi, shiftX, shiftY, shiftZ))
+
+        return rot, tilt, psi, shiftX, shiftY, shiftZ
+
 
     def addNoiseToPhantom(self, fnIn, fnOut):
-        import random
         if self.addNoise.get():
+            params_noise = ' -i %s ' % fnIn
+            if self.option == 0:
+                params_noise += ' --save_metadata_stack'
+            import random
             if self.differentStatistics.get():
-                meanNoise = random.uniform(self.minmean.get(), self.maxmean.get())
                 sigmaNoise = random.uniform(self.minstd.get(), self.maxstd.get())
+                params_noise += ' --type gaussian %f ' % sigmaNoise
             else:
                 meanNoise = self.meanNoise.get()
                 sigmaNoise = self.stdNoise.get()
+                params_noise += ' --type gaussian %f %f ' % (sigmaNoise, meanNoise)
 
-        params_noise = ' -i %s ' % fnIn
-        if self.option == 0:
-            params_noise += ' --save_metadata_stack'
-        params_noise += ' --type gaussian %f %f ' % (sigmaNoise, meanNoise)
+            params_noise += ' -o %s ' % fnOut
+            self.runJob('xmipp_transform_add_noise', params_noise)
 
-        params_noise += ' -o %s ' % fnOut
-        self.runJob('xmipp_transform_add_noise', params_noise)
 
     def creatingprojections(self, mystack):
 
@@ -197,9 +323,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
         params_fourier = ' -i %s ' % mystack
         params_fourier += ' -o %s ' % subtomoRecosntruct
-        self.runJob('xmipp_cuda_reconstruct_fourier', params_fourier)
+        params_fourier += ' -thr 4'
+        self.runJob('xmipp_reconstruct_fourier', params_fourier)
 
-    def createPhantomsSimulatingTiltSeries(self):
+    def createSubtomogramsSimulatingTiltSeries(self):
         # This function defines the output to be updated as soon as the subtomos are created
         self.createOutputSet(self.inputVolume.get().getDim())
 
@@ -208,104 +335,19 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         for idx in range(self.nsubtomos.get()):
             # The inputs and outputs of the steps are defined
             mystack = self._getExtraPath('projectionstack_' + str(idx) + '.xmd')
-            mystack2 = self._getExtraPath('noisyprojections_' + str(idx) + '.stk')
-            subtomoRecosntruct = self._getExtraPath('subtomo_' + str(idx) + '.mrc')
+            subtomoRecosntruct = self._getExtraPath('subtomo_' + str(idx) + MRC_EXT)
 
             # The different steps to create the noisy phantoms are launched here
             self.creatingprojections(mystack)
-            self.addNoiseToPhantom(mystack, mystack2)
-            self.reconstructSubtomo(mystack2, subtomoRecosntruct)
+            #self.addNoiseToPhantom(mystack, mystack2)
+            self.reconstructSubtomo(mystack, subtomoRecosntruct)
 
             # The subtomogram is stored as Scipion object
             self._addSubtomogram(None, None, subtomoRecosntruct, 0, 0, 0, 0, 0, 0)
 
-    def createGeometricalPhantom(self):
-        fnVol = self._getExtraPath("phantom000.mrc")
-        desc = self.create.get()
-        fnDescr = self._getExtraPath(FN_PHANTOM_DESCR)
-        fhDescr = open(fnDescr, 'w')
-        fhDescr.write(desc)
-        fhDescr.close()
-        dim = [desc.split()[0], desc.split()[1], desc.split()[2]]
-        self.runJob("xmipp_phantom_create", " -i %s -o %s" % (fnDescr, fnVol))
-        setMRCSamplingRate(fnVol, self.sampling.get())
-        if self.mwfilter.get():
-            mwangle = self.mwangle.get()
-            self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
-                        % (mwangle, mwangle, fnVol, fnVol))
-        else:
-            mwangle = 90
-
-        self.addNoiseToPhantom(fnVol, fnVol)
-        self.createOutputSet(dim)
-        self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnVol)
-
-        self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
-        self.outputSet.setDim(dim)
-        self.outputSet.setSamplingRate(self.sampling.get())
-        self._store(self.outputSet)
-
-    def createPhantomFromVolume(self):
-        fnVol = self._getExtraPath("phantom000.mrc")
-        inputVol = self.inputVolume.get()
-        fnInVol = inputVol.getFileName()
-        dim = inputVol.getDim()
-        if self.mwfilter.get():
-            mwangle = self.mwangle.get()
-            self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
-                        % (mwangle, mwangle, fnInVol, fnVol))
-        else:
-            mwangle = 90
-            self.runJob("xmipp_image_convert", " -i %s -o %s --type vol" % (fnInVol, fnVol))
-
-        self.addNoiseToPhantom(fnVol, fnVol)
-        self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnVol)
-
-
-    def definingOrientationsAndRegisteringInformation(self, dim, mwangle, fnVol):
-        self.createOutputSet(dim)
-        tomo = None
-        coordsBool = self.generateCoordinates()
-        if coordsBool:
-            tomos = self.tomos.get()
-            tomo = tomos.getFirstItem()
-
-            tomoDim = tomo.getDim()
-            self.coordsSet = self._createSetOfCoordinates3D(tomos)
-            self._store(self.coordsSet)
-
-        # Create acquisition
-        acq = TomoAcquisition()
-        acq.setAngleMax(mwangle)
-        acq.setAngleMin(mwangle * -1)
-
-        # Create the base subtomogram
-        self._addSubtomogram(tomo, acq, fnVol, 0, 0, 0, 0, 0, 0)
-
-        for i in range(int(self.nsubtomos.get()) - 1):
-            fnPhantomi = self._getExtraPath("phantom%03d.mrc" % int(i + 1))
-            rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-            tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-            psi = np.random.randint(self.psimin.get(), self.psimax.get())
-
-            # Shifts
-            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
-            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
-            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
-
-            self.runJob("xmipp_transform_geometry",
-                        " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
-                        % (fnVol, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ))
-            if self.mwfilter.get():
-                self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
-                            % (mwangle, mwangle, fnPhantomi, fnPhantomi))
-
-            # Add the subtomogram and the coordinate if applies
-            self._addSubtomogram(tomo, acq, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ)
-
-        if coordsBool:
-            self.outputSet.setCoordinates3D(self.coordsSet)
-
+    def applyMissingWedge(self, mwangle, fnIn, fnOut):
+        self.runJob("xmipp_transform_filter", " --fourier wedge -%d %d 0 0 0 -i %s -o %s"
+                    % (mwangle, mwangle, fnIn, fnOut))
 
     def createOutputSet(self, dim):
         self.outputSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
@@ -356,9 +398,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
             coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
             coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+
             self.coordsSet.append(coor)
             self.coordsSet.setBoxSize(subtomo.getDim()[0])
-
             subtomo.setCoordinate3D(coor)
             subtomo.setVolName(tomo.getFileName())
 
@@ -367,7 +409,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
     def createOutputStep(self):
         self._defineOutputs(outputSubtomograms=self.outputSet)
-        if self.option.get() == 0 or self.option.get() == 1:
+        if self.option.get() == 0:
             self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
         if self.generateCoordinates():
             self._defineOutputs(outputCoord=self.coordsSet)
@@ -399,7 +441,16 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         f.write('# Psi added noise\n')
         f.write('_projPsiNoise   \'0\'\n')
         f.write('# Noise applied to pixels [noise (bias)]\n')
-        f.write('_noisePixelLevel   \'0\'\n')
+
+        import random
+        sigmaNoise  = 0
+        if self.addNoise.get():
+            if self.differentStatistics.get():
+                sigmaNoise = random.uniform(self.minstd.get(), self.maxstd.get())
+            else:
+                sigmaNoise = self.stdNoise.get()
+
+        f.write('_noisePixelLevel   \'%d\'\n' % sigmaNoise)
         f.write('# Noise applied to particle center coordenates [noise (bias)]\n')
         f.write('_noiseCoord   \'0\'\n')
         f.close()
@@ -407,11 +458,11 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
         errors = []
-        if self.rotmin.get() >= self.rotmax.get():
+        if self.rotmin.get() > self.rotmax.get():
             errors.append("rot max must be bigger than rot min")
-        if self.tiltmin.get() >= self.tiltmax.get():
+        if self.tiltmin.get() > self.tiltmax.get():
             errors.append("tilt max must be bigger than tilt min")
-        if self.psimin.get() >= self.psimax.get():
+        if self.psimin.get() > self.psimax.get():
             errors.append("psi max must be bigger than psi min")
         return errors
 

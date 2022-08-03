@@ -230,44 +230,6 @@ class TestXmipptomoMapback(BaseTest):
         self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name), 1,
                              "There was a problem with tomograms output")
 
-
-class TestXmippSubtomoPhantom(BaseTest):
-    """This class check if the protocol create phantom subtomo works properly."""
-
-    @classmethod
-    def setUpClass(cls):
-        setupTestProject(cls)
-
-    def _phantom(self):
-        phantom = self.newProtocol(XmippProtPhantomSubtomo, option=1)
-        self.launchProtocol(phantom)
-        self.assertIsNotNone(phantom.outputSubtomograms,
-                             "There was a problem with subtomograms output")
-        return phantom
-
-    def test_phantom(self):
-        phantom = self._phantom()
-        self.assertTrue(getattr(phantom, 'outputSubtomograms'))
-        self.assertEqual(phantom.outputSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 90)
-        return phantom
-
-    def _phantomMW(self):
-        phantomMW = self.newProtocol(XmippProtPhantomSubtomo,
-                                     option=1,
-                                     mwfilter=True)
-        self.launchProtocol(phantomMW)
-        self.assertIsNotNone(phantomMW.outputSubtomograms,
-                             "There was a problem with subtomograms output")
-        return phantomMW
-
-    def test_phantomMW(self):
-        phantomMW = self._phantomMW()
-        self.assertTrue(getattr(phantomMW, 'outputSubtomograms'))
-        self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 60)
-        self.assertEqual(phantomMW.outputSubtomograms.getFirstItem().getAcquisition().getAngleMin(), -60)
-        return phantomMW
-
-
 class TestXmippTomoPhantom(BaseTest):
     """This class check if the protocol create phantom tomograms works properly."""
 
