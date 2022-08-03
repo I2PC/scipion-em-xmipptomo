@@ -47,6 +47,7 @@ from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_rotate_astigmatism import XmippProtRotateAstigmatism
 from .protocol_score_coordinates import XmippProtScoreCoordinates
 from .protocol_score_transform import XmippProtScoreTransform
+from .protocol_smart_STA import XmippProtsmartSTA
 from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
