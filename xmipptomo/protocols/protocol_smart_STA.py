@@ -39,8 +39,13 @@ from pwem.convert.headers import setMRCSamplingRate
 import pwem
 from xmipp3.convert import writeSetOfVolumes
 
+from pwem.objects import Volume
+
 
 FN_INPUTSUBTOMOS = 'input_subtomos.xmd'
+STANDARD_STA = 'sta.mrc'
+SMART_STA = 'STA_smart.mrc'
+
 
 class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
     """ This protocol performs a smart STA """
@@ -55,6 +60,16 @@ class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
                       pointerClass="SetOfSubTomograms",
                       label='Input subtomograms',
                       help="Input subtomograms aligned")
+        form.addParam('hasReference', BooleanParam, default=False,
+                      label='Reference Map',
+                      help="Reference Map")
+        form.addParam('reference', PointerParam, condition='hasReference',
+                      pointerClass="Volume",
+                      label='Input subtomograms',
+                      help="Input subtomograms aligned")
+        form.addParam('fscResolution', FloatParam,
+                      label='fscResolution',
+                      help="FSC resolution")
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -79,24 +94,29 @@ class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
 
         nthreads = 1
 
-        params_phantom = ' -subtomos %s ' % XMD_SUBTOMOS
+        params_phantom = ' --subtomos %s ' % self._getExtraPath(FN_INPUTSUBTOMOS)
         if self.hasReference.get():
             params_phantom += ' --reference %s ' % self.reference.get().getFileName()
         params_phantom += ' --fscResolution %s ' % (self.fscResolution.get())
         params_phantom += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
         params_phantom += ' -o %s ' % self._getExtraPath()
-        params_phantom += ' -threads %d ' % nthreads
-        self.runJob('xmipp_reconstruction_sta_deblurring', params_phantom)
+        params_phantom += ' --threads %d ' % nthreads
+        self.runJob('xmipp_tomo_sta_deblurring', params_phantom)
 
     def createOutputStep(self):
-        self._defineOutputs(outputSubtomograms=self.outputSet)
-        if self.option.get() == 0 or self.option.get() == 1:
-            self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
-        if self.coords.get():
-            self._defineOutputs(outputCoord=self.coords)
-            self._defineSourceRelation(self.tomos.get(), self.outputSet)
+        volume = Volume()
+        volume.setFileName(self._getExtraPath(STANDARD_STA))
+        volume.setSamplingRate(self.subtomos.get().getSamplingRate())
+        self._defineOutputs(standard_sta=volume)
+        self._defineSourceRelation(self.subtomos, volume)
 
-    # --------------------------- INFO functions --------------------------------------------
+        volume.setFileName(self._getExtraPath(SMART_STA))
+        volume.setSamplingRate(self.subtomos.get().getSamplingRate())
+        self._defineOutputs(smart_sta=volume)
+        self._defineSourceRelation(self.subtomos, volume)
+
+
+        # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
         errors = []
         return errors
