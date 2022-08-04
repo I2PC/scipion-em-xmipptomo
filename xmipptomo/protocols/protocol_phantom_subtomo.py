@@ -222,15 +222,24 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         for i in range(int(self.nsubtomos.get())):
             fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
 
-            self.addNoiseToPhantom(fnVol, fnPhantomi)
+            if self.addNoise.get():
+                self.addNoiseToPhantom(fnVol, fnPhantomi)
+                fn_aux = fnPhantomi
+            else:
+                fn_aux = fnVol
 
-            rot, tilt, psi, shiftX, shiftY, shiftZ = self.applyRandomOrientation(fnPhantomi, fnPhantomi)
+            if self.rotate or self.applyShift:
+                rot, tilt, psi, shiftX, shiftY, shiftZ = self.applyRandomOrientation(fn_aux, fnPhantomi)
+                fn_aux = fnPhantomi
+            else:
+                rot = tilt = psi = shiftX = shiftY = shiftZ = 0
 
             if self.mwfilter.get():
-                self.applyMissingWedge(mwangle, fnPhantomi, fnPhantomi)
+                self.applyMissingWedge(mwangle, fn_aux, fnPhantomi)
+                fn_aux = fnPhantomi
 
             # Add the subtomogram and the coordinate if applies
-            self._addSubtomogram(tomo, acq, fnPhantomi, rot, tilt, psi, shiftX, shiftY, shiftZ)
+            self._addSubtomogram(tomo, acq, fn_aux, rot, tilt, psi, shiftX, shiftY, shiftZ)
 
         if coordsBool:
             self.outputSet.setCoordinates3D(self.coordsSet)
@@ -259,20 +268,19 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
         rotErr = 0
         tiltErr = 0
+        if self.rotate:
+            if self.uniformAngularDistribution:
+                rot = 2*np.pi * np.random.uniform(0, 1)*180/np.pi
+                tilt = np.arccos(2*np.random.uniform(0, 1) - 1)*180/np.pi
 
-        if self.uniformAngularDistribution:
-            rot = 2*np.pi * np.random.uniform(0, 1)*180/np.pi
-            tilt = np.arccos(2*np.random.uniform(0, 1) - 1)*180/np.pi
+                #It is neccesary to create a new variable because of the random errors
+                rotErr = rot
+                tiltErr = tilt
 
-            #It is neccesary to create a new variable because of the random errors
-            rotErr = rot
-            tiltErr = tilt
-
-            if self.stdError:
-                rotErr = rot + np.random.normal(0, self.sigma.get())
-                tiltErr = tilt + np.random.normal(0, self.sigma.get())
-        else:
-            if self.rotate:
+                if self.stdError:
+                    rotErr = rot + np.random.normal(0, self.sigma.get())
+                    tiltErr = tilt + np.random.normal(0, self.sigma.get())
+            else:
                 rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
                 tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
                 psi = np.random.randint(self.psimin.get(), self.psimax.get())
@@ -285,30 +293,29 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
             shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
 
-        if self.rotate or self.applyShift:
-            self.runJob("xmipp_transform_geometry",
-                        " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
-                        % (fnIn, fnOut, rotErr, tiltErr, psi, shiftX, shiftY, shiftZ))
+
+        self.runJob("xmipp_transform_geometry",
+                    " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
+                    % (fnIn, fnOut, rotErr, tiltErr, psi, shiftX, shiftY, shiftZ))
 
         return rot, tilt, psi, shiftX, shiftY, shiftZ
 
 
     def addNoiseToPhantom(self, fnIn, fnOut):
-        if self.addNoise.get():
-            params_noise = ' -i %s ' % fnIn
-            if self.option == 0:
-                params_noise += ' --save_metadata_stack'
 
-            if self.differentStatistics.get():
-                sigmaNoise = random.uniform(self.minstd.get(), self.maxstd.get())
-                params_noise += ' --type gaussian %f ' % sigmaNoise
-            else:
-                meanNoise = self.meanNoise.get()
-                sigmaNoise = self.stdNoise.get()
-                params_noise += ' --type gaussian %f %f ' % (sigmaNoise, meanNoise)
+        params_noise = ' -i %s ' % fnIn
+        params_noise += ' --save_metadata_stack'
 
-            params_noise += ' -o %s ' % fnOut
-            self.runJob('xmipp_transform_add_noise', params_noise)
+        if self.differentStatistics.get():
+            sigmaNoise = random.uniform(self.minstd.get(), self.maxstd.get())
+            params_noise += ' --type gaussian %f ' % sigmaNoise
+        else:
+            meanNoise = self.meanNoise.get()
+            sigmaNoise = self.stdNoise.get()
+            params_noise += ' --type gaussian %f %f ' % (sigmaNoise, meanNoise)
+
+        params_noise += ' -o %s ' % fnOut
+        self.runJob('xmipp_transform_add_noise', params_noise)
 
 
     def creatingprojections(self, mystack):
