@@ -164,7 +164,7 @@ class TestXmippSubtomoPhantom(BaseTest):
     def _geometricalphantomMW(self):
         geometricalphantomMW = self.newProtocol(XmippProtPhantomSubtomo,
                                                 option=1,
-                                                mwfilter=True)
+                                                rotate=True)
         self.launchProtocol(geometricalphantomMW)
         self.assertIsNotNone(geometricalphantomMW.outputSubtomograms,
                              "There was a problem with subtomograms output")
