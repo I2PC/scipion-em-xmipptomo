@@ -66,7 +66,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                       help="Import a volume or create 'base' phantom manually")
         form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
                       condition="option==0", help="Volume used as 'base' phantom", allowsNull=True)
-        form.addParam('create', TextParam, label='Create phantom', condition="option==1",
+        form.addParam('create', TextParam, label='Phantom description', condition="option==1",
                       default='40 40 40 0\ncyl + 1 0 0 0 15 15 2 0 0 0\nsph + 1 0 0 5 2\ncyl + 1 0 0 -5 2 2 10 0 90 0\n'
                               'sph + 1 0 -5 5 2',
                       help="create a phantom description: x y z backgroundValue geometry(cyl, sph...) +(superimpose) "
