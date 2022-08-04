@@ -27,6 +27,7 @@
 # **************************************************************************
 import enum
 import numpy as np
+import random
 from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform, Integer
 from pwem.protocols import EMProtocol
@@ -60,7 +61,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
         form.addParam('option', EnumParam,
-                      choices=['Import volume', 'creating a phantom'], default=0,
+                      choices=['Import volume', 'Create phantom'], default=0,
                       display=EnumParam.DISPLAY_HLIST, label=' ',
                       help="Import a volume or create 'base' phantom manually")
         form.addParam('inputVolume', PointerParam, pointerClass="Volume", label='Input volume',
@@ -198,7 +199,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             fnInVol = inputVol.getFileName()
             dim = inputVol.getDim()
         if self.option == 1:
-            dim, fnVol = self.createGeometricalPhantom()
+            dim, fnInVol = self.createGeometricalPhantom()
 
         self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnInVol)
 
@@ -297,7 +298,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             params_noise = ' -i %s ' % fnIn
             if self.option == 0:
                 params_noise += ' --save_metadata_stack'
-            import random
+
             if self.differentStatistics.get():
                 sigmaNoise = random.uniform(self.minstd.get(), self.maxstd.get())
                 params_noise += ' --type gaussian %f ' % sigmaNoise
