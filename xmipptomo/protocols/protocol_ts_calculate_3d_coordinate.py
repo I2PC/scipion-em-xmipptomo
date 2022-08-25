@@ -125,16 +125,32 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
                 avgAngle2 = m2._avgAngle.get()
 
                 if tsId1 == tsId2 and avgAngle1 != avgAngle2:
-
                     print("Comparing angles " + str(avgAngle1) + " and " + str(avgAngle2) + " with tilt-series ID "
                           + str(tsId1))
+
+                    xdim, ydim, _ = self.inputSetOfTiltSeries.get().getDimensions()
 
                     tmpPrefix = self._getTmpPath(tsId1)
                     extraPrefix = self._getExtraPath(tsId1)
 
+                    # Remove coordinates by cosine stretching
+                    if abs(avgAngle1) >= abs(avgAngle2):
+                        fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
+                        fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+                        outputPath = "particles@" + os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
+
+                    else:
+                        fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+                        fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
+                        outputPath = "particles@" + os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+
+                    self.generateCoordinatesFilesCosineStretching(fntilt, avgAngle1, avgAngle2, xdim, outputPath)
+
+                    fntilt = outputPath
+
                     # Tilt pair particles
-                    fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
-                    fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
+                    # fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+                    # fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
                     fnmicsize = m1.getFileName()
                     maxShift = 50
                     threshold = 0.25
@@ -191,9 +207,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
                     mdCoor1.read(fnposUntilt)
                     mdCoor2.read(fnposTilt)
 
-                    # *** calculate from sqlite
-                    a1 = np.radians(-15)
-                    a2 = np.radians(15)
+                    a1 = np.radians(avgAngle2)
+                    a2 = np.radians(avgAngle1)
 
                     xdim, ydim, _ = self.inputSetOfTiltSeries.get().getDimensions()
                     xdim2 = xdim/2
@@ -204,9 +219,6 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
                     print("check1")
 
                     for objId in mdCoor1:
-
-                        print(objId)
-
                         x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId) - xdim2
                         x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId) - xdim2
                         y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId) - ydim2
@@ -303,6 +315,39 @@ loop_
     """ % (state, block)
         f.write(s)
         return f
+
+    @staticmethod
+    def generateCoordinatesFilesCosineStretching(file1, avgAngle1, avgAngle2, xDim, outputPath):
+        """ This method takes one coordinate file and 2 average angles and removes the coordinates that are impossible
+        to match between to files attending the consine streching between them. The file correspond to the most tilted
+        angle. A coordinate from the most tilted image will be removed if:
+
+            abs(x-xdim/2) > (xdim/2) * cos(abs(avgAngle1)-abs(avgAngle2))
+
+        """
+        xDim2 = (xDim / 2)
+        thr = xDim2 * np.cos(np.deg2rad(abs(avgAngle1)-abs(avgAngle2)))
+
+        mdCoorIn = md.MetaData()
+        mdCoorIn.read(file1)
+
+        mdCoorOut = md.MetaData()
+
+        for objId in mdCoorIn:
+            x = mdCoorIn.getValue(emlib.MDL_XCOOR, objId)
+
+            if abs(x - xDim2) < thr:
+                y = mdCoorIn.getValue(emlib.MDL_YCOOR, objId)
+                newObjId = mdCoorOut.addObject()
+
+                row = md.Row()
+
+                row.setValue(emlib.MDL_XCOOR, x)
+                row.setValue(emlib.MDL_YCOOR, y)
+
+                row.writeToMd(mdCoorOut, newObjId)
+
+        mdCoorOut.write(outputPath)
 
     def getOutputSetOfTiltSeriesCoordinates(self):
         if hasattr(self, "tiltSeriesCoordinates"):
