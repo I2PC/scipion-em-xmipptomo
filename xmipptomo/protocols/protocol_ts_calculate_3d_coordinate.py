@@ -102,110 +102,141 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             tmpPrefix = self._getTmpPath(tsId)
             outputFilePath = os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, avgAngle))
 
-            print(outputFilePath)
-
             self.writeMicCoordinates(mObjId, coordList, outputFilePath)
 
     def assignTiltPairs(self):
+        micSet = []
 
-        for m in self.inputSetOfCoordinates.get().iterMicrographs():
-            tsId = m._tsId.get()
+        for m in self.inputSetOfCoordinates.get().iterMicrographs():  # Coger solo las mics con el mismo tsId
+            micSet.append(m.clone())
 
-            tmpPrefix = self._getTmpPath(tsId)
-            extraPrefix = self._getExtraPath(tsId)
+        micSetSize = len(micSet)
 
-            # Tilt pair particles
-            fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, 15.0))
-            fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId, -15.0))
-            fnmicsize = m.getFileName()
-            maxShift = 50
-            threshold = 0.25
-            odir = extraPrefix
+        for i in range(micSetSize):
+            for j in range(i, micSetSize):
 
-            params = ' --untiltcoor %s' % fnuntilt
-            params += ' --tiltcoor %s' % fntilt
-            params += ' --tiltmicsize %s' % fnmicsize
-            params += ' --maxshift %f' % maxShift
-            params += ' --particlesize %d' % self.getBoxSize()
-            params += ' --threshold %f' % threshold
-            params += ' --odir %s' % odir
-            self.runJob('xmipp_image_assignment_tilt_pair', params)
+                m1 = micSet[i]
+                m2 = micSet[j]
 
-            # Estimate the tilt axis
-            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
-            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
-            fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
+                tsId1 = m1._tsId.get()
+                tsId2 = m2._tsId.get()
 
-            params = ' --untilted %s' % fnposUntilt
-            params += ' --tilted %s' % fnposTilt
-            params += ' -o %s' % fnO
-            self.runJob('xmipp_angular_estimate_tilt_axis', params)
+                avgAngle1 = m1._avgAngle.get()
+                avgAngle2 = m2._avgAngle.get()
 
-            break  # Esto es para comprobar unicamente una pareja
+                if tsId1 == tsId2 and avgAngle1 != avgAngle2:
+
+                    print("Comparing angles " + str(avgAngle1) + " and " + str(avgAngle2) + " with tilt-series ID "
+                          + str(tsId1))
+
+                    tmpPrefix = self._getTmpPath(tsId1)
+                    extraPrefix = self._getExtraPath(tsId1)
+
+                    # Tilt pair particles
+                    fnuntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+                    fntilt = "particles@" + os.path.join(tmpPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
+                    fnmicsize = m1.getFileName()
+                    maxShift = 50
+                    threshold = 0.25
+                    odir = extraPrefix
+
+                    params = ' --untiltcoor %s' % fnuntilt
+                    params += ' --tiltcoor %s' % fntilt
+                    params += ' --tiltmicsize %s' % fnmicsize
+                    params += ' --maxshift %f' % maxShift
+                    params += ' --particlesize %d' % self.getBoxSize()
+                    params += ' --threshold %f' % threshold
+                    params += ' --odir %s' % odir
+                    self.runJob('xmipp_image_assignment_tilt_pair', params)
+
+                    # Estimate the tilt axis
+                    fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle2))
+                    fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle1))
+                    fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
+
+                    params = ' --untilted %s' % fnposUntilt
+                    params += ' --tilted %s' % fnposTilt
+                    params += ' -o %s' % fnO
+                    self.runJob('xmipp_angular_estimate_tilt_axis', params)
 
     def calculateCoordinates3D(self):
-        for m in self.inputSetOfCoordinates.get().iterMicrographs():
-            tsId = m._tsId.get()
+        micSet = []
 
-            extraPrefix = self._getExtraPath(tsId)
+        for m in self.inputSetOfCoordinates.get().iterMicrographs():  # Coger solo las mics con el mismo tsId
+            micSet.append(m.clone())
 
-            fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, 15.0))
-            fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId, -15.0))
+        micSetSize = len(micSet)
 
-            mdCoor1 = md.MetaData()
-            mdCoor2 = md.MetaData()
+        for i in range(micSetSize):
+            for j in range(i, micSetSize):
 
-            mdCoor1.read(fnposUntilt)
-            mdCoor2.read(fnposTilt)
+                m1 = micSet[i]
+                m2 = micSet[j]
 
-            # *** calculate from sqlite
-            a1 = np.radians(-15)
-            a2 = np.radians(15)
+                tsId1 = m1._tsId.get()
+                tsId2 = m2._tsId.get()
 
-            xdim, ydim, _ = self.inputSetOfTiltSeries.get().getDimensions()
-            xdim2 = xdim/2
-            ydim2 = ydim/2
+                avgAngle1 = m1._avgAngle.get()
+                avgAngle2 = m2._avgAngle.get()
 
-            self.getOutputSetOfTiltSeriesCoordinates()
+                if tsId1 == tsId2 and avgAngle1 != avgAngle2:
+                    extraPrefix = self._getExtraPath(tsId1)
 
-            print("check1")
+                    fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle2))
+                    fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle1))
 
-            for objId in mdCoor1:
+                    mdCoor1 = md.MetaData()
+                    mdCoor2 = md.MetaData()
 
-                print(objId)
+                    mdCoor1.read(fnposUntilt)
+                    mdCoor2.read(fnposTilt)
 
-                x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId) - xdim2
-                x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId) - xdim2
-                y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId) - ydim2
-                y2 = mdCoor2.getValue(emlib.MDL_YCOOR, objId) - ydim2
+                    # *** calculate from sqlite
+                    a1 = np.radians(-15)
+                    a2 = np.radians(15)
 
-                # x1 = x*cos(a1)-z*sin(a1)
-                # x2 = x*cos(a2)-z*sin(a2)
+                    xdim, ydim, _ = self.inputSetOfTiltSeries.get().getDimensions()
+                    xdim2 = xdim/2
+                    ydim2 = ydim/2
 
-                m = np.matrix([[np.cos(a1), -np.sin(a1)], [np.cos(a2), -np.sin(a2)]])
-                m_inv = np.linalg.pinv(m)
+                    self.getOutputSetOfTiltSeriesCoordinates()
 
-                x = m_inv[0, 0] * x1 + m_inv[0, 1] * x2
-                y = (y1 + y2) / 2
-                z = m_inv[1, 0] * x1 + m_inv[1, 1] * x2
+                    print("check1")
 
-                print(x)
-                print(y)
-                print(z)
+                    for objId in mdCoor1:
 
-                newCoord3D = TiltSeriesCoordinate()
-                newCoord3D.setTsId(tsId)
-                newCoord3D.setPosition(x,
-                                       y,
-                                       z,
-                                       sampling_rate=self.inputSetOfTiltSeries.get().getSamplingRate())
+                        print(objId)
 
-                self.tiltSeriesCoordinates.append(newCoord3D)
+                        x1 = mdCoor1.getValue(emlib.MDL_XCOOR, objId) - xdim2
+                        x2 = mdCoor2.getValue(emlib.MDL_XCOOR, objId) - xdim2
+                        y1 = mdCoor1.getValue(emlib.MDL_YCOOR, objId) - ydim2
+                        y2 = mdCoor2.getValue(emlib.MDL_YCOOR, objId) - ydim2
 
-            self.tiltSeriesCoordinates.write()
-            self._store()
+                        # x1 = x*cos(a1)-z*sin(a1)
+                        # x2 = x*cos(a2)-z*sin(a2)
 
-            break
+                        m = np.matrix([[np.cos(a1), -np.sin(a1)], [np.cos(a2), -np.sin(a2)]])
+                        m_inv = np.linalg.pinv(m)
+
+                        x = m_inv[0, 0] * x1 + m_inv[0, 1] * x2
+                        y = (y1 + y2) / 2
+                        z = m_inv[1, 0] * x1 + m_inv[1, 1] * x2
+
+                        print(x)
+                        print(y)
+                        print(z)
+
+                        newCoord3D = TiltSeriesCoordinate()
+                        newCoord3D.setTsId(tsId1)
+                        newCoord3D.setPosition(x,
+                                               y,
+                                               z,
+                                               sampling_rate=self.inputSetOfTiltSeries.get().getSamplingRate())
+
+                        self.tiltSeriesCoordinates.append(newCoord3D)
+
+                    self.tiltSeriesCoordinates.write()
+                    self._store()
 
     def CloseOutputStep(self):
         self.getOutputSetOfTiltSeriesCoordinates().setStreamState(Set.STREAM_CLOSED)
