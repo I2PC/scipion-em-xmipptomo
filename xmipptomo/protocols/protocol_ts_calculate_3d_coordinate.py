@@ -161,8 +161,10 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
             # *** calculate from sqlite
             a1 = np.radians(-15)
             a2 = np.radians(15)
-            xdim2 = 960/2
-            ydim2 = 928/2
+
+            xdim, ydim, _ = self.inputSetOfTiltSeries.get().getDimensions()
+            xdim2 = xdim/2
+            ydim2 = ydim/2
 
             self.getOutputSetOfTiltSeriesCoordinates()
 
