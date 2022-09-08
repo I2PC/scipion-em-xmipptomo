@@ -104,6 +104,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Threshold maximum distance in angstroms of a detected landmark to consider it belongs to '
                            'a chain.')
 
+        form.addParam('thrFiducialDistance',
+                      params.FloatParam,
+                      advanced=True,
+                      default=0.5,
+                      label='Landmark distance threshold',
+                      help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
+                           'coordinate projection and the detected fiducial.')
+
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         self.alignmentReport = List([])
@@ -210,6 +218,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrChainDistanceAng': self.thrChainDistanceAng.get(),
+                'thrFiducialDistance': self.thrFiducialDistance.get(),
             }
 
             argsDetectMisali = "-i %(i)s " \
@@ -220,7 +229,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "--thrNumberCoords %(thrNumberCoords).2f " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--thrChainDistanceAng %(thrChainDistanceAng).2f"
+                               "--thrChainDistanceAng %(thrChainDistanceAng).2f " \
+                               "--thrFiducialDistance %(thrFiducialDistance).2f "
 
             self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
