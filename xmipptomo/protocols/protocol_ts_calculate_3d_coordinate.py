@@ -155,25 +155,32 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
                     maxShift = 50
                     threshold = 0.25
                     odir = extraPrefix
+                    tiltAngle = avgAngle1 - avgAngle2
+
+                    print(avgAngle1)
+                    print(avgAngle2)
+                    print(tiltAngle)
 
                     params = ' --untiltcoor %s' % fnuntilt
                     params += ' --tiltcoor %s' % fntilt
-                    params += ' --tiltmicsize %s' % fnmicsize
-                    params += ' --maxshift %f' % maxShift
-                    params += ' --particlesize %d' % self.getBoxSize()
-                    params += ' --threshold %f' % threshold
+                    # params += ' --tiltmicsize %s' % fnmicsize
+                    # params += ' --maxshift %f' % maxShift
+                    params += ' --tiltAngle %f' % tiltAngle
+                    # params += ' --particlesize %d' % self.getBoxSize()
+                    # params += ' --threshold %f' % threshold
                     params += ' --odir %s' % odir
-                    self.runJob('xmipp_image_assignment_tilt_pair', params)
+                    # self.runJob('xmipp_image_assignment_tilt_pair', params)
+                    self.runJob('xmipp_tomo_coordinate_tracking', params)
 
                     # Estimate the tilt axis
-                    fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle2))
-                    fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle1))
-                    fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
-
-                    params = ' --untilted %s' % fnposUntilt
-                    params += ' --tilted %s' % fnposTilt
-                    params += ' -o %s' % fnO
-                    self.runJob('xmipp_angular_estimate_tilt_axis', params)
+                    # fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle2))
+                    # fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle1))
+                    # fnO = os.path.join(extraPrefix, 'tiltAngle.xmd')
+                    #
+                    # params = ' --untilted %s' % fnposUntilt
+                    # params += ' --tilted %s' % fnposTilt
+                    # params += ' -o %s' % fnO
+                    # self.runJob('xmipp_angular_estimate_tilt_axis', params)
 
     def calculateCoordinates3D(self):
         micSet = []
@@ -198,8 +205,8 @@ class XmippProtCalculate3dCoordinatesFromTS(EMProtocol, ProtTomoBase):
                 if tsId1 == tsId2 and avgAngle1 != avgAngle2:
                     extraPrefix = self._getExtraPath(tsId1)
 
-                    fnposUntilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle2))
-                    fnposTilt = "particles@" + os.path.join(extraPrefix, "%s_%0.f.pos" % (tsId1, avgAngle1))
+                    fnposUntilt = "noname@" + os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle2))
+                    fnposTilt = "noname@" + os.path.join(extraPrefix, "%s_%0.f.xmd" % (tsId1, avgAngle1))
 
                     mdCoor1 = md.MetaData()
                     mdCoor2 = md.MetaData()
