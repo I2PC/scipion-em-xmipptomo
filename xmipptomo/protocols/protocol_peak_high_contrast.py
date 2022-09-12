@@ -80,7 +80,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
         form.addParam('centerFeatures',
                       params.BooleanParam,
                       label='Center features',
-                      default=False,
+                      default=True,
+                      expertLevel=params.LEVEL_ADVANCED,
                       help="Center the peaked high contrast features by sliding the symmetric volume and maximizing "
                            "the correlation .")
 
