@@ -26,15 +26,10 @@
 import os
 
 from pwem.protocols import EMProtocol
-import pyworkflow.protocol.params as params
-from pyworkflow.object import Set
-from tomo import constants
 from tomo.protocols import ProtTomoBase
-import tomo.objects as tomoObj
-from xmipptomo import utils
 
 
-class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
+class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     """
     Wrapper protocol to Xmipp image peak high contrast applied to any volume
     """
