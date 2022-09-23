@@ -34,12 +34,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     Wrapper protocol to Xmipp image peak high contrast applied to any volume
     """
 
-    RESIZE_SAMPLINGRATE = 0
-    RESIZE_DIMENSIONS = 1
-    RESIZE_FACTOR = 2
-    RESIZE_PYRAMID = 3
-
-    _label = 'peak high contrast'
+    _label = 'detect misalignment from fiducials'
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
