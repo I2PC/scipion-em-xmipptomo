@@ -25,8 +25,14 @@
 # **************************************************************************
 import os
 
+import numpy as np
+
+from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+from pyworkflow.protocol import FileParam, PointerParam
 from tomo.protocols import ProtTomoBase
+from tensorflow.keras.models import load_model
+
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
@@ -40,13 +46,86 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
+        form.addParam('inputSetOfSubTomograms',
+                      PointerParam,
+                      pointerClass='SetOfSubTomograms',
+                      important=True,
+                      label='Input set of subtomos',
+                      help='Set of 3D coordinates of the location of the fiducials used to predict if the tomogram '
+                           'presents misalignment.')
+
+        form.addParam('model', FileParam,
+                      label='Input model',
+                      help='Input model for prediction')
+
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-        pass
+        self._insertFunctionStep(self.subtomoPrediction)
 
     # --------------------------- STEP functions --------------------------------
+    def subtomoPrediction(self):
+        ih = ImageHandler()
+        totalNumberOfSubtomos = len(self.inputSetOfSubTomograms.get()) # *** esto no va a funcionar en cuanto haya coordenadas de mas de 1 tomo
+
+        print("total number of subtomos: " + str(totalNumberOfSubtomos))
+
+        self.loadModel()
+        # self.generateVolumeIdList()
+
+        subtomoList = []
+        predictionList = np.array([0])
+        # subtomoList = self.loadSubtomoSubset()
+
+        currentVolId = None
+
+        for index, subtomo in enumerate(self.inputSetOfSubTomograms.get().iterSubtomos(orderBy="_volId")):
+
+            if (subtomo.getVolId() != currentVolId and currentVolId is not None) or ((index+1) == totalNumberOfSubtomos):
+                # Make prediction
+                print("Making prediction for subtomos with volId=" + str(currentVolId))
+                print(predictionList.size)
+                for s in subtomoList:
+                    prediction = self.model.predict(s)
+                    np.append(predictionList, prediction)
+
+                overallPrediction = self.determineOverallPrediction(predictionList)
+
+                print("for volume id " + currentVolId + "obtained prediction from " + subtomoList + " subtomos is "
+                      + overallPrediction)
+
+                print(predictionList)
+
+                currentVolId = subtomo.getVolId()
+                subtomoList = []
+
+            if currentVolId is None:
+                currentVolId = subtomo.getVolId()
+
+            subtomoList.append(ih.read(subtomo.getFileName()).getData())
+
+            print("subtomoList len " + str(len(subtomoList)))
 
     # --------------------------- UTILS functions ----------------------------
+    def loadModel(self):
+        self.model = load_model(self.model.get())
+        print(self.model.summary())
+
+    def loadSubtomoSubset(self):
+        subtomoSubset = []
+
+        return subtomoSubset
+
+    def determineOverallPrediction(self, predictionList):
+        predictionClasses = np.round(predictionList)
+
+        overallPrediction = 0
+
+        for i in predictionClasses:
+            overallPrediction += i
+
+        overallPrediction = overallPrediction / predictionList.size
+
+        return True if overallPrediction > 0.5 else False
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
