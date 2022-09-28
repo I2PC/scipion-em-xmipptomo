@@ -155,28 +155,36 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
 
     def getOutputSetOfAlignedTomograms(self):
-        outputSetOfAlignedTomograms = self._createSetOfTomograms()
+        if hasattr(self, 'outputSetOfAlignedTomograms'):
+            self.outputSetOfAlignedTomograms.enableAppend()
 
-        outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-        outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+        else:
+            outputSetOfAlignedTomograms = self._createSetOfTomograms()
 
-        outputSetOfAlignedTomograms.setStreamState(Set.STREAM_OPEN)
+            outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+            outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
 
-        self._defineOutputs(outputSetOfAlignedTomograms=outputSetOfAlignedTomograms)
-        self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfAlignedTomograms)
+            outputSetOfAlignedTomograms.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfAlignedTomograms=outputSetOfAlignedTomograms)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfAlignedTomograms)
 
         return self.outputSetOfAlignedTomograms
 
     def getOutputSetOfMisalignedTomograms(self):
-        outputSetOfMisalignedTomograms = self._createSetOfTomograms()
+        if hasattr(self, 'outputSetOfMisalignedTomograms'):
+            self.outputSetOfMisalignedTomograms.enableAppend()
 
-        outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-        outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+        else:
+            outputSetOfMisalignedTomograms = self._createSetOfTomograms()
 
-        outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
+            outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+            outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
 
-        self._defineOutputs(outputSetOfMisalignedTomograms=outputSetOfMisalignedTomograms)
-        self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfMisalignedTomograms)
+            outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfMisalignedTomograms=outputSetOfMisalignedTomograms)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfMisalignedTomograms)
 
         return self.outputSetOfMisalignedTomograms
 
