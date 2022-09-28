@@ -59,6 +59,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.subtomoPrediction)
+        self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEP functions --------------------------------
     def subtomoPrediction(self):
