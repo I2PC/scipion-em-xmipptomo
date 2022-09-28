@@ -170,7 +170,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         self._defineOutputs(outputSetOfMisalignedTomograms=outputSetOfMisalignedTomograms)
         self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfMisalignedTomograms)
 
-        return self.outputSetOfAlignedTomograms
+        return self.outputSetOfMisalignedTomograms
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
