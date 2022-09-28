@@ -23,16 +23,14 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import os
 
 import numpy as np
-
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+from pyworkflow.object import Set
 from pyworkflow.protocol import FileParam, PointerParam
 from tomo.protocols import ProtTomoBase
 from tensorflow.keras.models import load_model
-
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
@@ -64,58 +62,79 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEP functions --------------------------------
     def subtomoPrediction(self):
-        ih = ImageHandler()
-        totalNumberOfSubtomos = len(self.inputSetOfSubTomograms.get()) # *** esto no va a funcionar en cuanto haya coordenadas de mas de 1 tomo
+        totalNumberOfSubtomos = len(self.inputSetOfSubTomograms.get())
 
         print("total number of subtomos: " + str(totalNumberOfSubtomos))
 
         self.loadModel()
-        # self.generateVolumeIdList()
 
-        subtomoList = []
-        predictionList = np.array([0])
-        # subtomoList = self.loadSubtomoSubset()
-
+        subtomoFilePathList = []
         currentVolId = None
 
         for index, subtomo in enumerate(self.inputSetOfSubTomograms.get().iterSubtomos(orderBy="_volId")):
 
-            if (subtomo.getVolId() != currentVolId and currentVolId is not None) or ((index+1) == totalNumberOfSubtomos):
+            if (subtomo.getVolId() != currentVolId and currentVolId is not None) or (
+                    (index + 1) == totalNumberOfSubtomos):
                 # Make prediction
-                print("Making prediction for subtomos with volId=" + str(currentVolId))
-                print(predictionList.size)
-                for s in subtomoList:
-                    prediction = self.model.predict(s)
-                    np.append(predictionList, prediction)
+                overallPrediction = self.makePrediction(subtomoFilePathList)
 
-                overallPrediction = self.determineOverallPrediction(predictionList)
+                print("For volume id " + str(currentVolId) + " obtained prediction from " +
+                      str(len(subtomoFilePathList)) + " subtomos is " + str(overallPrediction))
 
-                print("for volume id " + currentVolId + "obtained prediction from " + subtomoList + " subtomos is "
-                      + overallPrediction)
-
-                print(predictionList)
+                self.addTomoToOutput(volId=currentVolId, overallPrediction=overallPrediction)
 
                 currentVolId = subtomo.getVolId()
-                subtomoList = []
+                subtomoFilePathList = []
 
             if currentVolId is None:
                 currentVolId = subtomo.getVolId()
 
-            subtomoList.append(ih.read(subtomo.getFileName()).getData())
-
-            print("subtomoList len " + str(len(subtomoList)))
+            subtomoFilePathList.append(subtomo.getFileName())
 
     # --------------------------- UTILS functions ----------------------------
+    def makePrediction(self, subtomoFilePathList):
+        ih = ImageHandler()
+
+        numberOfSubtomos = len(subtomoFilePathList)
+
+        subtomoArray = np.zeros((numberOfSubtomos, 32, 32, 32), dtype=np.float64)
+
+        for index, subtomoFilePath in enumerate(subtomoFilePathList):
+            subtomoDataTmp = ih.read(subtomoFilePath).getData()
+
+            subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
+
+        predictionArray = self.model.predict(subtomoArray)
+
+        overallPrediction = self.determineOverallPrediction(predictionArray)
+
+        return overallPrediction
+
+    def addTomoToOutput(self, volId, overallPrediction):
+        if overallPrediction:  # Ali
+            self.getOutputSetOfAlignedTomograms()
+            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId]
+
+            self.outputSetOfAlignedTomograms.append(newTomogram)
+            self.outputSetOfAlignedTomograms.update(newTomogram)
+            self.outputSetOfAlignedTomograms.write()
+            self._store()
+
+        else:  # Misali
+            self.getOutputSetOfMisalignedTomograms()
+            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId]
+
+            self.outputSetOfMisalignedTomograms.append(newTomogram)
+            self.outputSetOfMisalignedTomograms.update(newTomogram)
+            self.outputSetOfMisalignedTomograms.write()
+            self._store()
+
     def loadModel(self):
         self.model = load_model(self.model.get())
         print(self.model.summary())
 
-    def loadSubtomoSubset(self):
-        subtomoSubset = []
-
-        return subtomoSubset
-
-    def determineOverallPrediction(self, predictionList):
+    @staticmethod
+    def determineOverallPrediction(predictionList):
         predictionClasses = np.round(predictionList)
 
         overallPrediction = 0
@@ -125,7 +144,33 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         overallPrediction = overallPrediction / predictionList.size
 
-        return True if overallPrediction > 0.5 else False
+        return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+
+    def getOutputSetOfAlignedTomograms(self):
+        outputSetOfAlignedTomograms = self._createSetOfTomograms()
+
+        outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+        outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+
+        outputSetOfAlignedTomograms.setStreamState(Set.STREAM_OPEN)
+
+        self._defineOutputs(outputSetOfAlignedTomograms=outputSetOfAlignedTomograms)
+        self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfAlignedTomograms)
+
+        return self.outputSetOfAlignedTomograms
+
+    def getOutputSetOfMisalignedTomograms(self):
+        outputSetOfMisalignedTomograms = self._createSetOfTomograms()
+
+        outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+        outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+
+        outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
+
+        self._defineOutputs(outputSetOfMisalignedTomograms=outputSetOfMisalignedTomograms)
+        self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfMisalignedTomograms)
+
+        return self.outputSetOfAlignedTomograms
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
