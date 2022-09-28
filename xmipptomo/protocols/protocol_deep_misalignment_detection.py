@@ -91,6 +91,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             subtomoFilePathList.append(subtomo.getFileName())
 
+    def closeOutputSetsStep(self):
+        if hasattr(self, 'outputSetOfAlignedTomograms'):
+            self.getOutputSetOfAlignedTomograms().setStreamState(Set.STREAM_CLOSED)
+
+        if hasattr(self, 'outputSetOfMisalignedTomograms'):
+            self.getOutputSetOfMisalignedTomograms().setStreamState(Set.STREAM_CLOSED)
+
     # --------------------------- UTILS functions ----------------------------
     def makePrediction(self, subtomoFilePathList):
         ih = ImageHandler()
