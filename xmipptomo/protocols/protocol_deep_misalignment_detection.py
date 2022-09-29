@@ -52,9 +52,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                       help='Set of 3D coordinates of the location of the fiducials used to predict if the tomogram '
                            'presents misalignment.')
 
-        form.addParam('model', FileParam,
-                      label='Input model',
-                      help='Input model for prediction')
+        form.addParam('firstModelPath', FileParam,
+                      label='Input model for first split',
+                      help='Input model for first split prediction')
+
+        form.addParam('secondModelPath', FileParam,
+                      label='Input model for second split',
+                      help='Input model for second split prediction')
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
@@ -67,7 +71,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         print("total number of subtomos: " + str(totalNumberOfSubtomos))
 
-        self.loadModel()
+        self.loadModels()
 
         subtomoFilePathList = []
         currentVolId = None
@@ -112,9 +116,14 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
 
-        predictionArray = self.model.predict(subtomoArray)
+        predictionArray = self.firstModel.predict(subtomoArray)
 
         overallPrediction = self.determineOverallPrediction(predictionArray)
+
+        if overallPrediction:
+            predictionArray = self.secondModel.predict(subtomoArray)
+
+            overallPrediction = self.determineOverallPrediction(predictionArray)
 
         return overallPrediction
 
@@ -137,9 +146,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.outputSetOfMisalignedTomograms.write()
             self._store()
 
-    def loadModel(self):
-        self.model = load_model(self.model.get())
-        print(self.model.summary())
+    def loadModels(self):
+        self.firstModel = load_model(self.firstModelPath.get())
+        print(self.firstModel.summary())
+
+        self.secondModel = load_model(self.secondModelPath.get())
+        print(self.firstModel.summary())
 
     @staticmethod
     def determineOverallPrediction(predictionList):
