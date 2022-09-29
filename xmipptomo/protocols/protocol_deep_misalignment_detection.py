@@ -169,7 +169,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.outputSetOfAlignedTomograms.enableAppend()
 
         else:
-            outputSetOfAlignedTomograms = self._createSetOfTomograms()
+            outputSetOfAlignedTomograms = self._createSetOfTomograms(suffix='Ali')
 
             # outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
             # outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
@@ -188,7 +188,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.outputSetOfMisalignedTomograms.enableAppend()
 
         else:
-            outputSetOfMisalignedTomograms = self._createSetOfTomograms()
+            outputSetOfMisalignedTomograms = self._createSetOfTomograms(suffix='Misali')
 
             # outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
             # outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
