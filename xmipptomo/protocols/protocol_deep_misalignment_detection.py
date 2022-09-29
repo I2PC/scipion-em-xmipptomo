@@ -43,7 +43,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alignedTomograms = None
-        self.misAlignedTomograms = None
+        self.misalignedTomograms = None
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -106,9 +106,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.alignedTomograms.write()
 
-        if self.misAlignedTomograms:
-            self.misAlignedTomograms.setStreamState(Set.STREAM_CLOSED)
-            self.misAlignedTomograms.write()
+        if self.misalignedTomograms:
+            self.misalignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.misalignedTomograms.write()
 
         self._store()
 
@@ -149,8 +149,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.getOutputSetOfMisalignedTomograms()
             newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
-            self.misAlignedTomograms.append(newTomogram)
-            self.misAlignedTomograms.write()
+            self.misalignedTomograms.append(newTomogram)
+            self.misalignedTomograms.write()
             self._store()
 
     def loadModels(self):
@@ -190,8 +190,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return self.alignedTomograms
 
     def getOutputSetOfMisalignedTomograms(self):
-        if self.misAlignedTomograms:
-            self.misAlignedTomograms.enableAppend()
+        if self.misalignedTomograms:
+            self.misalignedTomograms.enableAppend()
 
         else:
             misalignedTomograms = self._createSetOfTomograms(suffix='Misali')
