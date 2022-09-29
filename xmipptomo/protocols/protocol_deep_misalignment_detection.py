@@ -43,6 +43,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alignedTomograms = None
+        self.misAlignedTomograms = None
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -105,9 +106,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.alignedTomograms.write()
 
-        if hasattr(self, 'outputSetOfMisalignedTomograms'):
-            self.outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
-            self.outputSetOfMisalignedTomograms.write()
+        if self.misAlignedTomograms:
+            self.misAlignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.misAlignedTomograms.write()
 
         self._store()
 
@@ -148,8 +149,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.getOutputSetOfMisalignedTomograms()
             newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
-            self.outputSetOfMisalignedTomograms.append(newTomogram)
-            self.outputSetOfMisalignedTomograms.write()
+            self.misAlignedTomograms.append(newTomogram)
+            self.misAlignedTomograms.write()
             self._store()
 
     def loadModels(self):
@@ -189,23 +190,20 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return self.alignedTomograms
 
     def getOutputSetOfMisalignedTomograms(self):
-        if hasattr(self, 'outputSetOfMisalignedTomograms'):
-            self.outputSetOfMisalignedTomograms.enableAppend()
+        if self.misAlignedTomograms:
+            self.misAlignedTomograms.enableAppend()
 
         else:
-            outputSetOfMisalignedTomograms = self._createSetOfTomograms(suffix='Misali')
+            misalignedTomograms = self._createSetOfTomograms(suffix='Misali')
 
-            # outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-            # outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+            misalignedTomograms.copyInfo(self.inputSetOfSubTomograms.get())
 
-            outputSetOfMisalignedTomograms.copyInfo(self.inputSetOfSubTomograms.get())
+            misalignedTomograms.setStreamState(Set.STREAM_OPEN)
 
-            outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(misalignedTomograms=misalignedTomograms)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, misalignedTomograms)
 
-            self._defineOutputs(outputSetOfMisalignedTomograms=outputSetOfMisalignedTomograms)
-            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfMisalignedTomograms)
-
-        return self.outputSetOfMisalignedTomograms
+        return self.misalignedTomograms
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
