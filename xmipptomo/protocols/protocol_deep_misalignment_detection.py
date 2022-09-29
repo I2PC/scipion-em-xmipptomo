@@ -40,6 +40,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     _label = 'detect misalignment from fiducials'
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.alignedTomograms = None
+
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
@@ -97,11 +101,11 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             subtomoFilePathList.append(subtomo.getFileName())
 
     def closeOutputSetsStep(self):
-        if hasattr(self, 'outputSetOfAlignedTomograms'):
-            self.getOutputSetOfAlignedTomograms().setStreamState(Set.STREAM_CLOSED)
+        if self.alignedTomograms:
+            self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
 
         if hasattr(self, 'outputSetOfMisalignedTomograms'):
-            self.getOutputSetOfMisalignedTomograms().setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
 
     # --------------------------- UTILS functions ----------------------------
     def makePrediction(self, subtomoFilePathList):
@@ -132,8 +136,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.getOutputSetOfAlignedTomograms()
             newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
-            self.outputSetOfAlignedTomograms.append(newTomogram)
-            self.outputSetOfAlignedTomograms.write()
+            self.alignedTomograms.append(newTomogram)
+            self.alignedTomograms.write()
             self._store()
 
         else:  # Misali
@@ -165,23 +169,20 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
 
     def getOutputSetOfAlignedTomograms(self):
-        if hasattr(self, 'outputSetOfAlignedTomograms'):
-            self.outputSetOfAlignedTomograms.enableAppend()
+        if self.alignedTomograms:
+            self.alignedTomograms.enableAppend()
 
         else:
-            outputSetOfAlignedTomograms = self._createSetOfTomograms(suffix='Ali')
+            alignedTomograms = self._createSetOfTomograms(suffix='Ali')
 
-            # outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-            # outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+            alignedTomograms.copyAttributes(self.inputSetOfSubTomograms.get())
 
-            outputSetOfAlignedTomograms.copyAttributes(self.inputSetOfSubTomograms.get())
+            alignedTomograms.setStreamState(Set.STREAM_OPEN)
 
-            outputSetOfAlignedTomograms.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(alignedTomograms=alignedTomograms)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, alignedTomograms)
 
-            self._defineOutputs(outputSetOfAlignedTomograms=outputSetOfAlignedTomograms)
-            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfAlignedTomograms)
-
-        return self.outputSetOfAlignedTomograms
+        return self.alignedTomograms
 
     def getOutputSetOfMisalignedTomograms(self):
         if hasattr(self, 'outputSetOfMisalignedTomograms'):
