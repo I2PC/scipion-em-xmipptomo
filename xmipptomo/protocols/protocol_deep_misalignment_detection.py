@@ -130,7 +130,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def addTomoToOutput(self, volId, overallPrediction):
         if overallPrediction:  # Ali
             self.getOutputSetOfAlignedTomograms()
-            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId]
+            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
             self.outputSetOfAlignedTomograms.append(newTomogram)
             self.outputSetOfAlignedTomograms.update(newTomogram)
@@ -139,7 +139,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         else:  # Misali
             self.getOutputSetOfMisalignedTomograms()
-            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId]
+            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
             self.outputSetOfMisalignedTomograms.append(newTomogram)
             self.outputSetOfMisalignedTomograms.update(newTomogram)
