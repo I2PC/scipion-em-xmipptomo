@@ -171,8 +171,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         else:
             outputSetOfAlignedTomograms = self._createSetOfTomograms()
 
-            outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-            outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+            # outputSetOfAlignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+            # outputSetOfAlignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+
+            outputSetOfAlignedTomograms.copyAttributes(self.inputSetOfSubTomograms.get())
 
             outputSetOfAlignedTomograms.setStreamState(Set.STREAM_OPEN)
 
@@ -188,8 +190,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         else:
             outputSetOfMisalignedTomograms = self._createSetOfTomograms()
 
-            outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
-            outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+            # outputSetOfMisalignedTomograms.setAcquisition(self.inputSetOfSubTomograms.get().getAcquisition())
+            # outputSetOfMisalignedTomograms.setSamplingRate(self.inputSetOfSubTomograms.get().getSamplingRate())
+
+            outputSetOfMisalignedTomograms.copyAttributes(self.inputSetOfSubTomograms.get())
 
             outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
 
