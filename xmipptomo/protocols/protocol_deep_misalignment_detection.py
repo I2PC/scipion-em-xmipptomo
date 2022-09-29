@@ -30,6 +30,7 @@ from pwem.protocols import EMProtocol
 from pyworkflow.object import Set
 from pyworkflow.protocol import FileParam, PointerParam
 from tomo.protocols import ProtTomoBase
+from tomo.objects import Tomogram
 from tensorflow.keras.models import load_model
 
 
@@ -138,7 +139,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def addTomoToOutput(self, volId, overallPrediction):
         if overallPrediction:  # Ali
             self.getOutputSetOfAlignedTomograms()
-            newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
+            newTomogram = Tomogram()
+            newTomogram.copyInfo(self.inputSetOfSubTomograms.get().getTomograms()[volId].clone())
 
             self.alignedTomograms.append(newTomogram)
             self.alignedTomograms.write()
