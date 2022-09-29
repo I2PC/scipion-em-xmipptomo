@@ -133,7 +133,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
             self.outputSetOfAlignedTomograms.append(newTomogram)
-            self.outputSetOfAlignedTomograms.update(newTomogram)
             self.outputSetOfAlignedTomograms.write()
             self._store()
 
@@ -142,7 +141,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             newTomogram = self.inputSetOfSubTomograms.get().getTomograms()[volId].clone()
 
             self.outputSetOfMisalignedTomograms.append(newTomogram)
-            self.outputSetOfMisalignedTomograms.update(newTomogram)
             self.outputSetOfMisalignedTomograms.write()
             self._store()
 
