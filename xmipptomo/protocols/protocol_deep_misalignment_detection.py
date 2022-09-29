@@ -103,9 +103,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.alignedTomograms.write()
 
         if hasattr(self, 'outputSetOfMisalignedTomograms'):
             self.outputSetOfMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfMisalignedTomograms.write()
+
+        self._store()
 
     # --------------------------- UTILS functions ----------------------------
     def makePrediction(self, subtomoFilePathList):
