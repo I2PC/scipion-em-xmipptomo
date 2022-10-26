@@ -36,6 +36,9 @@ from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 
+ALIGNED_TS_NAME = "outputInterpolatedSetOfTiltSeries"
+MISALIGNED_TS_NAME = "outputMisalignedSetOfTiltSeries"
+
 
 class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
     """
@@ -44,10 +47,13 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
     _label = 'misalign tilt-series '
     _devStatus = BETA
+    _possibleOutputs = {ALIGNED_TS_NAME: tomoObj.SetOfTiltSeries,
+                        MISALIGNED_TS_NAME:tomoObj.SetOfTiltSeries}
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
-
+        self.outputMisalignedSetOfTiltSeries = None
+        self.outputInterpolatedSetOfTiltSeries = None
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         form.addSection('Input')
@@ -344,8 +350,6 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
             missAliTs.append(missAliTi)
 
-        missAliTs.write()
-
         outputMisalignedSetOfTiltSeries.update(missAliTs)
         outputMisalignedSetOfTiltSeries.write()
 
@@ -454,52 +458,56 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         return transformMatrix
 
     def getOutputMisalignedSetOfTiltSeries(self):
-        if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
+        if not self.outputMisalignedSetOfTiltSeries:
+            import time
+            time.sleep(5)
+            self.debug("Creating %s output." % MISALIGNED_TS_NAME)
             outputMisalignedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Misaligned')
             outputMisalignedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputMisalignedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            self._defineOutputs(outputMisalignedSetOfTiltSeries=outputMisalignedSetOfTiltSeries)
+            self._defineOutputs(**{MISALIGNED_TS_NAME:outputMisalignedSetOfTiltSeries})
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputMisalignedSetOfTiltSeries)
         return self.outputMisalignedSetOfTiltSeries
 
     def getOutputInterpolatedSetOfTiltSeries(self):
-        if not hasattr(self, "outputInterpolatedSetOfTiltSeries"):
+        
+        if not self.outputInterpolatedSetOfTiltSeries:
+            self.debug("Creating %s output." % ALIGNED_TS_NAME)
             outputInterpolatedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Interpolated')
             outputInterpolatedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputInterpolatedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            self._defineOutputs(outputInterpolatedSetOfTiltSeries=outputInterpolatedSetOfTiltSeries)
+            self._defineOutputs(**{ALIGNED_TS_NAME:outputInterpolatedSetOfTiltSeries})
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputInterpolatedSetOfTiltSeries)
+        
         return self.outputInterpolatedSetOfTiltSeries
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
         summary = []
-        if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
+        if self.outputMisalignedSetOfTiltSeries:
+            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d."
                            % (self.inputSetOfTiltSeries.get().getSize(),
                               self.outputMisalignedSetOfTiltSeries.getSize()))
 
-        elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
-                           "Interpolated Tilt-Series: %d.\n"
-                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputInterpolatedSetOfTiltSeries.getSize()))
-        else:
-            summary.append("Output classes not ready yet.")
+        if self.outputInterpolatedSetOfTiltSeries:
+            summary.append("Interpolated Tilt-Series: %d.\n"
+                           % self.outputInterpolatedSetOfTiltSeries.getSize())
+        if len(summary)==0:
+            summary.append("Output not ready yet.")
+        
         return summary
 
     def _methods(self):
         methods = []
-        if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
+        if self.outputMisalignedSetOfTiltSeries:
+            methods.append("New transformation matrices has been calculated for %d Tilt-series."
                            % (self.outputMisalignedSetOfTiltSeries.getSize()))
 
-        elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
-                           "Also, interpolation has been completed for %d Tilt-series.\n"
-                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputInterpolatedSetOfTiltSeries.getSize()))
-        else:
-            methods.append("Output classes not ready yet.")
+        if self.outputInterpolatedSetOfTiltSeries:
+            methods.append("Also, interpolation has been completed for %d Tilt-series."
+                           % self.outputInterpolatedSetOfTiltSeries.getSize())
+        
+        if len(methods) == 0:
+            methods.append("Output not ready yet.")
+        
         return methods
