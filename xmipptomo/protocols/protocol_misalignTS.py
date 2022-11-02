@@ -369,7 +369,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         for index, tiltImage in enumerate(missAliTs):
             missAliInterTi = tomoObj.TiltImage()
-            missAliInterTi.copyInfo(tiltImage, copyId=True)
+            missAliInterTi.copyInfo(tiltImage, copyId=True, copyTM=False)
             missAliInterTi.setLocation(index + 1, outputTsFileName)
             missAliInterTs.append(missAliInterTi)
 
