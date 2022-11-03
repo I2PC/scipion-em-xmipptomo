@@ -315,7 +315,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                       label='With inverted matrix',
                       important=False,
                       help='Save the inverse of the misalignment transformation matrix in the interpolated set.',
-                      condition='applyMatrix==0')
+                      condition='applyMatrix==True')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
