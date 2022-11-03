@@ -36,17 +36,25 @@ from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 
+MISALIGNED_TS_NAME = "MisalignedTiltSeries"
+INTERPOLATED_TS_NAME = "InterpolatedTiltSeries"
 
 class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
     """
-    Introduce misalignment in the transformation matrix of a tilt-series
+    Introduce misalignment in the transformation matrix of a tilt-series.
+    NOTE: The Interpolated tilt series in this case resembles a not aligned tilt series
+    or an aligned one in case you want to apply the inverse of the misalignment
+    transformation matrix.
     """
-
     _label = 'misalign tilt-series '
     _devStatus = BETA
+    _possibleOutputs = {MISALIGNED_TS_NAME:tomoObj.SetOfTiltSeries,
+                        INTERPOLATED_TS_NAME:tomoObj.SetOfTiltSeries}
 
     def __init__(self, **kwargs):
         EMProtocol.__init__(self, **kwargs)
+        self.MisalignedTiltSeries = None
+        self.InterpolatedTiltSeries = None
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
@@ -60,12 +68,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         """ Options to introduce misalignment in the X axis shift"""
         form.addParam('shiftXNoiseToggle',
-                      params.EnumParam,
-                      choices=['Yes', 'No'],
-                      default=1,
+                      params.BooleanParam,
+                      default=False,
                       label='Introduce misalignment in shift X?',
                       important=True,
-                      display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce noise in the shift alignment value in the X axis. Characterize the noise '
                            'behaviour through the parameters in the following formula:\n'
                            '\n'
@@ -88,7 +94,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                            'sigma value (a6).\n')
 
         groupShiftX = form.addGroup('Misalignment parameters in shift X',
-                                    condition='shiftXNoiseToggle==0')
+                                    condition='shiftXNoiseToggle==True')
 
         groupShiftX.addParam('a0param',
                              params.FloatParam,
@@ -139,12 +145,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         """ Options to introduce misalignment in the Y axis shift"""
         form.addParam('shiftYNoiseToggle',
-                      params.EnumParam,
-                      choices=['Yes', 'No'],
-                      default=1,
+                      params.BooleanParam,
+                      default=False,
                       label='Introduce misalignment in shift Y?',
                       important=True,
-                      display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce noise in the shift alignment value in the Y axis. Characterize the noise '
                            'behaviour through the parameters in the following formula:\n'
                            '\n'
@@ -167,7 +171,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                            'sigma value (b6).\n')
 
         groupShiftY = form.addGroup('Misalignment parameters in shift Y',
-                                    condition='shiftYNoiseToggle==0')
+                                    condition='shiftYNoiseToggle==True')
 
         groupShiftY.addParam('b0param',
                              params.FloatParam,
@@ -218,12 +222,10 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         """ Options to introduce misalignment in the angle"""
         form.addParam('angleNoiseToggle',
-                      params.EnumParam,
-                      choices=['Yes', 'No'],
-                      default=1,
+                      params.BooleanParam,
+                      default=False,
                       label='Introduce misalignment in angle?',
                       important=True,
-                      display=params.EnumParam.DISPLAY_HLIST,
                       help='Introduce noise in the angle alignment value. Characterize the noise behaviour through the '
                            'parameters in the following formula:\n'
                            '\n'
@@ -246,7 +248,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                            'sigma value (c6).\n')
 
         groupAngle = form.addGroup('Misalignment parameters in angle',
-                                   condition='angleNoiseToggle==0')
+                                   condition='angleNoiseToggle==True')
 
         groupAngle.addParam('c0param',
                             params.FloatParam,
@@ -300,22 +302,30 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
                                  'degrees.')
 
         """ Options for misalignment interpolation"""
-        form.addParam('computeAlignment', params.EnumParam,
-                      choices=['Yes', 'No'],
-                      default=1,
+        form.addParam('applyMatrix', params.BooleanParam,
+                      default=False,
                       label='Generate interpolated tilt-series',
                       important=True,
-                      display=params.EnumParam.DISPLAY_HLIST,
-                      help='Generate and save the interpolated tilt-series applying the'
-                           'obtained transformation matrix.')
+                      help='Generate tilt-series applying the'
+                           'obtained misalignment transformation matrix.')
+
+        """ Options for aligned tilt series"""
+        form.addParam('addInverseMatrix', params.BooleanParam,
+                      default=False,
+                      label='With inverted matrix',
+                      important=False,
+                      help='Save the inverse of the misalignment transformation matrix in the interpolated set.',
+                      condition='applyMatrix==0')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         for ts in self.inputSetOfTiltSeries.get():
-            self._insertFunctionStep('introduceRandomMisalignment', ts.getObjId())
+            self._insertFunctionStep(self.introduceRandomMisalignment, ts.getObjId())
 
-            if self.computeAlignment.get() == 0:
-                self._insertFunctionStep('interpolateTiltSeries', ts.getObjId())
+            if self.applyMatrix.get():
+                self._insertFunctionStep(self.interpolateTiltSeries, ts.getObjId())
+
+            
 
     # --------------------------- STEPS functions ----------------------------
     def introduceRandomMisalignment(self, tsObjId):
@@ -344,15 +354,13 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
             missAliTs.append(missAliTi)
 
-        missAliTs.write()
-
         outputMisalignedSetOfTiltSeries.update(missAliTs)
         outputMisalignedSetOfTiltSeries.write()
 
         self._store()
 
     def interpolateTiltSeries(self, tsObjId):
-        missAliTs = self.outputMisalignedSetOfTiltSeries[tsObjId]
+        missAliTs = self.MisalignedTiltSeries[tsObjId]
         tsId = missAliTs.getTsId()
 
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
@@ -367,9 +375,17 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         missAliInterTs.copyInfo(missAliTs)
         outputInterpolatedSetOfTiltSeries.append(missAliInterTs)
 
+        saveMatrix = self.addInverseMatrix.get()
+
         for index, tiltImage in enumerate(missAliTs):
             missAliInterTi = tomoObj.TiltImage()
-            missAliInterTi.copyInfo(tiltImage, copyId=True, copyTM=False)
+
+            if saveMatrix:
+                # Calculate the inverse of the transformation matrix
+                tiltImage.getTransform().invert()
+
+            missAliInterTi.copyInfo(tiltImage, copyId=True, copyTM=saveMatrix)
+
             missAliInterTi.setLocation(index + 1, outputTsFileName)
             missAliInterTs.append(missAliInterTi)
 
@@ -380,10 +396,11 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
 
         self._store()
 
+
     # --------------------------- UTILS functions ----------------------------
     def modifyTransformMatrix(self, transformMatrix, index, size, tsId):
         """Shift in X axis modifications"""
-        if self.shiftXNoiseToggle.get() == 0:
+        if self.shiftXNoiseToggle.get():
             incrementShiftX = self.a0param.get() + \
                               self.a1param.get() * index + \
                               self.a2param.get() * abs(np.sin((index + self.a3param.get()) / size * np.pi)) + \
@@ -395,7 +412,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             transformMatrix[0, 2] += incrementShiftX
 
         """Shift in Y axis modifications"""
-        if self.shiftYNoiseToggle.get() == 0:
+        if self.shiftYNoiseToggle.get():
             incrementShiftY = self.b0param.get() + \
                               self.b1param.get() * index + \
                               self.b2param.get() * abs(np.sin((index + self.b3param.get()) / size * np.pi)) + \
@@ -407,7 +424,7 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
             transformMatrix[1, 2] += incrementShiftY
 
         """Angle modifications"""
-        if self.angleNoiseToggle.get() == 0:
+        if self.angleNoiseToggle.get():
             oldAngle = np.arccos(transformMatrix[0, 0])
 
             incrementAngle = self.c0param.get() + \
@@ -454,52 +471,59 @@ class XmippProtMisalignTiltSeries(EMProtocol, ProtTomoBase):
         return transformMatrix
 
     def getOutputMisalignedSetOfTiltSeries(self):
-        if not hasattr(self, "outputMisalignedSetOfTiltSeries"):
+        if not self.MisalignedTiltSeries:
+            self.debug("Creating %s output." % MISALIGNED_TS_NAME)
             outputMisalignedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Misaligned')
             outputMisalignedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputMisalignedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            self._defineOutputs(outputMisalignedSetOfTiltSeries=outputMisalignedSetOfTiltSeries)
+            self._defineOutputs(**{MISALIGNED_TS_NAME:outputMisalignedSetOfTiltSeries})
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputMisalignedSetOfTiltSeries)
-        return self.outputMisalignedSetOfTiltSeries
+        return self.MisalignedTiltSeries
 
     def getOutputInterpolatedSetOfTiltSeries(self):
-        if not hasattr(self, "outputInterpolatedSetOfTiltSeries"):
+        
+        if not self.InterpolatedTiltSeries:
+            self.debug("Creating %s output." % INTERPOLATED_TS_NAME)
             outputInterpolatedSetOfTiltSeries = self._createSetOfTiltSeries(suffix='Interpolated')
             outputInterpolatedSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
             outputInterpolatedSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
-            self._defineOutputs(outputInterpolatedSetOfTiltSeries=outputInterpolatedSetOfTiltSeries)
+            self._defineOutputs(**{INTERPOLATED_TS_NAME:outputInterpolatedSetOfTiltSeries})
             self._defineSourceRelation(self.inputSetOfTiltSeries, outputInterpolatedSetOfTiltSeries)
-        return self.outputInterpolatedSetOfTiltSeries
+        
+        return self.InterpolatedTiltSeries
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
         summary = []
-        if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
+        if self.MisalignedTiltSeries:
+            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d."
                            % (self.inputSetOfTiltSeries.get().getSize(),
-                              self.outputMisalignedSetOfTiltSeries.getSize()))
+                              self.MisalignedTiltSeries.getSize()))
 
-        elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            summary.append("Input Tilt-Series: %d.\nTransformation matrices calculated: %d.\n"
-                           "Interpolated Tilt-Series: %d.\n"
-                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputInterpolatedSetOfTiltSeries.getSize()))
-        else:
-            summary.append("Output classes not ready yet.")
+        if self.InterpolatedTiltSeries:
+            summary.append("Interpolated Tilt-Series: %d.\n"
+                           % self.InterpolatedTiltSeries.getSize())
+
+        if self.AlignedTiltSeries:
+            summary.append("Aligned Tilt-Series: %d.\n"
+                           % self.AlignedTiltSeries.getSize())
+
+        if len(summary)==0:
+            summary.append("Output not ready yet.")
+        
         return summary
 
     def _methods(self):
         methods = []
-        if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
-                           % (self.outputMisalignedSetOfTiltSeries.getSize()))
+        if self.MisalignedTiltSeries:
+            methods.append("New transformation matrices has been calculated for %d Tilt-series."
+                           % (self.MisalignedTiltSeries.getSize()))
 
-        elif hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
-            methods.append("New transformation matrices has been calculated for %d Tilt-series.\n"
-                           "Also, interpolation has been completed for %d Tilt-series.\n"
-                           % (self.outputMisalignedSetOfTiltSeries.getSize(),
-                              self.outputInterpolatedSetOfTiltSeries.getSize()))
-        else:
-            methods.append("Output classes not ready yet.")
+        if self.InterpolatedTiltSeries:
+            methods.append("Also, interpolation has been completed for %d Tilt-series."
+                           % self.InterpolatedTiltSeries.getSize())
+        
+        if len(methods) == 0:
+            methods.append("Output not ready yet.")
+        
         return methods
