@@ -169,6 +169,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         for i in predictionClasses:
             overallPrediction += i
 
+        print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
+              str(predictionList.size-overallPrediction) + "misaligned")
         overallPrediction = overallPrediction / predictionList.size
 
         return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
