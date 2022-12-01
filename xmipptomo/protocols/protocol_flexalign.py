@@ -39,8 +39,8 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     _devStatus = BETA
     evenOddCapable = True
     
-    def _defineParams(self, form):
-        ProtTsCorrectMotion._defineParams(self, form)
+    def _defineParams(self, form, **kwargs):
+        ProtTsCorrectMotion._defineParams(self, form, addEvenOddParam=False)
         form.addSection(label="FlexAlign")
         XmippProtMovieCorr._defineAlignmentParams(self, form)
 
