@@ -120,6 +120,11 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         subtomoArray = np.zeros((numberOfSubtomos, 32, 32, 32), dtype=np.float64)
 
+        std = subtomoArray.std()
+        mean = subtomoArray.mean()
+
+        subtomoArray = (subtomoArray - mean) / std
+
         for index, subtomoFilePath in enumerate(subtomoFilePathList):
             subtomoDataTmp = ih.read(subtomoFilePath).getData()
 
