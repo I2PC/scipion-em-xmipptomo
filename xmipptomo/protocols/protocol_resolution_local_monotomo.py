@@ -148,6 +148,13 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         self.vol1Fn = oddTomos[tomId].getFileName()
         self.vol2Fn = evenTomos[tomId].getFileName()
 
+        extVol1 = getExt(self.vol1Fn)
+        extVol2 = getExt(self.vol2Fn)
+        if (extVol1 == '.mrc') or (extVol1 == '.map'):
+            self.vol1Fn = self.vol1Fn + ':mrc'
+        if (extVol2 == '.mrc') or (extVol2 == '.map'):
+            self.vol2Fn = self.vol2Fn + ':mrc'
+
         ts = self.oddTomograms.get()[tomId]
         tsId = ts.getTsId()
 
@@ -177,8 +184,9 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         params += ' --step %f' % freq_step
         params += ' -o %s' % outputlocalResTomoFn
         params += ' --significance %f' % self.significance.get()
+        params += ' --threads %i' % self.numberOfThreads.get()
 
-        self.runJob('xmipp_resolution_monotomo', params)
+        self.runJob('xmipp_resolution_monotomo_fast', params)
 
         outputLocalResolutionSetOfTomograms = self.getOutputLocalResolutionSetOfTomograms()
 

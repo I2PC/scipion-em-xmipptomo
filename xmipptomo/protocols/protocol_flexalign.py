@@ -57,6 +57,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
         doSaveMovie = self.doSaveMovie.get()
 
         # If need to do even/odd
+        self._store(self)
         if self._doSplitEvenOdd():
             self.doSaveMovie.set(True)
 

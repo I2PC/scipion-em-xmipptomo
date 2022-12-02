@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # **************************************************************************
 # *
-# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
+# * Authors:     J.L. Vilas (jlvilas@cnb.csic.es)
 # *
 # *  BCU, Centro Nacional de Biotecnologia, CSIC
 # *
@@ -44,7 +44,7 @@ from pwem.objects import Volume
 
 FN_INPUTSUBTOMOS = 'input_subtomos.xmd'
 STANDARD_STA = 'sta.mrc'
-SMART_STA = 'STA_smart.mrc'
+SMART_STA = 'weightedsta.mrc'
 
 
 class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
@@ -63,13 +63,31 @@ class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
         form.addParam('hasReference', BooleanParam, default=False,
                       label='Reference Map',
                       help="Reference Map")
-        form.addParam('reference', PointerParam, condition='hasReference',
-                      pointerClass="Volume",
-                      label='Input subtomograms',
-                      help="Input subtomograms aligned")
-        form.addParam('fscResolution', FloatParam,
-                      label='fscResolution',
-                      help="FSC resolution")
+
+        form.addParam('referenceMap', PointerParam,
+                      pointerClass='Volume',
+                      condition='hasReference',
+                      label='Reference Map',
+                      help="Reference Map")
+
+        form.addParam('mask', PointerParam,
+                      pointerClass="VolumeMask", allowsNull = True,
+                      label='Input mask',
+                      help="Soft mask to localize the protein")
+
+        form.addParam('spectral', BooleanParam,
+                      label='Spectral ',
+                      help="Yes is spectral approach, No if global approach")
+
+        form.addParam('precon', FloatParam, default=0.9,
+                      label='percentage to reconstruct ',
+                      help="This is the percentage of particles that will be used to reconstruct")
+
+        form.addParam('iterations', IntParam, default=1,
+                      label='iterations',
+                      help="Number of iterations")
+
+        form.addParallelSection(threads = 1, mpi = 0)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -92,16 +110,19 @@ class XmippProtsmartSTA(EMProtocol, ProtTomoBase):
 
     def smartSTAStep(self):
 
-        nthreads = 1
-
-        params_phantom = ' --subtomos %s ' % self._getExtraPath(FN_INPUTSUBTOMOS)
+        params = ' --subtomos %s ' % self._getExtraPath(FN_INPUTSUBTOMOS)
         if self.hasReference.get():
-            params_phantom += ' --reference %s ' % self.reference.get().getFileName()
-        params_phantom += ' --fscResolution %s ' % (self.fscResolution.get())
-        params_phantom += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
-        params_phantom += ' -o %s ' % self._getExtraPath()
-        params_phantom += ' --threads %d ' % nthreads
-        self.runJob('xmipp_tomo_sta_deblurring', params_phantom)
+            params += ' --reference %s ' % self.referenceMap.get().getFileName()
+        params += ' --precon %f' % self.precon.get()
+        params += ' --niters %f' % self.iterations.get()
+        if self.mask.hasValue():
+            params += ' --mask %s ' % self.mask.get().getFileName()
+        params += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
+        params += ' -o %s ' % self._getExtraPath()
+        params += ' --threads %d ' % self.numberOfThreads.get()
+        if self.spectral.get():
+            params += ' --spectral '
+        self.runJob('xmipp_tomo_sta_deblurring', params)
 
     def createOutputStep(self):
         volume = Volume()

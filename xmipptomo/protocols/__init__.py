@@ -45,6 +45,7 @@ from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_rotate_astigmatism import XmippProtRotateAstigmatism
+from .protocol_segmentation_confidence import XmippProtConfTomo
 from .protocol_score_coordinates import XmippProtScoreCoordinates
 from .protocol_score_transform import XmippProtScoreTransform
 from .protocol_smart_STA import XmippProtsmartSTA

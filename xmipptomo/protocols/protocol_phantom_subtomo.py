@@ -164,14 +164,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         lineStatsStd = form.addLine('range of standard deviation between',
                                     help='The guassian standard deviation will be a random number between the provided range (min,max)',
                                     condition='addNoise and differentStatistics')
-        lineStatsStd.addParam('minstd', IntParam, label='Min', default=0, condition='differentStatistics')
-        lineStatsStd.addParam('maxstd', IntParam, label='Max', default=50, condition='differentStatistics')
+        lineStatsStd.addParam('minstd', FloatParam, label='Min', default=0, condition='differentStatistics')
+        lineStatsStd.addParam('maxstd', FloatParam, label='Max', default=50, condition='differentStatistics')
         lineStat = form.addLine('Gaussian Noise mean and std',
                                 help='Defines the statistics of noise by providing the mean and standard deviation'
                                      'of the Gaussian distribution.',
                                 condition='addNoise and not differentStatistics')
-        lineStat.addParam('meanNoise', IntParam, label='mean', default=0, condition='not differentStatistics')
-        lineStat.addParam('stdNoise', IntParam, label='std', default=40, condition='not differentStatistics')
+        lineStat.addParam('meanNoise', FloatParam, label='mean', default=0, condition='not differentStatistics')
+        lineStat.addParam('stdNoise', FloatParam, label='std', default=40, condition='not differentStatistics')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -218,12 +218,14 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         acq.setAngleMax(mwangle)
         acq.setAngleMin(mwangle * -1)
 
+        counter = 0
+
         for i in range(int(self.nsubtomos.get())):
             fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
 
             self.addNoiseToPhantom(fnVol, fnPhantomi)
 
-            rot, tilt, psi, shiftX, shiftY, shiftZ = self.applyRandomOrientation(fnPhantomi, fnPhantomi)
+            rot, tilt, psi, shiftX, shiftY, shiftZ = self.applyRandomOrientation(fnPhantomi, fnPhantomi, i)
 
             if self.mwfilter.get():
                 self.applyMissingWedge(mwangle, fnPhantomi, fnPhantomi)
@@ -248,7 +250,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         return dim, fnVol
 
 
-    def applyRandomOrientation(self, fnIn, fnOut):
+    def applyRandomOrientation(self, fnIn, fnOut, counter):
         rot = 0
         tilt = 0
         psi = 0
@@ -259,6 +261,24 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         rotErr = 0
         tiltErr = 0
 
+        if counter < 200:
+            rot = 2 * np.pi * np.random.uniform(0, 1) * 180 / np.pi
+            tilt = np.arccos(2 * np.random.uniform(0, 1) - 1) * 180 / np.pi
+
+            # It is neccesary to create a new variable because of the random errors
+            rotErr = rot
+            tiltErr = tilt
+
+            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
+            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
+            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
+
+            self.runJob("xmipp_transform_geometry",
+                        " -i %s -o %s --interp linear  --rotate_volume euler %d %d %d --shift %d %d %d "
+                        % (fnIn, fnOut, rotErr, tiltErr, psi, shiftX, shiftY, shiftZ))
+
+        #" -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
+        '''
         if self.uniformAngularDistribution:
             rot = 2*np.pi * np.random.uniform(0, 1)*180/np.pi
             tilt = np.arccos(2*np.random.uniform(0, 1) - 1)*180/np.pi
@@ -283,12 +303,12 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
             shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
             shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
-
+        
         if self.rotate or self.applyShift:
             self.runJob("xmipp_transform_geometry",
-                        " -i %s -o %s --rotate_volume euler %d %d %d --shift %d %d %d --dont_wrap"
+                        " -i %s -o %s --interp linear --rotate_volume euler %d %d %d --shift %d %d %d"
                         % (fnIn, fnOut, rotErr, tiltErr, psi, shiftX, shiftY, shiftZ))
-
+        '''
         return rot, tilt, psi, shiftX, shiftY, shiftZ
 
 
