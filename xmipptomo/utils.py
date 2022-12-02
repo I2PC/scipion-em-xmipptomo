@@ -35,6 +35,17 @@ from tomo.constants import BOTTOM_LEFT_CORNER
 from pwem import emlib
 
 
+def calculateRotationAngleFromTM(ti):
+    """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
+
+    tm = ti.getTransform().getMatrix()
+    cosRotationAngle = tm[0][0]
+    sinRotationAngle = tm[1][0]
+    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+
+    return rotationAngle
+
+
 def readXmdStatisticsFile(fnmd):
     x_pos = []
     y_pos = []
