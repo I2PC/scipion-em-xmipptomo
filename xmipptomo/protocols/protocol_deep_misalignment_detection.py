@@ -97,10 +97,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                 self.addTomoToOutput(volId=currentVolId, overallPrediction=overallPrediction)
 
                 # Generate output set of subtomograms with a prediction score
-                for i, subtomo in enumerate(subtomoList):
-                    subtomo._misaliScore = Float(predictionArray[i])
+                for i, s in enumerate(subtomoList):
+                    s._misaliScore = Float(predictionArray[i])
 
-                    self.outputSubtomos.append(subtomo)
+                    self.outputSubtomos.append(s)
                     self.outputSubtomos.write()
                     self._store()
 
