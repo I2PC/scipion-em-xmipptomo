@@ -121,6 +121,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.misalignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.misalignedTomograms.write()
 
+        self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
+        self.misalignedTomograms.write()
+
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
