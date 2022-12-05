@@ -44,6 +44,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         super().__init__(**kwargs)
         self.alignedTomograms = None
         self.misalignedTomograms = None
+        self.outputSetOfSubtomograms = None
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -81,12 +82,14 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         subtomoFilePathList = []
         currentVolId = None
 
+        self.getOutputSetOfSubtomos()
+
         for index, subtomo in enumerate(self.inputSetOfSubTomograms.get().iterSubtomos(orderBy="_volId")):
 
             if (subtomo.getVolId() != currentVolId and currentVolId is not None) or (
                     (index + 1) == totalNumberOfSubtomos):
                 # Make prediction
-                overallPrediction = self.makePrediction(subtomoFilePathList)
+                overallPrediction, predictionArray = self.makePrediction(subtomoFilePathList)
 
                 print("For volume id " + str(currentVolId) + " obtained prediction from " +
                       str(len(subtomoFilePathList)) + " subtomos is " + str(overallPrediction))
@@ -139,7 +142,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             overallPrediction = self.determineOverallPrediction(predictionArray)
 
-        return overallPrediction
+        return overallPrediction, predictionArray
 
     def addTomoToOutput(self, volId, overallPrediction):
         if overallPrediction:  # Ali
@@ -212,6 +215,22 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self._defineSourceRelation(self.inputSetOfSubTomograms, misalignedTomograms)
 
         return self.misalignedTomograms
+
+    def getOutputSetOfSubtomos(self):
+        if self.outputSetOfSubtomograms:
+            self.outputSetOfSubtomograms.enableAppend()
+
+        else:
+            outputSetOfSubtomograms = self._createSetOfSubTomograms()
+
+            outputSetOfSubtomograms.copyInfo(self.inputSetOfSubTomograms.get())
+
+            outputSetOfSubtomograms.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfSubtomograms=outputSetOfSubtomograms)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfSubtomograms)
+
+        return self.outputSetOfSubtomograms
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
