@@ -44,7 +44,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         super().__init__(**kwargs)
         self.alignedTomograms = None
         self.misalignedTomograms = None
-        self.outputSetOfSubtomograms = None
+        self.outputSubtomos = None
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -100,8 +100,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                 for i, subtomo in enumerate(subtomoList):
                     subtomo._misaliScore = Float(predictionArray[i])
 
-                    self.outputSetOfSubtomograms.append(subtomo)
-                    self.outputSetOfSubtomograms.write()
+                    self.outputSubtomos.append(subtomo)
+                    self.outputSubtomos.write()
                     self._store()
 
                 currentVolId = subtomo.getVolId()
@@ -110,7 +110,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             if currentVolId is None:
                 currentVolId = subtomo.getVolId()
 
-            subtomoList.append(subtomo)
+            subtomoList.append(subtomo.clone())
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
@@ -225,20 +225,20 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return self.misalignedTomograms
 
     def getOutputSetOfSubtomos(self):
-        if self.outputSetOfSubtomograms:
-            self.outputSetOfSubtomograms.enableAppend()
+        if self.outputSubtomos:
+            self.outputSubtomos.enableAppend()
 
         else:
-            outputSetOfSubtomograms = self._createSetOfSubTomograms()
+            outputSubtomos = self._createSetOfSubTomograms()
 
-            outputSetOfSubtomograms.copyInfo(self.inputSetOfSubTomograms.get())
+            outputSubtomos.copyInfo(self.inputSetOfSubTomograms.get())
 
-            outputSetOfSubtomograms.setStreamState(Set.STREAM_OPEN)
+            outputSubtomos.setStreamState(Set.STREAM_OPEN)
 
-            self._defineOutputs(outputSetOfSubtomograms=outputSetOfSubtomograms)
-            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSetOfSubtomograms)
+            self._defineOutputs(outputSubtomos=outputSubtomos)
+            self._defineSourceRelation(self.inputSetOfSubTomograms, outputSubtomos)
 
-        return self.outputSetOfSubtomograms
+        return self.outputSubtomos
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
