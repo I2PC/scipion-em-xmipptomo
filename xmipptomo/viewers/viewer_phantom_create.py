@@ -7,8 +7,8 @@ class XmippPhantomSubtomoViewer(DataViewer):
     _targets = [XmippProtPhantomSubtomo]
 
     def _visualize(self, obj, **args):
-        if hasattr(self.protocol, XmippProtPhantomSubtomo._possibleOutputs.outputSubtomograms.name):
-            obj = self.protocol.outputSubtomograms
+        if hasattr(self.protocol, XmippProtPhantomSubtomo._possibleOutputs.outputSetOfSubtomograms.name):
+            obj = self.protocol.outputSetOfSubtomograms
             fn = obj.getFileName()
             labels = 'id enabled comment _filename _transform._matrix phantom_rot phantom_tilt phantom_psi phantom_shiftX phantom_shiftY phantom_shiftZ'
             self._views.append(ObjectView(self._project, obj.strId(), fn,

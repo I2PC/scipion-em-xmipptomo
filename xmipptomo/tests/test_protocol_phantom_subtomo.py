@@ -148,16 +148,16 @@ class TestXmippSubtomoPhantom(BaseTest):
 
 
     def checkResults(self, outputObject):
-        self.assertIsNotNone(outputObject.outputSubtomograms,
+        self.assertIsNotNone(outputObject.outputSetOfSubtomograms,
                             "There was a problem with the phantom subtomograms created from a given volume")
-        self.assertAlmostEqual(outputObject.outputSubtomograms.getSamplingRate(), outputObject.sampling.get(), places=1, msg="Problem with the sampling")
-        self.assertEqual(outputObject.outputSubtomograms.getSize(), outputObject.nsubtomos.get(), msg=("Problem with the number of subtomograms"))
+        self.assertAlmostEqual(outputObject.outputSetOfSubtomograms.getSamplingRate(), outputObject.sampling.get(), places=1, msg="Problem with the sampling")
+        self.assertEqual(outputObject.outputSetOfSubtomograms.getSize(), outputObject.nsubtomos.get(), msg=("Problem with the number of subtomograms"))
 
     def _geometricalphantom(self):
         phantom = self.newProtocol(XmippProtPhantomSubtomo,
                                    option=1)
         self.launchProtocol(phantom)
-        self.assertIsNotNone(phantom.outputSubtomograms,
+        self.assertIsNotNone(phantom.outputSetOfSubtomograms,
                              "There was a problem with the phantom subtomograms created from a given volume")
         return phantom
 
@@ -166,7 +166,7 @@ class TestXmippSubtomoPhantom(BaseTest):
                                                 option=1,
                                                 rotate=True)
         self.launchProtocol(geometricalphantomMW)
-        self.assertIsNotNone(geometricalphantomMW.outputSubtomograms,
+        self.assertIsNotNone(geometricalphantomMW.outputSetOfSubtomograms,
                              "There was a problem with subtomograms output")
         return geometricalphantomMW
 
@@ -200,7 +200,7 @@ class TestXmippSubtomoPhantom(BaseTest):
     def test_geometricalphantom(self):
         phantom = self._geometricalphantom()
         self.assertTrue(getattr(phantom, 'outputSubtomograms'))
-        self.assertEqual(phantom.outputSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 90)
+        self.assertEqual(phantom.outputSetOfSubtomograms.getFirstItem().getAcquisition().getAngleMax(), 90)
         return phantom
 
 

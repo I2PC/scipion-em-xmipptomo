@@ -164,16 +164,16 @@ class TestXmipptomoApplyTransf(BaseTest):
     def _runPreviousProtocols(self):
         protPhantom = self.newProtocol(XmippProtPhantomSubtomo, option=1, nsubtomos=5)
         self.launchProtocol(protPhantom)
-        self.assertIsNotNone(protPhantom.outputSubtomograms,
+        self.assertIsNotNone(protPhantom.outputSetOfSubtomograms,
                              "There was a problem with subtomograms output")
         return protPhantom
 
     def _applyAlignment(self):
         protPhantom = self._runPreviousProtocols()
         apply = self.newProtocol(XmippProtApplyTransformSubtomo,
-                                 inputSubtomograms=protPhantom.outputSubtomograms)
+                                 inputSubtomograms=protPhantom.outputSetOfSubtomograms)
         self.launchProtocol(apply)
-        self.assertIsNotNone(apply.outputSubtomograms,
+        self.assertIsNotNone(apply.outputSetOfSubtomograms,
                              "There was a problem with subtomograms output")
         self.assertIsNotNone(apply.outputAverage,
                              "There was a problem with average output")
@@ -211,7 +211,7 @@ class TestXmipptomoMapback(BaseTest):
                                        coords=True,
                                        tomos=protImportTomogram.outputTomograms)
         self.launchProtocol(protPhantom)
-        self.assertIsNotNone(protPhantom.outputSubtomograms,
+        self.assertIsNotNone(protPhantom.outputSetOfSubtomograms,
                              "There was a problem with subtomograms output")
 
         return protImportTomogram, protPhantom
@@ -220,7 +220,7 @@ class TestXmipptomoMapback(BaseTest):
         protImportTomogram, protPhantom = self._runPreviousProtocols()
         mapback = self.newProtocol(XmippProtSubtomoMapBack,
                                    selection=1,
-                                   inputSubtomos=protPhantom.outputSubtomograms,
+                                   inputSubtomos=protPhantom.outputSetOfSubtomograms,
                                    inputRef=protPhantom,
                                    removeBackground=True)
 
@@ -339,7 +339,7 @@ class TestXmipptomoHalfMaps(BaseTest):
     def _phantom(self):
         phantom = self.newProtocol(XmippProtPhantomSubtomo, option=1)
         self.launchProtocol(phantom)
-        self.assertIsNotNone(phantom.outputSubtomograms,
+        self.assertIsNotNone(phantom.outputSetOfSubtomograms,
                              "There was a problem with subtomograms output")
         return phantom
 
@@ -352,7 +352,7 @@ class TestXmipptomoHalfMaps(BaseTest):
 
     def test_half_maps(self):
         phantom = self._phantom()
-        half_maps = self._half_maps(phantom.outputSubtomograms)
+        half_maps = self._half_maps(phantom.outputSetOfSubtomograms)
         map_even = np.squeeze(ImageHandler().read(half_maps.halfMaps[1].getFileName()).getData())
         map_odd = np.squeeze(ImageHandler().read(half_maps.halfMaps[2].getFileName()).getData())
         error = np.sqrt(np.sum((map_even - map_odd) ** 2) / map_even.size)
