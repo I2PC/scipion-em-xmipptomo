@@ -27,7 +27,7 @@
 import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
-from pyworkflow.object import Set
+from pyworkflow.object import Set, Float
 from pyworkflow.protocol import FileParam, PointerParam
 from tomo.protocols import ProtTomoBase
 from tensorflow.keras.models import load_model
@@ -79,7 +79,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         self.loadModels()
 
-        subtomoFilePathList = []
+        subtomoList = []
         currentVolId = None
 
         self.getOutputSetOfSubtomos()
@@ -89,20 +89,28 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             if (subtomo.getVolId() != currentVolId and currentVolId is not None) or (
                     (index + 1) == totalNumberOfSubtomos):
                 # Make prediction
-                overallPrediction, predictionArray = self.makePrediction(subtomoFilePathList)
+                overallPrediction, predictionArray = self.makePrediction(subtomoList)
 
                 print("For volume id " + str(currentVolId) + " obtained prediction from " +
-                      str(len(subtomoFilePathList)) + " subtomos is " + str(overallPrediction))
+                      str(len(subtomoList)) + " subtomos is " + str(overallPrediction))
 
                 self.addTomoToOutput(volId=currentVolId, overallPrediction=overallPrediction)
 
+                # Generate output set of subtomograms with a prediction score
+                for i, subtomo in enumerate(subtomoList):
+                    subtomo._misaliScore = Float(predictionArray[i])
+
+                    self.outputSetOfSubtomograms.append(subtomo)
+                    self.outputSetOfSubtomograms.write()
+                    self._store()
+
                 currentVolId = subtomo.getVolId()
-                subtomoFilePathList = []
+                subtomoList = []
 
             if currentVolId is None:
                 currentVolId = subtomo.getVolId()
 
-            subtomoFilePathList.append(subtomo.getFileName())
+            subtomoList.append(subtomo)
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
@@ -116,15 +124,15 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
-    def makePrediction(self, subtomoFilePathList):
+    def makePrediction(self, subtomoList):
         ih = ImageHandler()
 
-        numberOfSubtomos = len(subtomoFilePathList)
+        numberOfSubtomos = len(subtomoList)
 
         subtomoArray = np.zeros((numberOfSubtomos, 32, 32, 32), dtype=np.float64)
 
-        for index, subtomoFilePath in enumerate(subtomoFilePathList):
-            subtomoDataTmp = ih.read(subtomoFilePath).getData()
+        for index, subtomo in enumerate(subtomoList):
+            subtomoDataTmp = ih.read(subtomo.getFileName()).getData()
 
             subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
 
