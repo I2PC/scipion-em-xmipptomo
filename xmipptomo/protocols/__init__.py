@@ -37,7 +37,6 @@ from .protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignmen
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_flexalign import XmippProtTsFlexAlign
-from .protocol_misalignTS import XmippProtMisalignTiltSeries
 from .protocol_peak_high_contrast import XmippProtPeakHighContrast
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_phantom_tomo import XmippProtPhantomTomo
