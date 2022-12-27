@@ -41,6 +41,7 @@ from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_phantom_tomo import XmippProtPhantomTomo
 from .protocol_project_top import XmippProtSubtomoProject
+from .protocol_reconstruct_tomograms import XmippProtReconstructTomograms
 from .protocol_resizeTS import XmippProtResizeTiltSeries
 from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
