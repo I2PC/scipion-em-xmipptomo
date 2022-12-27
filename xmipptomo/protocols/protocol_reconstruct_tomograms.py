@@ -127,7 +127,7 @@ class XmippProtReconstructTomograms(EMProtocol, ProtTomoBase):
 
         params = ' -i %s' % fnMdTs
         params += ' --parallel_mode %s ' % self.defineReconstructionMethod()
-        if self.defineReconstructionMethod() == self.RECONSTRUCT_ART:
+        if self.reconstructionMethod.get() == self.RECONSTRUCT_ART:
             params += ' --thr %i ' % self.numberOfThreads.get()
         params += ' -o %s' % fullTomogramName
 
