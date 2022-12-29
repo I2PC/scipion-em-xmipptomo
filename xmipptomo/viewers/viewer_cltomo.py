@@ -34,6 +34,7 @@ from pwem.viewers import DataView
 from pyworkflow.gui.text import *
 from pyworkflow.protocol.params import (LabelParam, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER, WEB_DJANGO
+import pyworkflow.utils as pwutils
 
 from tomo.viewers import TSMotionCorrectionViewer
 from xmipptomo.protocols import XmippProtTsFlexAlign
@@ -73,7 +74,7 @@ class XmippCLTomoViewer(ProtocolViewer):
                 else:
                     listOfLevels = []
                     try:
-                        listOfLevels = self._getListFromRangeString(self.showSeveralLevels.get())
+                        listOfLevels = pwutils.getListFromRangeString(self.showSeveralLevels.get())
                     except Exception:
                         errors.append('Invalid levels range.')
 
