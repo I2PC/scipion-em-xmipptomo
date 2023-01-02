@@ -28,7 +28,7 @@ import os
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
-from pyworkflow.object import Set, List, String
+from pyworkflow.object import Set, List, String, Boolean
 from pyworkflow.protocol.constants import STEPS_PARALLEL
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
@@ -37,6 +37,7 @@ import xmipptomo.utils as utils
 import emtable
 
 METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
+VMC_FILE_NAME = "vCM.xmd"
 
 
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
@@ -263,12 +264,37 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             newTs = tomoObj.TiltSeries(tsId=tsId)
             newTs.copyInfo(ts)
 
+            # Generate output landmark model
+            lmFileName = os.path.join(extraPrefix, firstItem.parseFileName(suffix='_lm', extension='.sfid'))
+            lm = tomoObj.LandmarkModel(tsId=tsId,
+                                       fileName=lmFileName,
+                                       modelName=None,
+                                       size=self.fiducialSize.get() * 10,
+                                       applyTSTransformation=Boolean(False))
+            lm.setTiltSeries(newTs)
+
+            vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, VMC_FILE_NAME))
+
+            for lmInfo in vcmInfoList:
+                lm.addLandmark(xCoor=lmInfo[0],
+                               yCoor=lmInfo[1],
+                               tiltIm=lmInfo[2],
+                               chainId=lmInfo[3],
+                               xResid=lmInfo[4],
+                               yResid=lmInfo[5])
+
             if aligned:
                 self.getOutputSetOfTiltSeries()
                 self.outputSetOfTiltSeries.append(newTs)
+
+                self.getOutputSetOfAlignedLandmarkModels()
+                self.outputSetOfAlignedLandmarkModels.append(lm)
             else:
                 self.getOutputSetOfMisalignedTiltSeries()
                 self.outputSetOfMisalignedTiltSeries.append(newTs)
+
+                self.getOutputSetOfMisalignedLandmarkModels()
+                self.outputSetOfMisalignedLandmarkModels.append(lm)
 
             for index, tiltImage in enumerate(ts):
                 newTi = tomoObj.TiltImage()
