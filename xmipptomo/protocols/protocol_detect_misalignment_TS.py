@@ -328,8 +328,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.outputSetOfAlignedLandmarkModels.write()
 
         if hasattr(self, "outputSetOfMisalignedTiltSeries"):
-            self.outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_CLOSED)
-            self.outputSetOfMisalignedTiltSeries.write()
+            self.outputSetOfMisalignedLandmarkModels.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfMisalignedLandmarkModels.write()
 
         self._store()
 
