@@ -34,6 +34,7 @@ from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
+import emtable
 
 METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
 
@@ -250,7 +251,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.generateAlignmentReportDictionary(enableInfoList, tsId)
 
-            """ Generate output sets of aligned and misaligned tilt series """
+            # Generate output sets of aligned and misaligned tilt series
             aligned = True
 
             # Check if some tilt image presents misalignment
@@ -286,6 +287,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 self.outputSetOfMisalignedTiltSeries.write()
 
             self._store()
+
+            # Generate output set of landmark models
+            
 
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
@@ -331,6 +335,26 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.alignmentReport.append(String(line))
 
         self._store()
+
+    @staticmethod
+    def parseVCMFile(vcmFilePath):
+        """ Method to retrieve the information contained in the vcm (vector of coordinate models) file in a list of
+        lists"""
+
+        vCMinfo = []
+        table = emtable.Table(fileName=vcmFilePath)
+
+        for row in table.iterRows(fileName='noname@' + vcmFilePath):
+            chainId = row.get('frameId')
+            xResid = row.get('shiftX')
+            yResid = row.get('shiftY')
+            xCoor = row.get('xcoor')
+            yCoor = row.get('ycoor')
+            tiltIm = row.get('zcoor')
+
+            vCMinfo.append([xCoor, yCoor, tiltIm, chainId, xResid, yResid])
+
+        return vCMinfo
 
     def getOutputSetOfTiltSeries(self):
         """ Method to generate output classes of set of tilt-series"""
