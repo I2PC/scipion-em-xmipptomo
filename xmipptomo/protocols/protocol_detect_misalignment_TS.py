@@ -396,21 +396,37 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         return self.outputSetOfMisalignedTiltSeries
 
-    def getOutputSetOfLandmarkModels(self):
-        if hasattr(self, "outputSetOfLandmarkModels"):
-            self.outputSetOfLandmarkModels.enableAppend()
+    def getOutputSetOfAlignedLandmarkModels(self):
+        if hasattr(self, "outputSetOfAlignedLandmarkModels"):
+            self.outputSetOfAlignedLandmarkModels.enableAppend()
 
         else:
-            outputSetOfLandmarkModels = self._createSetOfLandmarkModels()
+            outputSetOfAlignedLandmarkModels = self._createSetOfLandmarkModels()
 
-            outputSetOfLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfAlignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
 
-            outputSetOfLandmarkModels.setStreamState(Set.STREAM_OPEN)
+            outputSetOfAlignedLandmarkModels.setStreamState(Set.STREAM_OPEN)
 
-            self._defineOutputs(outputSetOfLandmarkModels=outputSetOfLandmarkModels)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfLandmarkModels)
+            self._defineOutputs(outputSetOfAlignedLandmarkModels=outputSetOfAlignedLandmarkModels)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfAlignedLandmarkModels)
 
-        return self.outputSetOfLandmarkModels
+        return self.outputSetOfAlignedLandmarkModels
+
+    def getOutputSetOfMisalignedLandmarkModels(self):
+        if hasattr(self, "outputSetOfMisalignedLandmarkModels"):
+            self.outputSetOfMisalignedLandmarkModels.enableAppend()
+
+        else:
+            outputSetOfMisalignedLandmarkModels = self._createSetOfLandmarkModels()
+
+            outputSetOfMisalignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+
+            outputSetOfMisalignedLandmarkModels.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(outputSetOfMisalignedLandmarkModels=outputSetOfMisalignedLandmarkModels)
+            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfMisalignedLandmarkModels)
+
+        return self.outputSetOfMisalignedLandmarkModels
 
     def convertResidualStatisticInString(self, tsId):
         extraPrefix = self._getExtraPath(tsId)
