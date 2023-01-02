@@ -288,13 +288,18 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self._store()
 
-            # Generate output set of landmark models
-            
-
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
             self.outputSetOfTiltSeries.setStreamState(Set.STREAM_CLOSED)
             self.outputSetOfTiltSeries.write()
+
+        if hasattr(self, "outputSetOfMisalignedTiltSeries"):
+            self.outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfMisalignedTiltSeries.write()
+
+        if hasattr(self, "outputSetOfAlignedLandmarkModels"):
+            self.outputSetOfAlignedLandmarkModels.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfAlignedLandmarkModels.write()
 
         if hasattr(self, "outputSetOfMisalignedTiltSeries"):
             self.outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_CLOSED)
