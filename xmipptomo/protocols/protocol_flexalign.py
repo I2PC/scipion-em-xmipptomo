@@ -30,7 +30,7 @@ from xmipp3.protocols import XmippProtFlexAlign
 from pathlib import Path
 
 
-class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
+class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtFlexAlign):
     """
     Simple protocol to average TiltSeries movies as basic
     motion correction. It is used mainly for testing purposes.
