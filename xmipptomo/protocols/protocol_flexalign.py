@@ -26,7 +26,7 @@
 
 from pyworkflow import BETA
 from tomo.protocols import ProtTsCorrectMotion
-from xmipp3.protocols import XmippProtMovieCorr
+from xmipp3.protocols import XmippProtFlexAlign
 from pathlib import Path
 
 
