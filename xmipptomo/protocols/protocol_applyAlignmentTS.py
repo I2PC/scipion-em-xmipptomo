@@ -25,7 +25,6 @@
 # **************************************************************************
 
 import os
-import numpy as np
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -33,6 +32,7 @@ from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 from pwem.emlib.image import ImageHandler
+from xmipptomo import utils
 
 
 class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
@@ -65,7 +65,10 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
         path.makePath(extraPrefix)
         outputTsFileName = os.path.join(extraPrefix, "%s.mrc" % tsId)
 
-        ts.applyTransform(outputTsFileName)
+        avgRotAngle = utils.calculateRotationAngleFromTM(ts)
+        swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
+
+        ts.applyTransform(outputTsFileName, swapXY=swap)
 
         outputInterpolatedSetOfTiltSeries = self.getOutputInterpolatedSetOfTiltSeries()
 

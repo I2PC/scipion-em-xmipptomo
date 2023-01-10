@@ -81,7 +81,16 @@ class XmippProtRoiIJ(ProtAnalysis2D, ProtTomoBase):
     # --------------------------- STEPS functions -----------------------------
     def launchIJGUIStep(self):
 
-        tomoList = [tomo.clone() for tomo in self.inputTomos.get().iterItems()]
+        tomoList = []
+        for tomo in self.inputTomos.get().iterItems():
+            tomogram = tomo.clone()
+            tomoName = pwutils.removeBaseExt(tomo.getFileName())
+            outFile = self._getExtraPath(tomoName + '.txt')
+            if os.path.isfile(outFile):
+                tomogram.count = np.loadtxt(outFile, delimiter=',').shape[0]
+            else:
+                tomogram.count = 0
+            tomoList.append(tomogram)
 
         tomoProvider = TomogramsTreeProvider(tomoList, self._getExtraPath(), 'txt')
 

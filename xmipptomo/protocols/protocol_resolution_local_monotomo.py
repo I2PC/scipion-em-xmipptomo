@@ -26,30 +26,40 @@
 # **************************************************************************
 
 import numpy as np
+import os
 
 from pyworkflow import VERSION_2_0
+from pyworkflow.utils import getExt
+from pyworkflow.object import Set, Float
 from pyworkflow.protocol.params import (PointerParam, BooleanParam, FloatParam,
                                         LEVEL_ADVANCED)
+
 from pwem.protocols import ProtAnalysis3D
-from pyworkflow.object import Float
 from pwem.emlib.image import ImageHandler
-from pyworkflow.utils import getExt
-from pwem.objects import Volume
-from tomo.objects import Tomogram
 import pwem.emlib.metadata as md
+from pwem.protocols import EMProtocol
+
+from tomo.protocols import ProtTomoBase
+from tomo.objects import Tomogram
 
 MONOTOMO_METHOD_URL = 'http://github.com/I2PC/scipion/wiki/XmippProtMonoTomo'
-OUTPUT_RESOLUTION_FILE = 'resolutionMap'
-FN_MEAN_VOL = 'meanvol'
-METADATA_MASK_FILE = 'metadataresolutions'
-FN_METADATA_HISTOGRAM = 'mdhist'
+TOMOGRAM_RESOLUTION_FILE = 'localResolutionTomogram_'
+FULL_TOMOGRAM_FILE = 'fullTomogram_'
+TOMOGRAMFOLDER = 'tomo_'
+HISTOGRAM_RESOLUTION_FILE = 'histogram_resolution_'
 BINARY_MASK = 'binarymask'
-FN_GAUSSIAN_MAP = 'gaussianfilter'
+MRCEXT = '.mrc'
+XMDEXT = '.xmd'
 
 
-class XmippProtMonoTomo(ProtAnalysis3D):
+class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     """
     Given a tomogram the protocol assigns local resolutions to each voxel of the tomogram.
+    To do that, thje protocol makes use of two half tomograms, called odd and even.
+    These tomograms are reconstructed with the same alignment parameter but using the
+    half of the data. For instance, the odd/even-images of the tilt series, or much
+    better usign the odd/even frames of the movies (recommended). The result is a
+    tomogram with the values of local resolution.
     """
     _label = 'local Resolution MonoTomo'
     _lastUpdateVersion = VERSION_2_0
@@ -63,15 +73,15 @@ class XmippProtMonoTomo(ProtAnalysis3D):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParam('half1', PointerParam, pointerClass='Tomogram',
+        form.addParam('oddTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Odd tomogram", important=True,
-                      help='Select a volume for determining its '
-                           'local resolution.')
+                      help='Select the odd tomogram for determining the '
+                           'local resolution tomogram.')
 
-        form.addParam('half2', PointerParam, pointerClass='Tomogram',
+        form.addParam('evenTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Even Tomogram", important=True,
-                      help='Select a second volume for determining a '
-                           'local resolution.')
+                      help='Select the even tomogram for determining the  '
+                           'local resolution tomogram.')
 
         form.addParam('useMask', BooleanParam, default=False,
                       label="Use mask?",
@@ -87,49 +97,40 @@ class XmippProtMonoTomo(ProtAnalysis3D):
         group = form.addGroup('Extra parameters')
         line = group.addLine('Resolution Range (Å)',
                              help="Resolution range (and step in expert mode) "
-                                  "to evaluate the local resolution.")
+                                  "to analyze the local resolution.")
 
         group.addParam('significance', FloatParam, default=0.95,
                        expertLevel=LEVEL_ADVANCED,
                        label="Significance",
-                       help='Relution is computed using hipothesis tests, '
+                       help='Relution is computed using hypothesis tests, '
                             'this value determines the significance of that test')
 
         line.addParam('minRes', FloatParam, default=0, label='High')
         line.addParam('maxRes', FloatParam, allowsNull=True, label='Low')
-        line.addParam('stepSize', FloatParam, allowsNull=True, default=0.25,
+        line.addParam('stepSize', FloatParam, allowsNull=True, default=0.5,
                       expertLevel=LEVEL_ADVANCED, label='Step')
 
         form.addParallelSection(threads=4, mpi=0)
 
     # --------------------------- INSERT steps functions --------------------------------------------
 
-    def _createFilenameTemplates(self):
-        """ Centralize how files are called """
-        myDict = {
-            FN_MEAN_VOL: self._getExtraPath('mean_Tomogram.mrc'),
-            OUTPUT_RESOLUTION_FILE: self._getExtraPath('TomogramLocalResolution.mrc'),
-            METADATA_MASK_FILE: self._getExtraPath('mask_data.xmd'),
-            FN_METADATA_HISTOGRAM: self._getExtraPath('hist.xmd'),
-            BINARY_MASK: self._getExtraPath('binarized_mask.mrc'),
-            FN_GAUSSIAN_MAP: self._getExtraPath('gaussianfilted.mrc'),
-        }
-        self._updateFilenamesDict(myDict)
-
     def _insertAllSteps(self):
-        # Convert input into xmipp Metadata format
-        self._createFilenameTemplates()
-        self._insertFunctionStep('convertInputStep')
-        self._insertFunctionStep('resolutionMonoTomoStep')
+        self.min_res_init = Float(self.minRes.get())
+        self.max_res_init = Float(self.maxRes.get())
+        for tom_odd, tom_even in zip(self.oddTomograms.get(), self.evenTomograms.get()):
+            if tom_odd.getObjId() == tom_even.getObjId():
+                tomId = tom_odd.getObjId()
+                #self._insertFunctionStep('convertInputStep')
+                self._insertFunctionStep(self.resolutionMonoTomoStep, self.oddTomograms.get(), self.evenTomograms.get(), tomId)
+                self._insertFunctionStep(self.createHistrogram, tomId)
         self._insertFunctionStep('createOutputStep')
-        self._insertFunctionStep("createHistrogram")
+
 
     def convertInputStep(self):
-        """ Read the input volume.
         """
-
-        self.vol1Fn = self.half1.get().getFileName()
-        self.vol2Fn = self.half2.get().getFileName()
+        This function takes the input tomograms and if their extension is not mrc,
+         then the function convert them into mrc format.
+        """
         extVol1 = getExt(self.vol1Fn)
         extVol2 = getExt(self.vol2Fn)
         if (extVol1 == '.mrc') or (extVol1 == '.map'):
@@ -137,130 +138,132 @@ class XmippProtMonoTomo(ProtAnalysis3D):
         if (extVol2 == '.mrc') or (extVol2 == '.map'):
             self.vol2Fn = self.vol2Fn + ':mrc'
 
-        if self.useMask.get():
-            if (not self.Mask.hasValue()):
-                self.ifNomask(self.vol1Fn)
-            else:
-                self.maskFn = self.Mask.get().getFileName()
 
-            extMask = getExt(self.maskFn)
+    def resolutionMonoTomoStep(self, oddTomos, evenTomos, tomId):
+        '''
+        This function estimates the local resolution from the oddTomo and the evenTomo.
+        The output is generated in pseudo streaming. It is not a full streaming due to
+        the input is not updated during the execution.
+        '''
+        self.vol1Fn = oddTomos[tomId].getFileName()
+        self.vol2Fn = evenTomos[tomId].getFileName()
 
-            if (extMask == '.mrc') or (extMask == '.map'):
-                self.maskFn = self.maskFn + ':mrc'
+        ts = self.oddTomograms.get()[tomId]
+        tsId = ts.getTsId()
 
-            if self.Mask.hasValue():
-                params = ' -i %s' % self.maskFn
-                params += ' -o %s' % self._getFileName(BINARY_MASK)
-                params += ' --select below %f' % 0.5  # Mask threshold = 0.5 self.maskthreshold.get()
-                params += ' --substitute binarize'
+        #Defining the output folder
+        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + tsId)
+        os.mkdir(tomoPath)
 
-                self.runJob('xmipp_transform_threshold', params)
+        #Defining outfiles
+        outputlocalResTomoFn = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
+        fullTomogramName = self.createOutputPath(FULL_TOMOGRAM_FILE, tsId, MRCEXT)
 
-    def ifNomask(self, fnVol):
-        xdim, _ydim, _zdim = self.half1.get().getDim()
-        params = ' -i %s' % fnVol
-        params += ' -o %s' % self._getFileName(FN_GAUSSIAN_MAP)
-        setsize = 0.02 * xdim
-        params += ' --fourier real_gaussian %f' % (setsize)
-
-        self.runJob('xmipp_transform_filter', params)
-        img = ImageHandler().read(self._getFileName(FN_GAUSSIAN_MAP))
-        imgData = img.getData()
-        max_val = np.amax(imgData) * 0.05
-
-        params = ' -i %s' % self._getFileName(FN_GAUSSIAN_MAP)
-        params += ' --select below %f' % max_val
-        params += ' --substitute binarize'
-        params += ' -o %s' % self._getFileName(BINARY_MASK)
-
-        self.runJob('xmipp_transform_threshold', params)
-
-        self.maskFn = self._getFileName(BINARY_MASK)
-
-    def maskRadius(self):
-
-        xdim, _ydim, _zdim = self.half1.get().getDim()
-        xdim = xdim * 0.5
-
-        return xdim
-
-    def resolutionMonoTomoStep(self):
         # Number of frequencies
-        max_ = self.maxRes.get()
-
         if self.stepSize.hasValue():
             freq_step = self.stepSize.get()
         else:
-            freq_step = 0.25
-
-        xdim = self.maskRadius()
+            freq_step = 0.5
 
         params = ' --vol %s' % self.vol1Fn
         params += ' --vol2 %s' % self.vol2Fn
-        params += ' --meanVol %s' % self._getFileName(FN_MEAN_VOL)
 
+        params += ' --meanVol %s' % fullTomogramName
         if self.useMask.get():
             params += ' --mask %s' % self._getFileName(BINARY_MASK)
-
-        params += ' --sampling_rate %f' % self.half1.get().getSamplingRate()
+        params += ' --sampling_rate %f' % self.oddTomograms.get().getSamplingRate()
         params += ' --minRes %f' % self.minRes.get()
-        params += ' --maxRes %f' % max_
+        params += ' --maxRes %f' % self.maxRes.get()
         params += ' --step %f' % freq_step
-        params += ' -o %s' % self._getFileName(OUTPUT_RESOLUTION_FILE)
+        params += ' -o %s' % outputlocalResTomoFn
         params += ' --significance %f' % self.significance.get()
 
         self.runJob('xmipp_resolution_monotomo', params)
 
-    def createHistrogram(self):
+        outputLocalResolutionSetOfTomograms = self.getOutputLocalResolutionSetOfTomograms()
+
+        newTomogram = Tomogram()
+        tomo = self.oddTomograms.get()[tomId]
+        newTomogram.copyInfo(tomo)
+        newTomogram.copyAttributes(tomo, '_origin')
+
+        newTomogram.setLocation(outputlocalResTomoFn)
+
+        newTomogram.setSamplingRate(tomo.getSamplingRate())
+        outputLocalResolutionSetOfTomograms.append(newTomogram)
+        outputLocalResolutionSetOfTomograms.update(newTomogram)
+        outputLocalResolutionSetOfTomograms.write()
+        self._store()
+
+    def createOutputPath(self, filename, tomId, ext):
+        '''
+        This function takes a filename as basis, and add the id as suffix and completes
+        the path with an extension. Exmaple: filename = 'tomogram_' id = 5, ext = '.mrc'
+        the output will be tomogram_5.mrc
+        '''
+        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + str(tomId))
+        fnPath = os.path.join(tomoPath, filename+str(tomId)+ext)
+        return fnPath
+
+    def createHistrogram(self, tomId):
+        '''
+        The histogram of local resolution values of the output tomogram is computed
+        '''
+        print(tomId)
+        ts = self.oddTomograms.get()[tomId]
+        tsId = ts.getTsId()
+        fnLocRes = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
+        fnHist = self.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tsId, XMDEXT)
+        m, M = self.getMinMax(fnLocRes)
 
         freq_step = self.stepSize.get() if self.stepSize.hasValue() else 10
 
-        M = float(self.max_res_init)
-        m = float(self.min_res_init)
         range_res = round((M - m) / freq_step)
 
-        params = ' -i %s' % self._getFileName(OUTPUT_RESOLUTION_FILE)
+        params = ' -i %s' % fnLocRes
 
         if self.useMask.get():
             params += ' --mask binary_file %s' % self._getFileName(BINARY_MASK)
 
         params += ' --steps %f' % range_res
-        params += ' --range %f %f' % (self.min_res_init.get(),
-                                      (float(self.max_res_init.get()) - float(freq_step)))
-        params += ' -o %s' % self._getFileName(FN_METADATA_HISTOGRAM)
+        params += ' --range %f %f' % (m, M-freq_step)
+        params += ' -o %s' % fnHist
 
         self.runJob('xmipp_image_histogram', params)
 
-    def readMetaDataOutput(self):
-        mData = md.MetaData(self._getFileName(METADATA_MASK_FILE))
-        NvoxelsOriginalMask = float(mData.getValue(md.MDL_COUNT, mData.firstObject()))
-        NvoxelsOutputMask = float(mData.getValue(md.MDL_COUNT2, mData.firstObject()))
-        nvox = int(round(
-            ((NvoxelsOriginalMask - NvoxelsOutputMask) / NvoxelsOriginalMask) * 100))
-        return nvox
-
     def getMinMax(self, imageFile):
+        '''
+        This function computes the maximum and minimum values of a tomogram given by an
+        imageFile
+        '''
         img = ImageHandler().read(imageFile)
         imgData = img.getData()
         min_res = round(np.amin(imgData) * 100) / 100
         max_res = round(np.amax(imgData) * 100) / 100
         return min_res, max_res
 
+    def getOutputLocalResolutionSetOfTomograms(self):
+        '''
+        This function degines the output of the protocol
+        '''
+        if hasattr(self, "outputLocalResolutionSetOfTomograms"):
+            self.outputLocalResolutionSetOfTomograms.enableAppend()
+        else:
+            outputLocalResolutionSetOfTomograms = self._createSetOfTomograms(suffix='LocalResolution')
+            outputLocalResolutionSetOfTomograms.copyInfo(self.oddTomograms.get())
+            samplingRate = self.oddTomograms.get().getSamplingRate()
+            outputLocalResolutionSetOfTomograms.setSamplingRate(samplingRate)
+            outputLocalResolutionSetOfTomograms.setStreamState(Set.STREAM_OPEN)
+            self._defineOutputs(outputLocalResolutionSetOfTomograms=outputLocalResolutionSetOfTomograms)
+            self._defineSourceRelation(self.oddTomograms, outputLocalResolutionSetOfTomograms)
+        return self.outputLocalResolutionSetOfTomograms
+
     def createOutputStep(self):
-        volume = Tomogram()
-        volume.setFileName(self._getFileName(OUTPUT_RESOLUTION_FILE))
-
-        volume.setSamplingRate(self.half1.get().getSamplingRate())
-        self._defineOutputs(resolution_Volume=volume)
-        self._defineSourceRelation(self.half1, volume)
-
-        # Setting the min max for the summary
-        imageFile = self._getFileName(OUTPUT_RESOLUTION_FILE)
-        min_, max_ = self.getMinMax(imageFile)
-        self.min_res_init.set(round(min_ * 100) / 100)
-        self.max_res_init.set(round(max_ * 100) / 100)
-        self._store(self.min_res_init)
-        self._store(self.max_res_init)
+        '''
+        This function closes the generated output of the protocol
+        '''
+        self.getOutputLocalResolutionSetOfTomograms().setStreamState(Set.STREAM_CLOSED)
+        self._store()
 
     # --------------------------- INFO functions ------------------------------
 
@@ -273,9 +276,10 @@ class XmippProtMonoTomo(ProtAnalysis3D):
 
     def _summary(self):
         summary = []
-        summary.append("Highest resolution %.2f Å,   "
-                       "Lowest resolution %.2f Å. \n" % (self.min_res_init,
-                                                         self.max_res_init))
+        if hasattr(self, 'min_res_init') and hasattr(self, 'max_res_init'):
+            summary.append("Highest resolution %.2f Å,   "
+                           "Lowest resolution %.2f Å. \n" % (self.min_res_init,
+                                                             self.max_res_init))
         return summary
 
     def _citations(self):

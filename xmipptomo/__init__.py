@@ -29,7 +29,7 @@ import pyworkflow.utils as pwutils
 
 _logo = "xmipp_logo.png"
 _references = ['delaRosaTrevin2013']
-__version__ = "3.0.8"
+__version__ = "3.1.0"
 
 class Plugin(xmipp3.Plugin):
 
