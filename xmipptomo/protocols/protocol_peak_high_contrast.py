@@ -99,6 +99,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       params.FloatParam,
                       label='Threshold for initial coordinates (SD)',
                       default='3',
+                      expertLevel=params.LEVEL_ADVANCED,
                       help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
                            "to consider it a member of a high contrast feature.")
 
