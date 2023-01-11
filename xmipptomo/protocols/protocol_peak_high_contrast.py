@@ -85,21 +85,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
                            "high contrast regions detection.")
 
-        form.addParam('numberCenterOfMass',
-                      params.IntParam,
-                      label='Number of initial center of mass',
-                      default='10',
-                      expertLevel=params.LEVEL_ADVANCED,
-                      help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
-                           "high contrast regions detection.")
-
-        form.addParam('distanceThr',
-                      params.FloatParam,
-                      label='Center of mass distance threshold',
-                      default='10',
-                      expertLevel=params.LEVEL_ADVANCED,
-                      help="Threshold distance to consider that a 3D coordinate belong to a center of mass.")
-
         form.addParam('numberOfCoordinatesThr',
                       params.IntParam,
                       label='Number of coordinates threshold',
@@ -138,8 +123,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'fiducialSize': self.fiducialSize.get() * 10,
             'sdThreshold': self.sdThreshold.get(),
             'numberSampSlices': self.numberSampSlices.get(),
-            'numberCenterOfMass': self.numberCenterOfMass.get(),
-            'distanceThr': self.distanceThr.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTomograms.get().getSamplingRate(),
         }
@@ -150,8 +133,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--fiducialSize %(fiducialSize)f " \
                                "--sdThreshold %(sdThreshold)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
-                               "--numberCenterOfMass %(numberCenterOfMass)d " \
-                               "--distanceThr %(distanceThr)f " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
 
