@@ -80,6 +80,14 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='0.1',
                       help="Minimum correlation between a feature and its mirror to consider it a fiducial.")
 
+        form.addParam('relaxedMode',
+                      params.BooleanParam,
+                      default=True,
+                      label='Run in relaxed mode?',
+                      help="If this option is selected coordinates are kept when none of them pass the mirror "
+                           "correlation filter. If not, and empty output is possible. This second case might happen "
+                           "if the tomogram does not present any gold bead or if it presents misalignment")
+
         # Advanced parameters
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -146,6 +154,9 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
+
+        if self.relaxedMode.get():
+            argsPeakHighContrast += "--relaxedMode "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
