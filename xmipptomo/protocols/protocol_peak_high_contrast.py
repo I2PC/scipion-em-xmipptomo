@@ -70,12 +70,19 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       default='10',
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
-        form.addParam('sdThreshold',
+        form.addParam('sdThr',
                       params.FloatParam,
                       label='Threshold for initial coordinates (SD)',
                       default='5',
                       help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
                            "to consider it a member of a high contrast feature.")
+
+        form.addParam('mirrorCorrelationThr',
+                      params.FloatParam,
+                      label='Minimum mirror correlation',
+                      default='0.1',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Minimum correlation between a feature and its mirror to consider it a fiducial.")
 
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -121,7 +128,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'output': outputFilePath,
             'boxSize': self.boxSize.get(),
             'fiducialSize': self.fiducialSize.get() * 10,
-            'sdThreshold': self.sdThreshold.get(),
+            'sdThr': self.sdThr.get(),
+            'mirrorCorrelationThr': self.mirrorCorrelationThr.get(),
             'numberSampSlices': self.numberSampSlices.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTomograms.get().getSamplingRate(),
@@ -131,7 +139,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
-                               "--sdThreshold %(sdThreshold)f " \
+                               "--sdThr %(sdThr)f " \
+                               "--mirrorCorrelationThr %(mirrorCorrelationThr)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
