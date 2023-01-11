@@ -51,8 +51,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParallelSection(threads=4, mpi=1)
-
         form.addParam('inputSetOfTomograms',
                       params.PointerParam,
                       pointerClass='SetOfTomograms',
@@ -111,6 +109,8 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       expertLevel=params.LEVEL_ADVANCED,
                       help="Number of coordinates that must be attracted by a center of mass to consider it a "
                            "plausible high contrast feature.")
+
+        form.addParallelSection(threads=4, mpi=1)
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
