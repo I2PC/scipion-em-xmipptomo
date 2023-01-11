@@ -51,39 +51,36 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
+        form.addParallelSection(threads=4, mpi=1)
+
         form.addParam('inputSetOfTomograms',
                       params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      important=True,
                       label='Input set of tomograms',
+                      important=True,
                       help='Select a set of volumes to peak high contrast regions.')
-
-        form.addParam('boxSize',
-                      params.IntParam,
-                      label='Box size',
-                      default='32',
-                      help="Size of the box containing the high contrast feature in pixels.")
 
         form.addParam('fiducialSize',
                       params.FloatParam,
                       label='Fiducial size (nm)',
                       default='10',
+                      important=True,
                       help="Size of the fiducial markers (or any other object) to be peaked in nanometers.")
 
-        form.addParam('sdThr',
-                      params.FloatParam,
-                      label='Threshold for initial coordinates (SD)',
-                      default='5',
-                      help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
-                           "to consider it a member of a high contrast feature.")
+        form.addParam('boxSize',
+                      params.IntParam,
+                      label='Box size',
+                      default='32',
+                      important=True,
+                      help="Size of the box containing the high contrast feature in pixels.")
 
         form.addParam('mirrorCorrelationThr',
                       params.FloatParam,
                       label='Minimum mirror correlation',
                       default='0.1',
-                      expertLevel=params.LEVEL_ADVANCED,
                       help="Minimum correlation between a feature and its mirror to consider it a fiducial.")
 
+        # Advanced parameters
         form.addParam('numberSampSlices',
                       params.IntParam,
                       label='Number of sampling slices',
@@ -92,6 +89,13 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       help="Number of slices used as a sample to calculate the threshold pixel value, for posterior "
                            "high contrast regions detection.")
 
+        form.addParam('sdThr',
+                      params.FloatParam,
+                      label='Threshold for initial coordinates (SD)',
+                      default='3',
+                      help="Number of standard deviations (SD) that a coordinate value must be over the mean in other "
+                           "to consider it a member of a high contrast feature.")
+
         form.addParam('numberOfCoordinatesThr',
                       params.IntParam,
                       label='Number of coordinates threshold',
@@ -99,8 +103,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       expertLevel=params.LEVEL_ADVANCED,
                       help="Number of coordinates that must be attracted by a center of mass to consider it a "
                            "plausible high contrast feature.")
-
-        form.addParallelSection(threads=4, mpi=1)
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
