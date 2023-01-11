@@ -34,7 +34,7 @@ from tomo.protocols import (ProtImportCoordinates3D,
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
-    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo
 from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
 from xmipptomo.protocols.protocol_project_top import SubtomoProjectOutput
 
@@ -399,3 +399,42 @@ class TestXmipptomoHalfMaps(BaseTest):
 #         meanDist = np.mean(dist)
 #         self.assertTrue(meanDist == 0)
 #         return scoredSubtomos
+
+class TestXmipptomoSubtractionSubtomo(BaseTest):
+    """This class check if the protocol subtraction_subtomo works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+    def _runPreviousProtocols(self):
+        createAverage = self.newProtocol(XmippProtPhantomSubtomo,
+                                         option=1,
+                                         nsubtomos=1)
+        self.launchProtocol(createAverage)
+        self.assertIsNotNone(createAverage.outputSubtomograms,
+                             "There was a problem with subtomogram average phantom output")
+        createSubtomos = self.newProtocol(XmippProtPhantomSubtomo,
+                                        option=1,
+                                        nsubtomos=10,
+                                        rotate=True,
+                                        applyShift=True)
+        self.launchProtocol(createSubtomos)
+        self.assertIsNotNone(createSubtomos.outputSubtomograms,
+                             "There was a problem with subtomogram phantoms output")
+        return createAverage, createSubtomos
+
+    def test_subtraction(self):
+        createAverage, createSubtomos = self._runPreviousProtocols()
+        subtraction = self.newProtocol(XmippProtSubtractionSubtomo,
+                                       inputSubtomos=createSubtomos.outputSubtomograms,
+                                       average=createAverage.outputSubtomograms,
+                                       maskBool=False)
+        self.launchProtocol(subtraction)
+        self.assertIsNotNone(subtraction.outputSubtomograms,
+                             "There was a problem with subtracted subtomograms output")
+        self.assertSetSize(subtraction.outputSubtomograms, 10, "There was a problem with particles output")
+        self.assertTrue(subtraction.outputSubtomograms.getSamplingRate() == 1.0)
+        self.assertTrue(subtraction.outputSubtomograms.getFirstItem().getDim() == (40, 40, 40))
+
+
