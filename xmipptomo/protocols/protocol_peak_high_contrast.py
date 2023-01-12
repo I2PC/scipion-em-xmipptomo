@@ -80,7 +80,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         form.addParam('relaxedMode',
                       params.BooleanParam,
-                      default=True,
+                      default=False,
                       label='Run in relaxed mode?',
                       help="If this option is selected coordinates are kept when none of them pass the mirror "
                            "correlation filter. If not, and empty output is possible. This second case might happen "
