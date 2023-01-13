@@ -42,7 +42,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtFlexAlign):
     def _defineParams(self, form):
         ProtTsCorrectMotion._defineParams(self, form)
         form.addSection(label="FlexAlign")
-        XmippProtMovieCorr._defineAlignmentParams(self, form)
+        XmippProtFlexAlign._defineAlignmentParams(self, form)
 
     def _getOutputMicName(self, movie):
         return self._getTiltImageMRoot(movie) + ".mrc"
