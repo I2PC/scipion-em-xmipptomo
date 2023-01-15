@@ -55,7 +55,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     """
     _label = 'extract subtomos'
     _devStatus = BETA
-    #_possibleOutputs = SetOfSubTomograms
+    _possibleOutputs = SetOfSubTomograms
     #OUTPUT_PREFIX = _possibleOutputs.subtomograms.name
     lines = []
     tomoFiles = []
@@ -64,12 +64,12 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Parameters')
 
+        form.addParam('coords', PointerParam, pointerClass=SetOfCoordinates3D,
+                  label='Coordinates', help='3D coordinates to use in the extraction process.'
+                                            'The coordinate denotes the center of the subtomogram')
+
         form.addParam('tomograms', PointerParam, pointerClass=SetOfTomograms,
                       label='Tomograms', help='The subtomograms will be extracted from this set.')
-
-        form.addParam('coords', PointerParam, pointerClass=SetOfCoordinates3D,
-                  label='Coordinates', help='The coordinates that definethe position of the set of subtomograms to be extracted.'
-                                            'The coordinate denotes the center of the subtomogram')
 
         form.addParam('boxSize', IntParam,
                       label='Box size',
@@ -87,9 +87,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
 
-        for tom in self.tomograms.get():
+        for tom in self.coords.get().getPrecedents():
             tomId = tom.getObjId()
-            self._insertFunctionStep(self.extractStep, self.tomograms.get(), tomId)
+            self._insertFunctionStep(self.extractStep, self.coords.get().getPrecedents(), tomId)
         self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions -------------------------------
@@ -158,28 +158,28 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
         outputSet = None
         self.outputSubTomogramsSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
-        self.outputSubTomogramsSet.setSamplingRate(self.tomograms.get().getSamplingRate())
+        self.outputSubTomogramsSet.setSamplingRate(self.coords.get().getPrecedents().getSamplingRate())
         self.outputSubTomogramsSet.setCoordinates3D(self.coords)
-        if self.tomograms.get().getFirstItem().getAcquisition():
+        if self.coords.get().getPrecedents().getFirstItem().getAcquisition():
             acquisition = TomoAcquisition()
-            acquisition.setAngleMin(self.tomograms.get().getFirstItem().getAcquisition().getAngleMin())
-            acquisition.setAngleMax(self.tomograms.get().getFirstItem().getAcquisition().getAngleMax())
-            acquisition.setStep(self.tomograms.get().getFirstItem().getAcquisition().getStep())
+            acquisition.setAngleMin(self.coords.get().getPrecedents().getFirstItem().getAcquisition().getAngleMin())
+            acquisition.setAngleMax(self.coords.get().getPrecedents().getFirstItem().getAcquisition().getAngleMax())
+            acquisition.setStep(self.coords.get().getPrecedents().getFirstItem().getAcquisition().getStep())
             self.outputSubTomogramsSet.setAcquisition(acquisition)
 
         counter = 0
 
-        for item in self.tomograms.get().iterItems():
+        for item in self.coords.get().getPrecedents().iterItems():
             for ind, tomoFile in enumerate(self.tomoFiles):
                 if os.path.basename(tomoFile) == os.path.basename(item.getFileName()):
                     coordSet = self.lines[ind]
                     tomId = item.getObjId()
-                    tsId = self.tomograms.get()[tomId].getTsId()
+                    tsId = self.coords.get().getPrecedents()[tomId].getTsId()
                     outputSet, counter = self.readSetOfSubTomograms(tomoFile,
                                                                     self.outputSubTomogramsSet,
                                                                     coordSet, 1, counter, tsId)
 
-        self._defineOutputs(outputSetOfSubtomogram=outputSet)
+        self._defineOutputs(Subtomograms=outputSet)
         self._defineSourceRelation(self.coords, outputSet)
 
     def readSetOfSubTomograms(self, tomoFile, outputSubTomogramsSet, coordSet, factor, counter, tsId):
@@ -211,7 +211,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
-        toms = self.tomograms.get()
+        toms = self.coords.get().getPrecedents()
         return ["A set of %d subtomograms with dimensions %s was obtained."
                 % (toms.getSize(), toms.getDimensions())]
 
