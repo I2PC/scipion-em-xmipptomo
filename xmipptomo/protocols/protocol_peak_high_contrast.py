@@ -173,6 +173,9 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
         coordList = utils.retrieveXmipp3dCoordinatesIntoList(outputFilePath)
 
+        if not coordList:
+            print("WARNING: no coordinates picked in tomogram " + volFileName)
+
         for element in coordList:
             newCoord3D = tomoObj.Coordinate3D()
             newCoord3D.setVolume(vol)
