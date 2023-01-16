@@ -2,7 +2,7 @@
 Scipion xmipptomo plugin
 ========================
 .. image:: https://github.com/I2PC/scipion-em-xmipptomo/blob/devel/xmipptomo/xmipp_logo.png
-  :width: 400
+  :width: 300
 
 This is a xmipptomo plugin for **scipion**
 
