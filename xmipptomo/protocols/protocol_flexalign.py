@@ -26,11 +26,11 @@
 
 from pyworkflow import BETA
 from tomo.protocols import ProtTsCorrectMotion
-from xmipp3.protocols import XmippProtMovieCorr
+from xmipp3.protocols import XmippProtFlexAlign
 from pathlib import Path
 
 
-class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
+class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtFlexAlign):
     """
     Simple protocol to average TiltSeries movies as basic
     motion correction. It is used mainly for testing purposes.
@@ -42,7 +42,7 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     def _defineParams(self, form):
         ProtTsCorrectMotion._defineParams(self, form)
         form.addSection(label="FlexAlign")
-        XmippProtMovieCorr._defineAlignmentParams(self, form)
+        XmippProtFlexAlign._defineAlignmentParams(self, form)
 
     def _getOutputMicName(self, movie):
         return self._getTiltImageMRoot(movie) + ".mrc"
