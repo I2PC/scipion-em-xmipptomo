@@ -23,6 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
 
 import numpy as np
 from pwem.emlib.image import ImageHandler
@@ -30,11 +31,12 @@ from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
-                            ProtImportSubTomograms)
+                            ProtImportSubTomograms,
+                            ProtImportTs)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
-    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo, XmippProtSplitTiltSeries
 from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
 from xmipptomo.protocols.protocol_project_top import SubtomoProjectOutput
 
@@ -93,8 +95,8 @@ class TestXmipptomoProtProjectZ(BaseTest):
     def _runPreviousProtocols(cls):
         if cls.importProt is None:
             protImport = cls.newProtocol(ProtImportSubTomograms,
-                                      filesPath=cls.setOfSubtomograms,
-                                      samplingRate=5)
+                                         filesPath=cls.setOfSubtomograms,
+                                         samplingRate=5)
             cls.launchProtocol(protImport)
             cls.importProt = protImport
         return cls.importProt
@@ -105,7 +107,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 input=protImport.outputSubTomograms)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4,"There was a problem with particles output")
+        self.assertSetSize(output, 4, "There was a problem with particles output")
         return proj
 
     def _createProjY(self):
@@ -116,7 +118,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
         self.launchProtocol(proj)
 
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4,"There was a problem with particles output")
+        self.assertSetSize(output, 4, "There was a problem with particles output")
         return proj
 
     def _createProjZ_range(self):
@@ -127,7 +129,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 cropParam=20)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output,4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, "There was a problem with particles output")
         return proj
 
     def _createRadAvgZ(self):
@@ -137,7 +139,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 radAvg=True)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output,4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, "There was a problem with particles output")
         return proj
 
     def test_top(self):
@@ -227,8 +229,9 @@ class TestXmipptomoMapback(BaseTest):
         mapback.inputRef.setExtended("outputSubtomograms.1")
         self.launchProtocol(mapback)
 
-        self.assertSetSize(getattr(mapback,XmippProtSubtomoMapBack._possibleOutputs.tomograms.name), 1,
-                             "There was a problem with tomograms output")
+        self.assertSetSize(getattr(mapback, XmippProtSubtomoMapBack._possibleOutputs.tomograms.name), 1,
+                           "There was a problem with tomograms output")
+
 
 class TestXmippTomoPhantom(BaseTest):
     """This class check if the protocol create phantom tomograms works properly."""
@@ -237,9 +240,7 @@ class TestXmippTomoPhantom(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
 
-
     def test_phantom(self):
-
         phantom = self.newProtocol(XmippProtPhantomTomo,
                                    ntomos=2,
                                    nparticles=10)
@@ -247,7 +248,8 @@ class TestXmippTomoPhantom(BaseTest):
         tomograms = getattr(phantom, OutputPhantomTomos.tomograms.name)
         self.assertSetSize(tomograms, 2, "There was a problem with subtomograms output")
 
-        self.assertIsNotNone(tomograms.getAcquisition().getMagnification(), "Acquisition magnification not populated properly")
+        self.assertIsNotNone(tomograms.getAcquisition().getMagnification(),
+                             "Acquisition magnification not populated properly")
 
         coordinates = getattr(phantom, OutputPhantomTomos.coordinates3D.name)
         self.assertSetSize(coordinates, 20, "There was a problem with subtomograms output")
@@ -266,9 +268,9 @@ class XmippTomoScoreCoordinates(BaseTest):
 
     def _runPreviousProtocols(self):
         protImportTomogram = self.newProtocol(ProtImportTomograms,
-                                      filesPath=self.tomogram,
-                                      samplingRate=2,
-                                      objLabel='Import Tomogram')
+                                              filesPath=self.tomogram,
+                                              samplingRate=2,
+                                              objLabel='Import Tomogram')
         self.launchProtocol(protImportTomogram)
         output = getattr(protImportTomogram, 'outputTomograms', None)
         self.assertIsNotNone(output,
@@ -307,7 +309,6 @@ class XmippTomoScoreCoordinates(BaseTest):
         return getattr(protScoreCoordinates, 'outputCoordinates')
 
     def test_score_coordinates(self):
-
         # Run imports
         protCoords = self._runPreviousProtocols()
 
@@ -415,10 +416,10 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         self.assertIsNotNone(createAverage.outputSubtomograms,
                              "There was a problem with subtomogram average phantom output")
         createSubtomos = self.newProtocol(XmippProtPhantomSubtomo,
-                                        option=1,
-                                        nsubtomos=10,
-                                        rotate=True,
-                                        applyShift=True)
+                                          option=1,
+                                          nsubtomos=10,
+                                          rotate=True,
+                                          applyShift=True)
         self.launchProtocol(createSubtomos)
         self.assertIsNotNone(createSubtomos.outputSubtomograms,
                              "There was a problem with subtomogram phantoms output")
@@ -438,3 +439,55 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         self.assertTrue(subtraction.outputSubtomograms.getFirstItem().getDim() == (40, 40, 40))
 
 
+class TestXmipptomoSplitTS(BaseTest):
+    """This class check if the protocol split tilt-series works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+
+        cls.inputDataSet = DataSet.getDataSet('tomo-em')
+        cls.inputSoTS = cls.inputDataSet.getFile('ts1_imod')
+
+    def runWorkflow(self):
+        protImportTS = self.newProtocol(ProtImportTs,
+                                        filesPath=os.path.split(self.inputSoTS)[0],
+                                        filesPattern="BB{TS}.st",
+                                        voltage=300,
+                                        anglesFrom=0,
+                                        magnification=105000,
+                                        sphericalAberration=2.7,
+                                        amplitudeContrast=0.1,
+                                        samplingRate=20.2,
+                                        doseInitial=0,
+                                        dosePerFrame=3.0,
+                                        minAngle=-55,
+                                        maxAngle=65.0,
+                                        stepAngle=2.0,
+                                        tiltAxisAngle=-12.5)
+
+        self.launchProtocol(protImportTS)
+
+        protSplitTS = self.newProtocol(XmippProtSplitTiltSeries,
+                                       inputSetOfTiltSeries=protImportTS.outputTiltSeries)
+
+        self.launchProtocol(protSplitTS)
+
+        return protSplitTS
+
+    def testSplitTS(self):
+        protSplitTS = self.runWorkflow()
+
+        self.assertIsNotNone(protSplitTS.outputEvenSetOfTiltSeries,
+                             "Even set of tilt series has not been generated")
+        self.assertIsNotNone(protSplitTS.outputOddSetOfTiltSeries,
+                             "Odd set of tilt series has not been generated")
+
+        self.assertTrue(protSplitTS.outputEvenSetOfTiltSeries.getSamplingRate() == 20.20)
+        self.assertTrue(protSplitTS.outputOddSetOfTiltSeries.getSamplingRate() == 20.20)
+
+        self.assertSetSize(protSplitTS.outputEvenSetOfTiltSeries, 2, "Missing TS in even set")
+        self.assertSetSize(protSplitTS.outputOddSetOfTiltSeries, 2, "Missing TS in odd set")
+
+        self.assertTrue(protSplitTS.outputEvenSetOfTiltSeries.getFirstItem().getDim() == (512, 512, 30))
+        self.assertTrue(protSplitTS.outputOddSetOfTiltSeries.getFirstItem().getDim() == (512, 512, 31))
