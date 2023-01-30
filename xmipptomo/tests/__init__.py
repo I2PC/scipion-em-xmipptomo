@@ -24,6 +24,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
 from pyworkflow.tests import DataSet
 
 DataSet(name='monotomo', folder='monotomo',
@@ -31,11 +32,4 @@ DataSet(name='monotomo', folder='monotomo',
                'even2': 'even_tomogram_rx2.mrc',
                'odd1': 'even_tomogram_rx1.mrc',
                'odd2': 'even_tomogram_rx2.mrc',
-        })
-
-DataSet(name='tomo-em',
-        folder='tomo-em',
-        files={
-            'ts1': 'tutorialData/BBa.st',
-            'ts2': 'tutorialData/BBb.st',
-        })
+               })
