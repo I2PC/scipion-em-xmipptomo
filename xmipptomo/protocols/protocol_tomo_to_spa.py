@@ -234,4 +234,4 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         """
         This function returns the path for the config file for Xmipp Phantom.
         """
-        return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), 'xmippPhantom.param')))
+        return self.scapePath(os.path.abspath(self._getExtraPath('xmippPhantom.param')))
