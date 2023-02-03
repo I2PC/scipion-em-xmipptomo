@@ -28,7 +28,8 @@
 import os
 
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles
+from pwem.objects import SetOfParticles, Particle, String, Transform
+from pwem.emlib.image import ImageHandler as ih
 
 from pyworkflow import BETA
 from pyworkflow.protocol import params
@@ -84,6 +85,9 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         # Conditionally removing temporary files
         if self.cleanTmps.get():
             self._insertFunctionStep('removeTempFiles')
+        
+        # Create output
+        self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions --------------------------------------------
     def generateConfigFile(self):
@@ -113,6 +117,44 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         """
         # Removing Xmipp Phantom config file
         self.runJob('rm', self.getXmippParamPath())
+
+    def createOutputStep(self):
+        """
+        This function generates the outputs of the protocol.
+        """
+        # Extracting input
+        inputSubtomograms = self.inputSubtomograms.get()
+
+        # Creating empty set of particles and setting sampling rate, alignment, and dimensions
+        outputSetOfParticles = self._createSetOfParticles()
+        outputSetOfParticles.setSamplingRate(inputSubtomograms.getSamplingRate())
+        outputSetOfParticles.setAlignmentProj()
+        dimensions = self.getSubtomogramDimensions().split(' ')
+        outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
+
+        # Input could be SetOfVolumes or SetOfSubtomograms
+        for subtomogram in inputSubtomograms.iterItems():
+            # Generating particle for each projection
+            idx = subtomogram.getObjId()
+            outputParticle = Particle()
+
+            # Setting location and id
+            outputParticle.setLocation(ih._convertToLocation((idx, self._getExtraPath("projections.mrcs"))))
+            outputParticle._subtomogramID = String(idx)
+
+            # If it is a subtomogram, set transform
+            if subtomogram.hasTransform():
+                transform = Transform()
+                transform.setMatrix(subtomogram.getTransform().getMatrix())
+                outputParticle.setTransform(transform)
+            
+            # Add particle to set
+            outputSetOfParticles.append(outputParticle)
+
+        # Defining the ouput with summary and source relation
+        outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
+        self._defineOutputs(outputSetOfParticles=outputSetOfParticles)
+        self._defineSourceRelation(self.inputSubtomograms, outputSetOfParticles)
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
@@ -234,4 +276,11 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         """
         This function returns the path for the config file for Xmipp Phantom.
         """
-        return self.scapePath(os.path.abspath(self._getExtraPath('xmippPhantom.param')))
+        return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), 'xmippPhantom.param')))
+    
+    def getSummary(self, setOfParticles):
+        """
+        Returns the summary of a given set of particles.
+        The summary consists of a text including the number of particles in the set.
+        """
+        return "Number of projections generated: {}".format(setOfParticles.getSize())
