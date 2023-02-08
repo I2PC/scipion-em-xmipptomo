@@ -95,21 +95,39 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         This function writes the config file for Xmipp Phantom.
         """
         confFile = open(self.getXmippParamPath(), "w")
-        confFile.write('# XMIPP_STAR_1 *\n# Projection Parameters\ndata_block1\n# X and Y projection dimensions [Xdim Ydim]\n'
-                        '_dimensions2D   \'{}\'\n# Rotation range and number of samples [Start Finish NSamples]\n'
-                        '_projRotRange    \'0 0 1\'\n# Rotation angle added noise  [noise (bias)]\n_projRotNoise   \'0\'\n'
-                        '# Tilt range and number of samples for Tilt [Start Finish NSamples]\n_projTiltRange    \'{} {} {}\'\n'
-                        '# Tilt angle added noise\n_projTiltNoise   \'0\'\n# Psi range and number of samples\n'
-                        '_projPsiRange    \'0 0 0\'\n# Psi added noise\n_projPsiNoise   \'0\'\n# Noise\n'\
-                        .format(self.getSubtomogramDimensions(), self.tiltRangeStart.get(), self.tiltRangeEnd.get(), self.getStepValue()))
+
+        # Generating file content
+        content = '# XMIPP_STAR_1 *\n'
+        content += '# Projection Parameters\n'
+        content += 'data_block1\n'
+        content += '# X and Y projection dimensions [Xdim Ydim]\n'
+        content += '_dimensions2D   \'{}\'\n'.format(self.getSubtomogramDimensions())
+        content += '# Rotation range and number of samples [Start Finish NSamples]\n'
+        content += '_projRotRange    \'0 0 1\'\n'
+        content += '# Rotation angle added noise  [noise (bias)]\n'
+        content += '_projRotNoise   \'0\'\n'
+        content += '# Tilt range and number of samples for Tilt [Start Finish NSamples]\n'
+        content += '_projTiltRange    \'{} {} {}\'\n'.format(self.tiltRangeStart.get(), self.tiltRangeEnd.get(), self.getStepValue())
+        content += '# Tilt angle added noise\n'
+        content += '_projTiltNoise   \'0\'\n'
+        content += '# Psi range and number of samples\n'
+        content += '_projPsiRange    \'0 0 0\'\n'
+        content += '# Psi added noise\n_projPsiNoise   \'0\'\n'
+        content += '# Noise\n'
+
+        # Writing content to file and closing
+        confFile.write(content)
         confFile.close()
 
     def generateSubtomogramProjections(self, subtomogram):
         """
         This function generates the projection for a given subtomogram.
         """
-        self.runJob("scipion run xmipp_phantom_project", '-i {} -o {} --method {} --params {}'\
-                .format(self.getSubtomogramAbsolutePath(subtomogram), self.getProjectionAbsolutePath(subtomogram), self.getMethodValue(), self.getXmippParamPath()), cwd='/home')
+        params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
+        params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
+        params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
+        params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
+        self.runJob("scipion run xmipp_phantom_project", params, cwd='/home')
 
     def removeTempFiles(self):
         """
@@ -142,12 +160,6 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
             outputParticle.setLocation(ih._convertToLocation((idx, self._getExtraPath("projections.mrcs"))))
             outputParticle._subtomogramID = String(idx)
 
-            # If it is a subtomogram, set transform
-            if subtomogram.hasTransform():
-                transform = Transform()
-                transform.setMatrix(subtomogram.getTransform().getMatrix())
-                outputParticle.setTransform(transform)
-            
             # Add particle to set
             outputSetOfParticles.append(outputParticle)
 
