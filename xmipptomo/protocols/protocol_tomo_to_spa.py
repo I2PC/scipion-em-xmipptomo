@@ -127,7 +127,7 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
         params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
         params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
-        self.runJob("scipion run xmipp_phantom_project", params, cwd='/home')
+        self.runJob("xmipp_phantom_project", params, cwd='/home')
 
     def removeTempFiles(self):
         """
@@ -174,7 +174,7 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         This method validates the received params and checks that they all fullfill the requirements needed to run the protocol.
         """
         errors = []
-        
+
         # Checking if number of samples is greater or equal than 1
         if self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES and (not self.tiltRangeNSamples.get() == None) and self.tiltRangeNSamples.get() < 1:
             errors.append('The number of samples cannot be less than 1.')
