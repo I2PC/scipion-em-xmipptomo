@@ -72,12 +72,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       important=True,
                       help="Size of the box containing the high contrast feature in pixels.")
 
-        form.addParam('mirrorCorrelationThr',
-                      params.FloatParam,
-                      label='Minimum mirror correlation',
-                      default='0.1',
-                      help="Minimum correlation between a feature and its mirror to consider it a fiducial.")
-
         form.addParam('relaxedMode',
                       params.BooleanParam,
                       default=True,
@@ -110,6 +104,21 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       expertLevel=params.LEVEL_ADVANCED,
                       help="Number of coordinates that must be attracted by a center of mass to consider it a "
                            "plausible high contrast feature.")
+
+        form.addParam('mirrorCorrelationThr',
+                      params.FloatParam,
+                      label='Minimum mirror correlation',
+                      default='0.1',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Minimum correlation between a feature and its mirror to consider it a fiducial.")
+
+        form.addParam('mahalanobisDistanceThr',
+                      params.FloatParam,
+                      label='Mahalanobis distance threshold',
+                      default='2',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      help="Maximum Mahalanobis distance of the radial average of the gold bead between all the "
+                           "peaked coordinates.")
 
         form.addParallelSection(threads=4, mpi=1)
 
@@ -144,6 +153,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'numberSampSlices': self.numberSampSlices.get(),
             'numberOfCoordinatesThr': self.numberOfCoordinatesThr.get(),
             'samplingRate': self.inputSetOfTomograms.get().getSamplingRate(),
+            'mahalanobisDistanceThr': self.mahalanobisDistanceThr.get(),
         }
 
         argsPeakHighContrast = "--vol %(inputVol)s " \
@@ -152,6 +162,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--fiducialSize %(fiducialSize)f " \
                                "--sdThr %(sdThr)f " \
                                "--mirrorCorrelationThr %(mirrorCorrelationThr)f " \
+                               "--mahalanobisDistanceThr %(mahalanobisDistanceThr)f " \
                                "--numberSampSlices %(numberSampSlices)d " \
                                "--numberOfCoordinatesThr %(numberOfCoordinatesThr)s " \
                                "--samplingRate %(samplingRate)f "
