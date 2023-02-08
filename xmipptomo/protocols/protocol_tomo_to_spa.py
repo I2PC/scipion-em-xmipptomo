@@ -174,11 +174,7 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         This method validates the received params and checks that they all fullfill the requirements needed to run the protocol.
         """
         errors = []
-        """
-        if not self.inputSubtomograms.get().getFirstItem().hasTransform():
-            errors.append("Input subtomograms do not have alignment information. Please, "
-                          "provide a SetOfSubtomograms that has been previously aligned.")
-        """
+        
         # Checking if number of samples is greater or equal than 1
         if self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES and (not self.tiltRangeNSamples.get() == None) and self.tiltRangeNSamples.get() < 1:
             errors.append('The number of samples cannot be less than 1.')
