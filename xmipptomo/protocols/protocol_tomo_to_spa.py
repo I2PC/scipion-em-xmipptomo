@@ -28,15 +28,15 @@
 import os
 
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles, Particle, String, Transform
-from pwem.emlib.image import ImageHandler as ih
+from pwem.objects import SetOfParticles
 
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
 from tomo.protocols import ProtTomoBase
+from xmipp3.convert import readSetOfParticles
 
-class XmippTomoToSPA(EMProtocol, ProtTomoBase):
+class XmippProtTomoToSPA(EMProtocol, ProtTomoBase):
     """ Extracts single particles from a tomogram to perform SPA """
 
     # Protocol constants
@@ -79,8 +79,7 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         self._insertFunctionStep('generateConfigFile')
 
         # Generating projections for each subtomogram
-        for subtomogram in self.inputSubtomograms.get():
-            self._insertFunctionStep('generateSubtomogramProjections', subtomogram)
+        self._insertFunctionStep('generateSubtomogramProjections')
         
         # Conditionally removing temporary files
         if self.cleanTmps.get():
@@ -119,15 +118,16 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         confFile.write(content)
         confFile.close()
 
-    def generateSubtomogramProjections(self, subtomogram):
+    def generateSubtomogramProjections(self):
         """
-        This function generates the projection for a given subtomogram.
+        This function generates the projection for all input subtomograms.
         """
-        params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
-        params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
-        params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
-        params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
-        self.runJob("xmipp_phantom_project", params, cwd='/home')
+        for subtomogram in self.inputSubtomograms.get():
+            params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
+            params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
+            params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
+            params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
+            self.runJob("xmipp_phantom_project", params, cwd='/home')
 
     def removeTempFiles(self):
         """
@@ -150,18 +150,9 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
         dimensions = self.getSubtomogramDimensions().split(' ')
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
 
-        # Input could be SetOfVolumes or SetOfSubtomograms
+        # Adding projections of each subtomogram as a particle each
         for subtomogram in inputSubtomograms.iterItems():
-            # Generating particle for each projection
-            idx = subtomogram.getObjId()
-            outputParticle = Particle()
-
-            # Setting location and id
-            outputParticle.setLocation(ih._convertToLocation((idx, self._getExtraPath("projections.mrcs"))))
-            outputParticle._subtomogramID = String(idx)
-
-            # Add particle to set
-            outputSetOfParticles.append(outputParticle)
+            readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
 
         # Defining the ouput with summary and source relation
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
@@ -243,16 +234,28 @@ class XmippTomoToSPA(EMProtocol, ProtTomoBase):
 
     def getProjectionName(self, subtomogram):
         """
-        This function returns the name of the ptojection file for a given input subtomogram.
+        This function returns the name of the projection file for a given input subtomogram.
         """
-        name, ext = os.path.splitext(self.getCleanSubtomogramName(self.getSubtomogramAbsolutePath(subtomogram)))
-        return '{}_image{}'.format(name, ext)
+        name = os.path.splitext(self.getCleanSubtomogramName(self.getSubtomogramAbsolutePath(subtomogram)))[0]
+        return '{}_image.mrc'.format(name)
     
+    def getProjectionMetadataName(self, subtomogram):
+        """
+        This function returns the filename of the metadata file for a given input subtomogram.
+        """
+        return self.getProjectionName(subtomogram).replace('.mrc', '.xmd')
+
     def getProjectionAbsolutePath(self, subtomogram):
         """
         This function returns the full path of a given subtomogram.
         """
-        return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), self.getProjectionName(subtomogram))))
+        return self.scapePath(os.path.abspath(self._getExtraPath(self.getProjectionName(subtomogram))))
+    
+    def getProjectionMetadataAbsolutePath(self, subtomogram):
+        """
+        This function returns the full path of a given subtomogram's metadata file.
+        """
+        return self.getProjectionAbsolutePath(subtomogram).replace('.mrc', '.xmd')
 
     def getStepValue(self):
         """
