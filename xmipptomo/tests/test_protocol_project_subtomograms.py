@@ -31,18 +31,18 @@ from tomo.protocols import ProtImportSubTomograms
 
 from xmipptomo.utils import removeTmpElements
 from xmipptomo.protocols.protocol_extract_subtomos import OUTPUTATTRIBUTE as EXTRACT_SUBTOMOS_OUTPUTATTRIBUTE
-from xmipptomo.protocols.protocol_project_subtomograms import OUTPUTATTRIBUTE as TOMO_TO_SPA_OUTPUTATTRIBUTE
+from xmipptomo.protocols.protocol_project_subtomograms import OUTPUTATTRIBUTE as PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE
 from xmipptomo.protocols import XmippProtProjectSubtomograms
 from xmipptomo.tests.test_protocol_extract_subtomos import TestXmippProtExtractSubtomosProts, TestXmippProtExtractSubtomos
 
 class TestXmippProtProjectSubtomograms(TestXmippProtExtractSubtomosProts):
-    """This class check if the protocol to move from tomography to SPA in Xmipptomo works properly."""
+    """This class check if the protocol to generate projections from subtomograms in Xmipptomo works properly."""
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
         cls.tmpElements = []
 
-        # Getting XmippExtractSubtomo test so it can produce necessary inputs for this test
+        # Getting XmippExtractSubtomos test so it can produce necessary inputs for this test
         extractSubtomos = TestXmippProtExtractSubtomos()
         extractSubtomosPath = cls.getOutputPath().replace(cls.__name__, type(extractSubtomos).__name__)
 
@@ -82,17 +82,17 @@ class TestXmippProtProjectSubtomograms(TestXmippProtExtractSubtomosProts):
         return outputSubtomograms
 
     def _runXmippProjectSubtomograms(self):
-        """This function creates and runs a XmippTomoToSPA protocol with controlled params."""
+        """This function creates and runs a XmippProtProjectSubtomograms protocol with controlled params."""
         protXmippTomoToSPA = self.newProtocol(
             XmippProtProjectSubtomograms,
             inputSubtomograms=self.subtomograms,
             tiltRangeNSamples=40
         )
         self.launchProtocol(protXmippTomoToSPA)
-        self.assertIsNotNone(getattr(protXmippTomoToSPA, TOMO_TO_SPA_OUTPUTATTRIBUTE, None), "Projections were not properly generated.")
+        self.assertIsNotNone(getattr(protXmippTomoToSPA, PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE, None), "Projections were not properly generated.")
     
     def test_tomoToSPA(self):
-        """This function runs XmippTomoToSPA using the output of XmippExtractSubtomos as input."""
+        """This function runs XmippProtProjectSubtomograms using the output of XmippExtractSubtomos as input."""
         self._runXmippProjectSubtomograms()
         # Last test calls cleaning function so it does not count as a separate test
         removeTmpElements(self.tmpElements)

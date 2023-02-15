@@ -57,7 +57,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes",
-                      label='Set of subtomograms', help="Set of subtomograms to be carried into SPA")
+                      label='Set of subtomograms', help="Set of subtomograms whose projections will be generated.")
         form.addParam('cleanTmps', params.BooleanParam, default='True', label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
                         help='Clean temporary files after finishing the execution.\nThis is useful to reduce unnecessary disk usage.')
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
