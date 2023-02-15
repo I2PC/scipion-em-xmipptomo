@@ -31,11 +31,11 @@ from tomo.protocols import ProtImportSubTomograms
 
 from xmipptomo.utils import removeTmpElements
 from xmipptomo.protocols.protocol_extract_subtomos import OUTPUTATTRIBUTE as EXTRACT_SUBTOMOS_OUTPUTATTRIBUTE
-from xmipptomo.protocols.protocol_tomo_to_spa import OUTPUTATTRIBUTE as TOMO_TO_SPA_OUTPUTATTRIBUTE
-from xmipptomo.protocols import XmippProtTomoToSPA
+from xmipptomo.protocols.protocol_project_subtomograms import OUTPUTATTRIBUTE as TOMO_TO_SPA_OUTPUTATTRIBUTE
+from xmipptomo.protocols import XmippProtProjectSubtomograms
 from xmipptomo.tests.test_protocol_extract_subtomos import TestXmippProtExtractSubtomosProts, TestXmippProtExtractSubtomos
 
-class TestXmippProtTomoToSPA(TestXmippProtExtractSubtomosProts):
+class TestXmippProtProjectSubtomograms(TestXmippProtExtractSubtomosProts):
     """This class check if the protocol to move from tomography to SPA in Xmipptomo works properly."""
     @classmethod
     def setUpClass(cls):
@@ -81,10 +81,10 @@ class TestXmippProtTomoToSPA(TestXmippProtExtractSubtomosProts):
         self.assertIsNotNone(outputSubtomograms, "There was a problem importing subtomograms.")
         return outputSubtomograms
 
-    def _runXmippTomoToSPA(self):
+    def _runXmippProjectSubtomograms(self):
         """This function creates and runs a XmippTomoToSPA protocol with controlled params."""
         protXmippTomoToSPA = self.newProtocol(
-            XmippProtTomoToSPA,
+            XmippProtProjectSubtomograms,
             inputSubtomograms=self.subtomograms,
             tiltRangeNSamples=40
         )
@@ -93,6 +93,6 @@ class TestXmippProtTomoToSPA(TestXmippProtExtractSubtomosProts):
     
     def test_tomoToSPA(self):
         """This function runs XmippTomoToSPA using the output of XmippExtractSubtomos as input."""
-        self._runXmippTomoToSPA()
+        self._runXmippProjectSubtomograms()
         # Last test calls cleaning function so it does not count as a separate test
         removeTmpElements(self.tmpElements)

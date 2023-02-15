@@ -39,11 +39,11 @@ from xmipp3.convert import readSetOfParticles
 # Protocol output variable name
 OUTPUTATTRIBUTE = 'outputSetOfParticles'
 
-class XmippProtTomoToSPA(EMProtocol, ProtTomoBase):
-    """Extracts single particles from subtomograms to perform SPA"""
+class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
+    """Extracts proyections from subtomograms"""
 
     # Protocol constants
-    _label = 'tomo to SPA'
+    _label = 'project subtomograms'
     _devStatus = BETA
     _possibleOutputs = {OUTPUTATTRIBUTE: SetOfParticles}
 
