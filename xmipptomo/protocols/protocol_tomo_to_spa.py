@@ -36,13 +36,16 @@ from pyworkflow.protocol import params
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import readSetOfParticles
 
+# Protocol output variable name
+OUTPUTATTRIBUTE = 'outputSetOfParticles'
+
 class XmippProtTomoToSPA(EMProtocol, ProtTomoBase):
-    """ Extracts single particles from a tomogram to perform SPA """
+    """Extracts single particles from subtomograms to perform SPA"""
 
     # Protocol constants
     _label = 'tomo to SPA'
     _devStatus = BETA
-    _possibleOutputs = {'outputSetOfParticles': SetOfParticles}
+    _possibleOutputs = {OUTPUTATTRIBUTE: SetOfParticles}
 
     # Form constants
     METHOD_FOURIER = 0
@@ -53,7 +56,7 @@ class XmippProtTomoToSPA(EMProtocol, ProtTomoBase):
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input subtomograms')
-        form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfVolumes",#"SetOfSubTomograms",
+        form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes",
                       label='Set of subtomograms', help="Set of subtomograms to be carried into SPA")
         form.addParam('cleanTmps', params.BooleanParam, default='True', label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
                         help='Clean temporary files after finishing the execution.\nThis is useful to reduce unnecessary disk usage.')

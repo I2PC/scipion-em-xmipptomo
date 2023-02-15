@@ -23,7 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from pyworkflow.tests import BaseTest, DataSet, setupTestProject
+from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.protocols.protocol_import_coordinates import IMPORT_FROM_EMAN
 from ..protocols import *
 import tomo.protocols
@@ -47,16 +47,15 @@ class TestXmippProtExtractSubtomosBase(BaseTest):
         cls.inputSetOfSubTomogram = cls.dataset.getFile('subtomo')
         cls.smallTomogram = cls.dataset.getFile('coremask_normcorona.mrc')
 
-
-class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
-    """This class check if the protocol to extract subtomograms in Xmipptomo works properly.
+class TestXmippProtExtractSubtomosProts(TestXmippProtExtractSubtomosBase):
     """
-
+    This prepares the protocols to perform the necessary tests.
+    """
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        TestXmippProtExtractSubtomosBase.setData()
-
+        TestXmippProtExtractSubtomosProts.setData()
+        
     def _runImportCoordinatesAndTomograms(self):
         protImportTomogram = self.newProtocol(tomo.protocols.ProtImportTomograms,
                                               filesPath=self.tomogram,
@@ -96,12 +95,14 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
                            "There was a problem with SetOfSubtomogram output")
         return protTomoExtraction
 
-
+class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosProts):
+    """
+    This class check if the protocol to extract subtomograms in Xmipptomo works properly.
+    """
     def test_extractParticlesWithDoInvert(self):
         protTomoExtraction = self._runXmippTomoExtraction(doInvert=True)
         output = getattr(protTomoExtraction, OUTPUTATTRIBUTE)
         self.assessOutput(output)
-
 
     def test_extractParticlesModifiedBoxSize(self):
         protTomoExtraction = self._runXmippTomoExtraction(boxSize=64)
@@ -113,9 +114,6 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
         output =getattr(protTomoExtraction, OUTPUTATTRIBUTE)
         self.assessOutput(output)
 
-
     def assessOutput(self, outputSet, size=5):
-
         self.assertSetSize(outputSet, size)
         self.assertTrue(outputSet.hasCoordinates3D())
-
