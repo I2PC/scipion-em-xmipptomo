@@ -50,6 +50,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     # Form constants
     METHOD_FOURIER = 0
     METHOD_REAL_SPACE = 1
+    METHOD_SHEARS = 2
     TYPE_N_SAMPLES = 0
     TYPE_STEP = 1
 
@@ -61,7 +62,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         form.addParam('cleanTmps', params.BooleanParam, default='True', label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
                         help='Clean temporary files after finishing the execution.\nThis is useful to reduce unnecessary disk usage.')
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
-                        choices=['Fourier', 'Real space'], label="Transform method: ", expertLevel=params.LEVEL_ADVANCED,
+                        choices=['Fourier', 'Real space', 'Shears'], label="Transform method: ", expertLevel=params.LEVEL_ADVANCED,
                         help='Select the algorithm that will be used to obtain the projections.')
         tiltGroup = form.addGroup('Tilt range')
         tiltGroup.addParam('tiltRangeStart', params.IntParam, default=-60, label='Tilt range start:',
@@ -276,8 +277,10 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         if self.transformMethod.get() == self.METHOD_FOURIER:
             return 'fourier'
-        else:
+        elif self.transformMethod.get() == self.METHOD_REAL_SPACE:
             return 'real_space'
+        else:
+            return 'shears'
 
     def getSubtomogramDimensions(self):
         """
