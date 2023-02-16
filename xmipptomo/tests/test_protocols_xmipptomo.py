@@ -23,18 +23,24 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
 
 import numpy as np
+
+
+from pwem.protocols import ProtUnionSet
 from pwem.emlib.image import ImageHandler
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
-                            ProtImportSubTomograms)
+                            ProtImportSubTomograms, ProtImportTs)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
-    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
-    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo
+    XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, \
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo, XmippProtFitEllipsoid, XmippProtCCroi, \
+    XmippProtSplitTiltSeries
+
 from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
 from xmipptomo.protocols.protocol_project_top import SubtomoProjectOutput
 
@@ -438,3 +444,182 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         self.assertTrue(subtraction.outputSubtomograms.getFirstItem().getDim() == (40, 40, 40))
 
 
+class TestXmipptomoProtFitVesicles(BaseTest):
+    """ This class check if the protocol fit vesicles works properly."""
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('tomo1')
+        cls.coords3D = cls.dataset.getFile('overview_wbp.txt')
+
+    def _runPreviousProtocols(self):
+        protImportTomogram = self.newProtocol(ProtImportTomograms,
+                                              filesPath=self.tomogram,
+                                              samplingRate=5)
+        self.launchProtocol(protImportTomogram)
+        self.assertIsNotNone(protImportTomogram.outputTomograms,
+                             "There was a problem with tomogram output")
+
+        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
+                                                   filesPath=self.coords3D,
+                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   boxSize=32,
+                                                   samplingRate=5)
+        self.launchProtocol(protImportCoordinates3d)
+        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
+                             "There was a problem with coordinates 3d output")
+
+        protImportCoordinates3d_2 = self.newProtocol(ProtImportCoordinates3D,
+                                                     filesPath=self.coords3D,
+                                                     importTomograms=protImportTomogram.outputTomograms,
+                                                     boxSize=32,
+                                                     samplingRate=5)
+        self.launchProtocol(protImportCoordinates3d_2)
+        self.assertIsNotNone(protImportCoordinates3d_2.outputCoordinates,
+                             "There was a problem with coordinates 3d output 2")
+
+        protJoinCoordinates = self.newProtocol(ProtUnionSet,
+                                               inputSets=[protImportCoordinates3d.outputCoordinates,
+                                                          protImportCoordinates3d_2.outputCoordinates])
+        self.launchProtocol(protJoinCoordinates)
+        self.assertIsNotNone(protJoinCoordinates.outputSet,
+                             "There was a problem with join coordinates output")
+
+        return protJoinCoordinates, protImportTomogram
+
+    def test_fitEllipsoid(self):
+        protJoinCoordinates, protImportTomogram = self._runPreviousProtocols()
+        protFitVesicles = self.newProtocol(XmippProtFitEllipsoid,
+                                           input=protJoinCoordinates.outputSet,
+                                           inputTomos=protImportTomogram.outputTomograms)
+        self.launchProtocol(protFitVesicles)
+        self.assertIsNotNone(protFitVesicles.outputMeshes, "There was a problem with output vesicles (SetOfMeshes)")
+        self.assertEqual(protFitVesicles.outputMeshes.getSize(), 11184)
+        return protFitVesicles
+
+
+class TestXmipptomoProtCCtoROI(BaseTest):
+    """ This class check if the protocol connected componnents to ROIs works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('tomo1')
+        cls.coords3D = cls.dataset.getFile('overview_wbp.txt')
+
+    def _runPreviousProtocols(self):
+        protImportTomogram = self.newProtocol(ProtImportTomograms,
+                                              filesPath=self.tomogram,
+                                              samplingRate=5)
+        self.launchProtocol(protImportTomogram)
+        self.assertIsNotNone(protImportTomogram.outputTomograms,
+                             "There was a problem with tomogram output")
+
+        protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
+                                                   filesPath=self.coords3D,
+                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   boxSize=32,
+                                                   samplingRate=5)
+        self.launchProtocol(protImportCoordinates3d)
+        self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
+                             "There was a problem with coordinates 3d output")
+
+        protImportCoordinates3d_2 = self.newProtocol(ProtImportCoordinates3D,
+                                                     filesPath=self.coords3D,
+                                                     importTomograms=protImportTomogram.outputTomograms,
+                                                     boxSize=32,
+                                                     samplingRate=5)
+        self.launchProtocol(protImportCoordinates3d_2)
+        self.assertIsNotNone(protImportCoordinates3d_2.outputCoordinates,
+                             "There was a problem with coordinates 3d output 2")
+
+        protJoinCoordinates = self.newProtocol(ProtUnionSet,
+                                               inputSets=[protImportCoordinates3d.outputCoordinates,
+                                                          protImportCoordinates3d_2.outputCoordinates])
+        self.launchProtocol(protJoinCoordinates)
+        self.assertIsNotNone(protJoinCoordinates.outputSet,
+                             "There was a problem with join coordinates output")
+
+        protFitVesicles = self.newProtocol(XmippProtFitEllipsoid,
+                                           input=protJoinCoordinates.outputSet,
+                                           inputTomos=protImportTomogram.outputTomograms)
+        self.launchProtocol(protFitVesicles)
+        self.assertIsNotNone(protFitVesicles.outputMeshes, "There was a problem with output vesicles (SetOfMeshes)")
+        return protFitVesicles, protJoinCoordinates
+
+    def test_CCtoROIs(self):
+        protFitVesicles, protJoinCoordinates = self._runPreviousProtocols()
+        protCCtoROI = self.newProtocol(XmippProtCCroi,
+                                       inputCoordinates=protJoinCoordinates.outputSet,
+                                       inputMeshes=protFitVesicles.outputMeshes)
+        self.launchProtocol(protCCtoROI)
+        self.assertIsNotNone(protCCtoROI.outputSet, "There was a problem with CCtoROIs output")
+        self.assertEqual(protCCtoROI.outputSet.getSize(), 10)
+        self.assertEqual(protCCtoROI.outputSet.getBoxSize(), 32)
+        return protCCtoROI
+
+    def test_CCtoROIsPoints(self):
+        protFitVesicles, protJoinCoordinates = self._runPreviousProtocols()
+        protCCtoROI = self.newProtocol(XmippProtCCroi,
+                                       inputCoordinates=protJoinCoordinates.outputSet,
+                                       inputMeshes=protFitVesicles.outputMeshes,
+                                       selection=1)
+        self.launchProtocol(protCCtoROI)
+        self.assertIsNotNone(protCCtoROI.outputSet, "There was a problem with CCtoROIs points output")
+        self.assertEqual(protCCtoROI.outputSet.getSize(), 10)
+        self.assertEqual(protCCtoROI.outputSet.getBoxSize(), 32)
+
+
+class TestXmipptomoSplitTS(BaseTest):
+    """This class check if the protocol split tilt-series works properly."""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.inputDataSet = DataSet.getDataSet('tomo-em')
+        cls.inputSoTS = cls.inputDataSet.getFile('ts1_imod')
+
+    def runWorkflow(self):
+        protImportTS = self.newProtocol(ProtImportTs,
+                                        filesPath=os.path.split(self.inputSoTS)[0],
+                                        filesPattern="BB{TS}.st",
+                                        voltage=300,
+                                        anglesFrom=0,
+                                        magnification=105000,
+                                        sphericalAberration=2.7,
+                                        amplitudeContrast=0.1,
+                                        samplingRate=20.2,
+                                        doseInitial=0,
+                                        dosePerFrame=3.0,
+                                        minAngle=-55,
+                                        maxAngle=65.0,
+                                        stepAngle=2.0,
+                                        tiltAxisAngle=-12.5)
+
+        self.launchProtocol(protImportTS)
+
+        protSplitTS = self.newProtocol(XmippProtSplitTiltSeries,
+                                       inputSetOfTiltSeries=protImportTS.outputTiltSeries)
+
+        self.launchProtocol(protSplitTS)
+
+        return protSplitTS
+
+    def testSplitTS(self):
+        protSplitTS = self.runWorkflow()
+
+        self.assertIsNotNone(protSplitTS.outputEvenSetOfTiltSeries,
+                             "Even set of tilt series has not been generated")
+        self.assertIsNotNone(protSplitTS.outputOddSetOfTiltSeries,
+                             "Odd set of tilt series has not been generated")
+
+        self.assertTrue(protSplitTS.outputEvenSetOfTiltSeries.getSamplingRate() == 20.20)
+        self.assertTrue(protSplitTS.outputOddSetOfTiltSeries.getSamplingRate() == 20.20)
+
+        self.assertSetSize(protSplitTS.outputEvenSetOfTiltSeries, 2, "Missing TS in even set")
+        self.assertSetSize(protSplitTS.outputOddSetOfTiltSeries, 2, "Missing TS in odd set")
+
+        self.assertTrue(protSplitTS.outputEvenSetOfTiltSeries.getFirstItem().getDim() == (512, 512, 30))
+        self.assertTrue(protSplitTS.outputOddSetOfTiltSeries.getFirstItem().getDim() == (512, 512, 31))
