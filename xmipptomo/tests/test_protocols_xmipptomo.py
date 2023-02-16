@@ -23,18 +23,24 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
 
 import numpy as np
+
+
+from pwem.protocols import ProtUnionSet
 from pwem.emlib.image import ImageHandler
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
-                            ProtImportSubTomograms)
+                            ProtImportSubTomograms, ProtImportTs)
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, \
-    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo
+    XmippProtHalfMapsSubtomo, XmippProtPhantomTomo, XmippProtSubtractionSubtomo, XmippProtFitEllipsoid, XmippProtCCroi, \
+    XmippProtSplitTiltSeries
+
 from xmipptomo.protocols.protocol_phantom_tomo import OutputPhantomTomos
 from xmipptomo.protocols.protocol_project_top import SubtomoProjectOutput
 
