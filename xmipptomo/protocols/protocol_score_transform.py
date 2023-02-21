@@ -114,11 +114,22 @@ class XmippProtScoreTransform(ProtTomoPicking):
         outSubtomos = self._createSetOfSubTomograms()
         outSubtomos.copyInfo(self.second_subtomos)
 
+        self.scoresIndex = 0
+
         def addScoreToSubtomogram(subtomo, row):
 
-            score = distanceScores[subtomo.getObjId()-1][1]
-            distance =math.degrees(score)
+            try:
+
+                score = distanceScores[self.scoresIndex][1]
+                distance = math.degrees(score)
+
+            except Exception as e:
+                self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
+                distance = -181
+
             setattr(subtomo, self.SCORE_ATTR, Float(distance))
+
+            self.scoresIndex += 1
 
         outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
 
