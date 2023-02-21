@@ -26,14 +26,17 @@
 import os
 
 import numpy as np
+
+
+from pwem.protocols import ProtUnionSet
 from pwem.emlib.image import ImageHandler
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
-                            ProtImportSubTomograms, 
+                            ProtImportSubTomograms,
                             ProtImportTs)
-from pwem.protocols import ProtUnionSet
+
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
     XmippProtSubtomoMapBack, XmippProtPhantomSubtomo, XmippProtScoreCoordinates, XmippProtScoreTransform, \
@@ -571,7 +574,7 @@ class TestXmipptomoProtCCtoROI(BaseTest):
 
 class TestXmipptomoSplitTS(BaseTest):
     """This class check if the protocol split tilt-series works properly."""
-    
+
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)

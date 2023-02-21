@@ -32,7 +32,7 @@ from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform, Integer
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
+from pyworkflow.protocol.params import LEVEL_ADVANCED,IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D
 
@@ -90,6 +90,12 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('mwangle', IntParam, label='Missing wedge angle', default=60,
                       condition='mwfilter==True and (not simulateTiltSeries)',
                       help='Missing wedge (along y) for data between +- this angle.')
+
+        form.addBooleanParam('randomseed', 'Force a randomization seed',
+                             'Activate to force same random results (useful for tests).',
+                             default=False,
+                             expertLevel=LEVEL_ADVANCED)
+
         # Angles
         form.addSection(label='Rotation')
         form.addParam('rotate', BooleanParam, label='Apply rotation?', default=False,
@@ -223,6 +229,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         acq.setAngleMax(mwangle)
         acq.setAngleMin(mwangle * -1)
 
+        if self.randomseed.get():
+            np.random.seed(42)
+
         for i in range(int(self.nsubtomos.get())):
             fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
 
@@ -286,7 +295,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                 tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
                 psi = np.random.randint(self.psimin.get(), self.psimax.get())
                 rotErr = rot
-                tiltErr = rot
+                tiltErr = tilt
 
         if self.applyShift:
             # Shifts
