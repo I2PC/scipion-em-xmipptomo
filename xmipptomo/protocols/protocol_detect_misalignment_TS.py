@@ -362,8 +362,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             previousLine = previousLine[:-1]
             self.alignmentReport.append(String(previousLine))
 
-        for line in self.convertResidualStatisticInString(tsId):
-            self.alignmentReport.append(String(line))
+        # Un comment if it makes sense of report residual statistics. This requires fixes in code.
+        # for line in self.convertResidualStatisticInString(tsId):
+        #     self.alignmentReport.append(String(line))
 
         self._store()
 
