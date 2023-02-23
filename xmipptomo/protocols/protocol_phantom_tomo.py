@@ -248,7 +248,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-shift, pos[1], pos[2], maxDim, rot, tilt, psi)
         # # Y axis: an ellipsoid
-        shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s'\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
+        shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
         # # Z axis: a cone
         shape = shape + "con = %s %s %s %s %s %s %s %s %s\n" % (value, pos[0], pos[1], pos[2], maxDim/4, maxDim, rot, tilt, psi)
 
