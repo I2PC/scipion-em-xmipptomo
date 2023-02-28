@@ -1,43 +1,100 @@
-20-February-2020 Migration to python3
-1-October-2019 - (tagged with 1.skeleton)
-    Just a python package, should work with "scipion installp -p /home/you/scipion-em-template/ --devel
+V3.1.2:
+ - Fix score transformations: not doing the correct match with score index.
 
-3-October-2019 - (tagged with 2.scipion-plugin-skeleton)
-    myplugin/__init__.py added, with its own Plugin instance and the registering call:
+V3.1.1:
+ - First released version of the plugin documented properly in this file. The plugin contains the following 23 protocols:
 
-    Inspecting the plugin should work:
+   xmipptomo - align transformations ( XmippProtAlignTransform ):
+      Protocol to rotate a series of alignments to a common reference defined by a
+      Subtomogram Average
 
-    scipion python pyworkflow/install/inspect-plugins.py myplugin
+   xmipptomo - apply alignment subtomo ( XmippProtApplyTransformSubtomo ):
+      Apply alignment matrix and produce a new setOfSubtomograms, with each subtomogram aligned to its reference.
 
-    Scipion v2.0 (2019-04-23) Diocletian
+   xmipptomo - apply alignment tilt-series ( XmippProtApplyTransformationMatrixTS ):
+      Compute the interpolated tilt-series from its transform matrix.
 
-    >>>>> python  "pyworkflow/install/inspect-plugins.py" "myplugin"
-    Plugin: myplugin
-    >>> constants:  missing
-    >>> convert:  missing
-    >>> protocols:  missing
-    >>> wizards:  missing
-    >>> viewers:  missing
-    >>> tests:  missing
+   xmipptomo - connected components to ROIs ( XmippProtCCroi ):
+      This protocol adjust a SetOfCoordinates (which usually will come from a
+      connected componnent) to a ROI (region of interest) previously defined
 
-3 October-2019 - 12:40 - (tagged with 3.basic-hello-world-protocol)
-    protocols.py added with a functional helloworld protocol
+   xmipptomo - cltomo ( XmippProtCLTomo ):
+      Averages a set of subtomograms taking into account the missing edge.
 
-3 October-2019 - 13:45 - (tagged with 4.icon-protocols.conf-reference)
-    Icon for the plugin added (icon.png)
-    protocols.conf added so protocol is shown on the left tree
-    reference added
+   xmipptomo - connected components ( XmippProtConnectedComponents ):
+      This protocol takes a set of coordinates and identifies connected
+      components among the picked particles.
 
-3 October-2019 - 14:22 - (tagged with 5.adding-scalar-parameters)
-    Hello world protocol has 2 parameter:
-        1.- message: to enter the message to print
-        2.- times: to print them message that number ot times.
+   xmipptomo - crop tomograms ( XmippProtCropTomograms ):
+      Protocol to crop tomograms using xmipp_transform_window.
+      The protocol allows to change the size of a tomogram/s, by removing the
+      borders defined by the users
 
-3 October-2019 - 15:06 - (tagged with 6.generating-output)
-    The Hello world protocol generates a scalar output
+   xmipptomo - Filter coordinates by map ( XmippProtFilterCoordinatesByMap ):
+      Filter coordinate by map both given a mask or a resolucion map from a tomogram
 
-3 October-2019 - 15:32 - (tagged with 7.connecting-protocols)
-    Now, Hello world protocol, can receive the output of another protocol
+   xmipptomo - fit vesicles ( XmippProtFitEllipsoid ):
+      This protocol adjust a SetOfSubtomograms with coordinates assigned or a SetOfCoordinates3D, to a vesicle
+      (ellipsoid), defining regions of interest (SetOfMeshes) for each vesicle as output.
 
-4 October-2019 - 12:22 - (tagged with 8.adding-a-wizard)
-    The wizzard will suggest some common greetings in different lenguages
+   xmipptomo - half maps ( XmippProtHalfMapsSubtomo ):
+      Create half maps from a SetOfSubtomograms and its alignment
+
+   xmipptomo - local Resolution MonoTomo ( XmippProtMonoTomo ):
+      Given a tomogram the protocol assigns local resolutions to each voxel of the tomogram.
+      To do that, thje protocol makes use of two half tomograms, called odd and even.
+      These tomograms are reconstructed with the same alignment parameter but using the
+      half of the data. For instance, the odd/even-images of the tilt series, or much
+      better using the odd/even frames of the movies (recommended). The result is a
+      tomogram with the values of local resolution.
+
+   xmipptomo - phantom create subtomo ( XmippProtPhantomSubtomo ):
+      Create subtomogram phantoms
+
+   xmipptomo - phantom tomograms ( XmippProtPhantomTomo ):
+      Create phantom tomograms with phantom particles and its coordinates with the right Scipion transformation matrix
+
+   xmipptomo - resize tilt-series ( XmippProtResizeTiltSeries ):
+      Wrapper protocol to Xmipp image resize applied on tilt-series
+
+   xmipptomo - resize tomograms ( XmippProtResizeTomograms ):
+      Protocol to to resize tomograms using xmipp_image_resize.
+      The protocol allows to change the size of a tomogram/s by means
+      of different methods
+
+   xmipptomo - imagej roi ( XmippProtRoiIJ ):
+      Tomogram ROI selection in IJ
+
+   xmipptomo - score/filter coordinates ( XmippProtScoreCoordinates ):
+      Scoring and (optional) filtering of coordinates based on different scoring
+      functions (carbon distance, neighbour distance)
+
+   xmipptomo - subtomo alignment consensus ( XmippProtScoreTransform ):
+      Protocol to score a series of alignments stored in a SetOfSubtomograms by
+      quaternion distance analysis.
+
+      xmipp_alignmentDistance ranges from 0º to 180º. Therefore, a 0º distance is the best and means alignment is the same.
+      The lower the score the more similar is the alignment.
+
+   xmipptomo - split tilt-series ( XmippProtSplitTiltSeries ):
+      Wrapper protocol to Xmipp split Odd Even on tilt-series
+
+   xmipptomo - map back subtomos ( XmippProtSubtomoMapBack ):
+      This protocol takes a tomogram, a reference subtomogram and a metadata with geometrical parameters
+      (x,y,z) and places the reference subtomogram on the tomogram at the designated locations (map back).
+      It has different representation options.
+
+   xmipptomo - subtomo projection ( XmippProtSubtomoProject ):
+
+      Project a set of volumes or subtomograms to obtain their X, Y or Z projection of the desired range of slices.
+
+   xmipptomo - subtomo subtraction ( XmippProtSubtractionSubtomo ):
+      This protocol subtracts a subtomogram average to a SetOfSubtomograms, which are internally aligned and
+      numerically adjusted in order to obtain reliable results. The adjustment and subtraction is perfomed by
+      xmipp_volume_subtraction program. A mask can be provided if the user wants to perform the subtraction in a
+      determined region.
+
+   xmipptomo - tiltseries FlexAlign ( XmippProtTsFlexAlign ):
+
+      Simple protocol to average TiltSeries movies as basic
+      motion correction. It is used mainly for testing purposes.

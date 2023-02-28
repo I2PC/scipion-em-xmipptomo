@@ -20,10 +20,11 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'coss@cnb.csic.es'
+# *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
+import enum
+import math
 
 import numpy as np
 
@@ -32,17 +33,26 @@ from pyworkflow.object import Float
 from pyworkflow.protocol import params
 
 from tomo.protocols import ProtTomoPicking
-from tomo.objects import SubTomogram, TomoAcquisition
+from tomo.objects import SetOfSubTomograms
 
 from pwem.convert.transformations import listQuaternions, quaternion_distance
 
 
-class XmippProtScoreTransform(ProtTomoPicking):
-    '''Protocol to score a series of alignments stored in a SetOfSubtomograms by
-    quaternion distance analysis'''
+class ScoreTransformOutputs(enum.Enum):
+    Subtomograms = SetOfSubTomograms
 
-    _label = 'score transformations'
+class XmippProtScoreTransform(ProtTomoPicking):
+    """Protocol to score a series of alignments stored in a SetOfSubtomograms by
+    quaternion distance analysis.
+
+    xmipp_alignmentDistance ranges from 0º to 180º. Therefore, a 0º distance is the best and means alignment is the same.
+    The lower the score the more similar is the alignment.
+    """
+
+    _label = 'subtomo alignment consensus'
     _devStatus = BETA
+    _possibleOutputs = ScoreTransformOutputs
+    SCORE_ATTR = "xmipp_alignmentDistance"
 
     def __init__(self, **args):
         ProtTomoPicking.__init__(self, **args)
@@ -59,13 +69,14 @@ class XmippProtScoreTransform(ProtTomoPicking):
 
     # --------------------------- INSERT steps functions ---------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('scoreTransformStep')
-        self._insertFunctionStep('createOutputStep')
+        # For convenience
+        self.first_subtomos = self.firstSubtomos.get()
+        self.second_subtomos = self.secondSubtomos.get()
+
+        self._insertFunctionStep(self.scoreTransformStep)
 
     # --------------------------- STEPS functions ---------------------------
     def scoreTransformStep(self):
-        self.first_subtomos = self.firstSubtomos.get()
-        self.second_subtomos = self.secondSubtomos.get()
 
         # Extract Transformation Matrices from input SubTomograms
         first_matrices = self.queryMatrices(self.first_subtomos)
@@ -78,41 +89,51 @@ class XmippProtScoreTransform(ProtTomoPicking):
         second_quaternions = list(zip(aux[0], listQuaternions(aux[1])))
 
         # Compute distance matrix from quaternions
-        self.dist = [(t1[0], quaternion_distance(t1[1], t2[1]))
-                     for t1, t2 in zip(first_quaternions, second_quaternions)
-                     if t1[0] == t2[0]]
+        dist = [(t1[0], quaternion_distance(t1[1], t2[1]))
+                for t1, t2 in zip(first_quaternions, second_quaternions)
+                if t1[0] == t2[0]]
+
+        # Crete the output here. Continuation is not possible since "dist" is needed.
+        self.createOutput(dist)
 
         # Save summary to use it in the protocol Info
-        only_distances = np.asarray(list(zip(*self.dist))[1])
+        only_distances = np.asarray(list(zip(*dist))[1])
         mean_dist = np.mean(only_distances)
         std_dist = np.std(only_distances)
         percentage_outliers = np.sum(only_distances > mean_dist + 3 * std_dist) \
                               + np.sum(only_distances < mean_dist - 3 * std_dist)
         percentage_outliers = 100 * percentage_outliers / len(only_distances)
-        summary = self._getExtraPath('Summary.txt')
-        with open(summary, 'w') as file:
-            file.write('Mean distance between the two sets: %.2f\n' % mean_dist)
-            file.write('Estimated percentage of outliers: %.2f%%\n' % percentage_outliers)
 
-    def createOutputStep(self):
+        self._mean_dist = Float(mean_dist)
+        self._percentage_outliers = Float(percentage_outliers)
+        self._store()
+
+
+    def createOutput(self, distanceScores):
+
         outSubtomos = self._createSetOfSubTomograms()
-        outSubtomos.setSamplingRate(self.second_subtomos.getSamplingRate())
-        outSubtomos.setCoordinates3D(self.second_subtomos.getCoordinates3D())
-        # acquisition = TomoAcquisition()
-        # acquisition.setAngleMin(self.second_subtomos.getFirstItem().getAcquisition().getAngleMin())
-        # acquisition.setAngleMax(self.second_subtomos.getFirstItem().getAcquisition().getAngleMax())
-        # acquisition.setStep(self.second_subtomos.getFirstItem().getAcquisition().getStep())
-        # outSubtomos.setAcquisition(acquisition)
-        for ids, inSubtomo in enumerate(self.first_subtomos.iterItems()):
-            subtomogram = SubTomogram()
-            subtomogram.setObjId(self.dist[ids][0])
-            subtomogram.setLocation(inSubtomo.getLocation())
-            subtomogram.setCoordinate3D(inSubtomo.getCoordinate3D())
-            subtomogram.setTransform(inSubtomo.getTransform())
-            subtomogram.setVolName(inSubtomo.getVolName())
-            subtomogram.distanceScore = Float(self.dist[ids][1])
-            outSubtomos.append(subtomogram)
-        self._defineOutputs(outputSetOfSubtomogram=outSubtomos)
+        outSubtomos.copyInfo(self.second_subtomos)
+
+        self.scoresIndex = 0
+
+        def addScoreToSubtomogram(subtomo, row):
+
+            try:
+
+                score = distanceScores[self.scoresIndex][1]
+                distance = math.degrees(score)
+
+            except Exception as e:
+                self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
+                distance = -181
+
+            setattr(subtomo, self.SCORE_ATTR, Float(distance))
+
+            self.scoresIndex += 1
+
+        outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
+
+        self._defineOutputs(**{ScoreTransformOutputs.Subtomograms.name:outSubtomos})
         self._defineSourceRelation(self.firstSubtomos, outSubtomos)
         self._defineSourceRelation(self.secondSubtomos, outSubtomos)
 
@@ -127,9 +148,10 @@ class XmippProtScoreTransform(ProtTomoPicking):
         summary = []
 
         if self.getOutputsSize() >= 1:
-            summary_file = self._getExtraPath('Summary.txt')
-            with open(summary_file, 'r') as file:
-                summary.append(file.read())
+
+            summary.append('Mean distance between the two sets: %.2f\n' % self._mean_dist)
+            summary.append('Estimated percentage of outliers: %.2f%%\n' % self._percentage_outliers)
+
         else:
             summary.append('Output not ready yet')
 
@@ -141,6 +163,6 @@ class XmippProtScoreTransform(ProtTomoPicking):
         secondTransform = self.secondSubtomos.get().getFirstItem().getTransform()
 
         if firstTransform is None or secondTransform is None:
-            validateMsgs.append('Please provide subtomograms which have transformation matrix in "inputAlignment".')
+            validateMsgs.append('Please provide subtomograms which have transformation matrices".')
 
         return validateMsgs
