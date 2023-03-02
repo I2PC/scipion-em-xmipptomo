@@ -37,6 +37,7 @@ from tensorflow.keras.models import load_model
 from xmipptomo import utils
 
 COORDINATES_FILE_NAME = '3dCoordinates.xmd'
+BOX_SIZE = 32
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
@@ -101,20 +102,45 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-        tomoDict = self.getTomoDict()
+        self.tomoDict = self.getTomoDict()
 
-        for key in tomoDict.keys():
-            tomo = tomoDict[key]
+        for key in self.tomoDict.keys():
+            tomo = self.tomoDict[key]
             coordFilePath = self.getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
 
-            self._insertFunctionStep(utils.writeMdCoordinates(self.inputSetOfCoordinates.get(),
-                                                              tomo,
-                                                              coordFilePath))
-            self._insertFunctionStep(self.extractSubtomos)
+            self._insertFunctionStep(utils.writeMdCoordinates,
+                                     self.inputSetOfCoordinates.get(),
+                                     tomo,
+                                     coordFilePath)
+            self._insertFunctionStep(self.extractSubtomos,
+                                     key,
+                                     coordFilePath)
             self._insertFunctionStep(self.subtomoPrediction)
             self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEP functions --------------------------------
+    def extractSubtomos(self, key, coordFilePath):
+        tomo = self.tomoDict[key]
+
+        outputPath = self.getExtraPath(os.path.join(tomo.getTsId()))
+        tomoFn = tomo.getFileName()
+
+        paramsExtractSubtomos = {
+            'tomogram': tomoFn,
+            'coordinates': coordFilePath,
+            'boxsize': BOX_SIZE,
+            'threads': 1,  # ***
+            'output': outputPath
+        }
+
+        argsExtractSubtomos = "--tomogram %(tomogram)s " \
+                              "--coordinates %(coordinates)s " \
+                              "--boxsize %(boxsize)d " \
+                              "--threads %(threads)d " \
+                              "--o %(outputPath)s " \
+                              "--subtomo "
+
+        self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
     def subtomoPrediction(self):
         totalNumberOfSubtomos = len(self.inputSetOfSubTomograms.get())
