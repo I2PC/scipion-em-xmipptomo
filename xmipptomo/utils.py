@@ -31,7 +31,14 @@ import math
 import csv
 
 import emtable
+
+from pwem import ALIGN_PROJ
+from pwem.emlib import lib
+import pwem.emlib.metadata as md
+from pwem.objects import Transform
 from tomo.constants import BOTTOM_LEFT_CORNER
+from tomo.objects import MATRIX_CONVERSION
+from xmipp3.convert import alignmentToRow
 
 
 def calculateRotationAngleFromTM(ti):
@@ -40,7 +47,7 @@ def calculateRotationAngleFromTM(ti):
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
 
     return rotationAngle
 
@@ -54,7 +61,7 @@ def readXmdStatisticsFile(fnmd):
 
     table = emtable.Table(fileName=fnmd)
 
-    for row in table.iterRows(fileName='noname@'+fnmd):
+    for row in table.iterRows(fileName='noname@' + fnmd):
         avg.append(row.get('avg'))
         std.append(row.get('stddev'))
         x_pos.append(row.get('xcoor'))
@@ -112,3 +119,40 @@ def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
                          float(vector[2])])
 
     return coorList
+
+
+def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
+    """
+        Returns the filename of a metadata with the coordinates.
+    """
+    mdCoor = lib.MetaData()
+
+    tsid = tomo.getTsId()
+
+    coordDict = []
+    lines = []
+
+    for item in setOfCoordinates.iterCoordinates(volume=tomo):
+        coord = item
+        transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
+
+        if coord.getTomoId() == tsid:
+            nRow = md.Row()
+            nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
+            coord.setVolume(tomo)
+
+            nRow.setValue(lib.MDL_XCOOR, int(coord.getX(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_YCOOR, int(coord.getY(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(BOTTOM_LEFT_CORNER)))
+
+            alignmentToRow(transform, nRow, ALIGN_PROJ)
+            nRow.addToMd(mdCoor)
+
+            newCoord = item.clone()
+            newCoord.setVolume(coord.getVolume())
+            coordDict.append(newCoord)
+            lines.append(coordDict)
+
+    mdCoor.write(fnCoor)
+
+    return fnCoor
