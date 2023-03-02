@@ -40,11 +40,6 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     Wrapper protocol to Xmipp image peak high contrast applied to any volume
     """
 
-    RESIZE_SAMPLINGRATE = 0
-    RESIZE_DIMENSIONS = 1
-    RESIZE_FACTOR = 2
-    RESIZE_PYRAMID = 3
-
     _label = 'peak high contrast'
 
     # --------------------------- DEFINE param functions ------------------------
