@@ -101,7 +101,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-        tomoDict = self.inputSetOfCoordinates.get().getPrecedentsInvolved()
+        tomoDict = self.getTomoDict()
 
         for key in tomoDict.keys():
             tomo = tomoDict[key]
@@ -179,6 +179,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             for tomo in self.inputSetOfTomograms.get():
                 tsId = tomo.getTsId()
                 tomoDict[tsId] = tomo
+
+        return tomoDict
 
     def makePrediction(self, subtomoList):
         ih = ImageHandler()
