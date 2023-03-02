@@ -123,7 +123,8 @@ def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
 
 def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
     """
-        Returns the filename of a metadata with the coordinates.
+        Write the xmd file containing the set of coordinates corresponding to the given tomogram at the specified
+        location
     """
     mdCoor = lib.MetaData()
 
