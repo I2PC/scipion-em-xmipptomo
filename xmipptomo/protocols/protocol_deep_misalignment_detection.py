@@ -23,14 +23,20 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
 
 import numpy as np
+
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow.object import Set, Float
-from pyworkflow.protocol import FileParam, PointerParam
+from pyworkflow.protocol import FileParam, PointerParam, EnumParam
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from tensorflow.keras.models import load_model
+from xmipptomo import utils
+
+COORDINATES_FILE_NAME = '3dCoordinates.xmd'
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
@@ -50,13 +56,40 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParam('inputSetOfSubTomograms',
+        form.addParam('inputSetOfCoordinates',
                       PointerParam,
-                      pointerClass='SetOfSubTomograms',
-                      important=True,
-                      label='Input set of subtomos',
-                      help='Set of 3D coordinates of the location of the fiducials used to predict if the tomogram '
-                           'presents misalignment.')
+                      pointerClass=SetOfCoordinates3D,
+                      label='Fiducial 3D coordinates',
+                      help='3D coordinates in dicating the location of the fiducials (gold beads) in the tomogram. '
+                           'These fiducails will be the ones used to study misalignment artifacts over them. '
+                           'The coordinate denotes the center of the subtomogram')
+
+        form.addParam('tomoSource', EnumParam,
+                      choices=['same as picking', 'other'],
+                      default=0,
+                      display=EnumParam.DISPLAY_HLIST,
+                      label='Tomogram source',
+                      help='By default the subtomograms will be extracted from the tomogram used in the picking step '
+                           '( _same as picking_ option ). \n'
+                           'If you select _other_ option, you must provide a different tomogram to extract from. \n'
+                           '*Note*: In the _other_ case, ensure that provided tomogram and coordinates are related ')
+
+        form.addParam('inputSetOfTomograms',
+                      PointerParam,
+                      pointerClass=SetOfTomograms,
+                      condition='tomoSource==1',
+                      allowsNull=True,
+                      label='Input tomograms',
+                      help='Tomograms from which extract the fiducials (gold beads) at the specified coordinates '
+                           'locations.')
+
+        # form.addParam('inputSetOfSubTomograms',
+        #               PointerParam,
+        #               pointerClass='SetOfSubTomograms',
+        #               important=True,
+        #               label='Input set of subtomos',
+        #               help='Set of 3D coordinates of the location of the fiducials used to predict if the tomogram '
+        #                    'presents misalignment.')
 
         form.addParam('firstModelPath', FileParam,
                       label='Input model for first split',
@@ -68,10 +101,21 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.subtomoPrediction)
-        self._insertFunctionStep(self.closeOutputSetsStep)
+        tomoDict = self.inputSetOfCoordinates.get().getPrecedentsInvolved()
+
+        for key in tomoDict.keys():
+            tomo = tomoDict[key]
+            coordFilePath = self.getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
+
+            self._insertFunctionStep(utils.writeMdCoordinates(self.inputSetOfCoordinates.get(),
+                                                              tomo,
+                                                              coordFilePath))
+            self._insertFunctionStep(self.extractSubtomos)
+            self._insertFunctionStep(self.subtomoPrediction)
+            self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEP functions --------------------------------
+
     def subtomoPrediction(self):
         totalNumberOfSubtomos = len(self.inputSetOfSubTomograms.get())
 
@@ -127,6 +171,15 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
+    def getTomoDict(self):
+        if self.tomoSource.get() == 0:
+            self.inputSetOfCoordinates.get().getPrecedentsInvolved()
+        else:
+            tomoDict = {}
+            for tomo in self.inputSetOfTomograms.get():
+                tsId = tomo.getTsId()
+                tomoDict[tsId] = tomo
+
     def makePrediction(self, subtomoList):
         ih = ImageHandler()
 
@@ -189,8 +242,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             overallPrediction += i
 
         print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
-              str(predictionList.size-overallPrediction) + "misaligned")
-        
+              str(predictionList.size - overallPrediction) + "misaligned")
+
         overallPrediction = overallPrediction / predictionList.size
 
         return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
