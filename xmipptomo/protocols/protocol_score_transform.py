@@ -89,7 +89,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
         second_quaternions = list(zip(aux[0], listQuaternions(aux[1])))
 
         # Compute distance matrix from quaternions
-        dist = [(t1[0], quaternion_distance(t1[1], t2[1]))
+        dist = [(t1[0], min(quaternion_distance(t1[1], t2[1]), quaternion_distance(t1[1], -t2[1])))
                 for t1, t2 in zip(first_quaternions, second_quaternions)
                 if t1[0] == t2[0]]
 
