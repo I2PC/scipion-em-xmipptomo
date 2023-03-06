@@ -38,6 +38,7 @@ from xmipptomo import utils
 
 COORDINATES_FILE_NAME = '3dCoordinates.xmd'
 BOX_SIZE = 32
+TARGET_SAMPLING_RATE = 6.25
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
@@ -130,7 +131,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             'coordinates': coordFilePath,
             'boxsize': BOX_SIZE,
             'threads': 1,  # ***
-            'output': outputPath
+            'output': outputPath,
+            'downsample': tomo.getPixelSize() / TARGET_SAMPLING_RATE,
         }
 
         argsExtractSubtomos = "--tomogram %(tomogram)s " \
