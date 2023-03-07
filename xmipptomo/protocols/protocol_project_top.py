@@ -81,6 +81,8 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         fnProj = self._getExtraPath("projections.mrcs")
         lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
 
+        tmpOrientedSubtomoFn= self._getExtraPath("oriented.mrc")
+
         for subtomo in input.iterItems():
             fn = subtomo.getLocation()
             if fn[1].endswith('.mrc'):
@@ -88,9 +90,10 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 fn[1] += ':mrc'
                 fn = tuple(fn)
                 subtomo.setFileName(fn[1])
-            vol = Volume()
-            vol.setLocation('%d@%s' % fn)
-            vol = ih().read(vol.getLocation())
+
+            ih().rotateVolume(subtomo.getFileName(), tmpOrientedSubtomoFn, subtomo.getTransform())
+
+            vol = ih().read(tmpOrientedSubtomoFn)
             img = ih().createImage()
             if self.radAvg.get():
                 img = vol.radialAverageAxis()
