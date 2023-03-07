@@ -111,7 +111,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
 
     def createOutput(self, distanceScores):
 
-        outSubtomos = self._createSetOfSubTomograms()
+        outSubtomos = self.firstSubtomos.get().create(self._getPath())
         outSubtomos.copyInfo(self.second_subtomos)
 
         def addScoreToSubtomogram(subtomo, row):

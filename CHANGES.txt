@@ -1,3 +1,6 @@
+V3.1.2:
+ - Projection subtomograms uses alignment information
+ - Alignment consensus: Plot series is angle now. Output is of same type as input.
 V3.1.1:
  - First released version of the plugin documented properly in this file. The plugin contains the following 23 protocols:
 
