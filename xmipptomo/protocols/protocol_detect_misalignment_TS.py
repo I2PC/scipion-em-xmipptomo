@@ -114,6 +114,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
                            'coordinate projection and the detected fiducial.')
 
+        form.addParam('avgResidPercentile_LocalAlignment',
+                      params.FloatParam,
+                      advanced=True,
+                      default=0.99,
+                      label='Percentile residual radius',
+                      help='Percentile of the residual radius in a image between the distribution of the residuals'
+                           'from the aligned detected chain. This parameter is used to detect local alignment of a '
+                           'tilt-image in the series.')
+
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         self.alignmentReport = List([])
@@ -221,6 +230,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrChainDistanceAng': self.thrChainDistanceAng.get(),
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
+                'avgResidPercentile_LocalAlignment': self.avgResidPercentile_LocalAlignment.get(),
             }
 
             argsDetectMisali = "-i %(i)s " \
@@ -232,7 +242,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
                                "--thrChainDistanceAng %(thrChainDistanceAng).2f " \
-                               "--thrFiducialDistance %(thrFiducialDistance).2f "
+                               "--thrFiducialDistance %(thrFiducialDistance).2f " \
+                               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f "
 
             self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
