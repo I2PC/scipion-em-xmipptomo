@@ -1,7 +1,10 @@
 V3.1.3:
  - Fix score transformations: avoid scores over 180.
-V3.1.2:
  - Fix score transformations: not doing the correct match with score index.
+
+V3.1.2:
+ - Projection subtomograms uses alignment information
+ - Alignment consensus: Plot series is angle now. Output is of same type as input.
 
 V3.1.1:
  - First released version of the plugin documented properly in this file. The plugin contains the following 23 protocols:
