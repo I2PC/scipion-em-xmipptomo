@@ -89,7 +89,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
         second_quaternions = list(zip(aux[0], listQuaternions(aux[1])))
 
         # Compute distance matrix from quaternions
-        dist = [(t1[0], quaternion_distance(t1[1], t2[1]))
+        dist = [(t1[0], min(quaternion_distance(t1[1], t2[1]), quaternion_distance(t1[1], -t2[1])))
                 for t1, t2 in zip(first_quaternions, second_quaternions)
                 if t1[0] == t2[0]]
 
@@ -114,11 +114,22 @@ class XmippProtScoreTransform(ProtTomoPicking):
         outSubtomos = self.firstSubtomos.get().create(self._getPath())
         outSubtomos.copyInfo(self.second_subtomos)
 
+        self.scoresIndex = 0
+
         def addScoreToSubtomogram(subtomo, row):
 
-            score = distanceScores[subtomo.getObjId()-1][1]
-            distance =math.degrees(score)
+            try:
+
+                score = distanceScores[self.scoresIndex][1]
+                distance = math.degrees(score)
+
+            except Exception as e:
+                self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
+                distance = -181
+
             setattr(subtomo, self.SCORE_ATTR, Float(distance))
+
+            self.scoresIndex += 1
 
         outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
 
