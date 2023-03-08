@@ -175,7 +175,6 @@ def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, t
     coordinatesInfo = []
     fieldNames = ['x', 'y', 'z']
 
-    print(tsId)
     if tsId is None:
         for coord in soc:
             coordinatesInfo.append([(coord.getX()/sr)-halfX,
@@ -187,8 +186,6 @@ def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, t
                 coordinatesInfo.append([(coord.getX()/sr)+halfX,
                                         (coord.getY()/sr)+halfY,
                                         (coord.getZ()/sr)])
-
-    print(coordinatesInfo)
 
     if len(coordinatesInfo) == 0:
         return False
