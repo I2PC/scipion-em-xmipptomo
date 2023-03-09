@@ -205,14 +205,18 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         """
             This function creates the output of the protocol
         """
+
         precedents = self.getTomograms()
         firstItem = precedents.getFirstItem()
         acquisitonInfo = firstItem.getAcquisition()
         # TODO: Check the sampling if the tomograms are different than the picked ones
         # TODO: Check the sampling rate if a downsampling option is implemented
         outputSet = None
+
+        newSamplingRate = precedents.getSamplingRate() * self.dowsamplingFactor.get()
+
         self.outputSubTomogramsSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
-        self.outputSubTomogramsSet.setSamplingRate(precedents.getSamplingRate())
+        self.outputSubTomogramsSet.setSamplingRate(newSamplingRate)
         self.outputSubTomogramsSet.setCoordinates3D(self.coords)
         if firstItem.getAcquisition():
             acquisition = TomoAcquisition()
@@ -230,12 +234,16 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                     tsId = item.getTsId()
                     outputSet, counter = self.readSetOfSubTomograms(tomoFile,
                                                                     self.outputSubTomogramsSet,
-                                                                    coordSet, 1, counter, tsId)
+                                                                    coordSet,
+                                                                    1,
+                                                                    counter,
+                                                                    tsId,
+                                                                    newSamplingRate)
 
         self._defineOutputs(**{OUTPUTATTRIBUTE: outputSet})
         self._defineSourceRelation(self.coords, outputSet)
 
-    def readSetOfSubTomograms(self, tomoFile, outputSubTomogramsSet, coordSet, factor, counter, tsId):
+    def readSetOfSubTomograms(self, tomoFile, outputSubTomogramsSet, coordSet, factor, counter, tsId, newSamplingRate):
         """
             This function set the corresponing attributes to each subtomogram. Coordinates and transformation matrix
             The output is the set of Subtomograms
@@ -258,6 +266,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
             transformation.setShifts(factor * shift_x,
                                      factor * shift_y,
                                      factor * shift_z)
+            subtomogram.setSamplingRate(newSamplingRate)
             subtomogram.setTransform(transformation)
             subtomogram.setVolName(tsId)
             outputSubTomogramsSet.append(subtomogram)
