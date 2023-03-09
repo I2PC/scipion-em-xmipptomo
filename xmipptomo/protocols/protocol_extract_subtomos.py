@@ -87,7 +87,8 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
         form.addParam('dowsamplingFactor',
                       FloatParam,
-                      label='Box size',
+                      label='Dowsampling factor',
+                      default=1.0,
                       help='The subtomograms are extracted as a cube. The box size defines the edge of the cube'
                            'The wizard selects same box size as picking')
 
@@ -193,8 +194,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
             params += ' --invertContrast'
         params += ' --subtomo'
         params += ' --threads %i' % 1
-
-        params += ' -o %s' % tomoPath
+        if self.dowsamplingFactor.get() != 1:
+            params += ' --downsample %f' % self.dowsamplingFactor.get()
+        params += ' -o %s ' % tomoPath
         self.runJob('xmipp_tomo_extract_subtomograms', params)
 
         self.tomoFiles.append(tomoFn)
