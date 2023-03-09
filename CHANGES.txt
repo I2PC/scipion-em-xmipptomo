@@ -3,8 +3,7 @@ V3.23.03.0:
  - New protocol splitTS
  - New protocol score_transform
  - New versions numering (associated to xmipp repository)
-
-protocol_flexalign.py updated
+ - Updated flexalign.py
 
 
 V3.1.3:
