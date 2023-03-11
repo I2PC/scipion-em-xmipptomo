@@ -1,3 +1,6 @@
+V3.23.03.1:
+ - Subtomo projector compatible with hdf stacks. Test fixed. Projections keep orientation.
+
 V3.23.03.0:
  - New protocol and test extract_subtomos
  - New protocol splitTS
