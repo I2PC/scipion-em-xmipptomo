@@ -29,6 +29,7 @@ This module contains utils functions for xmipp tomo protocols
 
 import math
 import csv
+import os.path
 
 import emtable
 
@@ -132,6 +133,10 @@ def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
 
     coordDict = []
     lines = []
+
+    fnCoor_directory = os.path.dirname(fnCoor)
+    if not os.path.exists(fnCoor_directory):
+        os.makedirs(fnCoor_directory)
 
     for item in setOfCoordinates.iterCoordinates(volume=tomo):
         coord = item
