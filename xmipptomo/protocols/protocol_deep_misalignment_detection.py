@@ -29,6 +29,7 @@ import numpy as np
 
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.object import Set, Float
 from pyworkflow.protocol import FileParam, PointerParam, EnumParam
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms
@@ -36,7 +37,7 @@ from tomo.protocols import ProtTomoBase
 from tensorflow.keras.models import load_model
 from xmipptomo import utils
 
-COORDINATES_FILE_NAME = '3dCoordinates.xmd'
+COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
 BOX_SIZE = 32
 TARGET_SAMPLING_RATE = 6.25
 
@@ -47,6 +48,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     """
 
     _label = 'detect misalignment from fiducials'
+    _devStatus = BETA
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -107,7 +109,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         for key in self.tomoDict.keys():
             tomo = self.tomoDict[key]
-            coordFilePath = self.getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
+            coordFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
 
             self._insertFunctionStep(utils.writeMdCoordinates,
                                      self.inputSetOfCoordinates.get(),
@@ -123,7 +125,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def extractSubtomos(self, key, coordFilePath):
         tomo = self.tomoDict[key]
 
-        outputPath = self.getExtraPath(os.path.join(tomo.getTsId()))
+        outputPath = self._getExtraPath(os.path.join(tomo.getTsId()))
         tomoFn = tomo.getFileName()
 
         paramsExtractSubtomos = {
@@ -131,15 +133,16 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             'coordinates': coordFilePath,
             'boxsize': BOX_SIZE,
             'threads': 1,  # ***
-            'output': outputPath,
-            'downsample': tomo.getPixelSize() / TARGET_SAMPLING_RATE,
+            'outputPath': outputPath,
+            'downsample': tomo.getSamplingRate() / TARGET_SAMPLING_RATE,
         }
 
         argsExtractSubtomos = "--tomogram %(tomogram)s " \
                               "--coordinates %(coordinates)s " \
                               "--boxsize %(boxsize)d " \
                               "--threads %(threads)d " \
-                              "--o %(outputPath)s " \
+                              "-o %(outputPath)s " \
+                              "--downsample %(downsample)f" \
                               "--subtomo "
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
@@ -201,7 +204,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     # --------------------------- UTILS functions ----------------------------
     def getTomoDict(self):
         if self.tomoSource.get() == 0:
-            self.inputSetOfCoordinates.get().getPrecedentsInvolved()
+            tomoDict = self.inputSetOfCoordinates.get().getPrecedentsInvolved()
         else:
             tomoDict = {}
             for tomo in self.inputSetOfTomograms.get():
