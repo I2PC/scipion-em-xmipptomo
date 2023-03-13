@@ -150,14 +150,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
     def subtomoPrediction(self, tomo, coordFilePath):
-        pass
-        # *** Te has quedado auiq, hay algo que esta pentando de aqui en adelante!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ***
-
         subtomoPathList = self.getSubtomoPathList(coordFilePath)
         print(subtomoPathList)
 
         subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath)
         print(subtomoCoordList)
+        # *** Te has quedado auiq, hay algo que esta pentando de aqui en el retrieveXmipp3dCoordinatesIntoList!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ***
 
         totalNumberOfSubtomos = len(subtomoPathList)
         volId = tomo.getVolId()
