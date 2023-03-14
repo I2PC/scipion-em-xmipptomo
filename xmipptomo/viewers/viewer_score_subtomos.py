@@ -59,14 +59,14 @@ class XmippTomoScoreSubtomoViewer(Viewer):
 
     def plotScoreHistogram(self, subtomos:SetOfSubTomograms, **kwargs):
 
-        plotter = EmPlotter(x=1, y=1, windowTitle='Score histogram')
+        plotter = EmPlotter(x=1, y=1, windowTitle='Angular distance histogram')
 
 
         results = subtomos.getUniqueValues(["id", XmippProtScoreTransform.SCORE_ATTR])
 
         scores = results[XmippProtScoreTransform.SCORE_ATTR]
 
-        plotter.createSubPlot("Scores histogram", "score", "count")
+        plotter.createSubPlot("Angular distance histogram", "angle", "count")
 
         plotter.plotHist(scores, 30)
 
