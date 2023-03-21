@@ -103,21 +103,37 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
                              'z': ci[2]})
 
 
-def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
-    """ This method takes an xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
-    every coordinate. This method also transform the coordinates into the Scipion convention. """
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=0):
+    """ This method takes a xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
+    every coordinate. This method also transform the coordinates into the Scipion convention. This method allows
+    different xmd formats containing coordinates information:
+        format=0: plain coordinates, xmd files only contains (x, y, z) values.
+        format=1: coordinates with alignment information, xmd files contains also shifts and angle values."""
 
     coorList = []
 
     with open(coordFilePath) as f:
         inputLines = f.readlines()
 
-    for line in inputLines[7:]:
-        vector = line.split()
+    if xmdFormat == 0:
+        for line in inputLines[7:]:
+            vector = line.split()
 
-        coorList.append([float(vector[0]),
-                         float(vector[1]),
-                         float(vector[2])])
+            coorList.append([float(vector[0]),
+                             float(vector[1]),
+                             float(vector[2])])
+
+    if xmdFormat == 1:
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(inputLines[15:])
+        for line in inputLines[15:]:
+            vector = line.split()
+
+            coorList.append([float(vector[-3]),
+                             float(vector[-2]),
+                             float(vector[-1])])
+
+    print(coorList)
 
     return coorList
 
