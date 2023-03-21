@@ -124,16 +124,12 @@ def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=0):
                              float(vector[2])])
 
     if xmdFormat == 1:
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(inputLines[15:])
         for line in inputLines[15:]:
             vector = line.split()
 
             coorList.append([float(vector[-3]),
                              float(vector[-2]),
                              float(vector[-1])])
-
-    print(coorList)
 
     return coorList
 
