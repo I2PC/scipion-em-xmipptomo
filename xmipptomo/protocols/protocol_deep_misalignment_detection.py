@@ -109,8 +109,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         self.tomoDict = self.getTomoDict()
 
-        print()
-
         for key in self.tomoDict.keys():
             tomo = self.tomoDict[key]
             coordFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
@@ -155,18 +153,15 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     def subtomoPrediction(self, key, coordFilePath):
         tomo = self.tomoDict[key]
-        print(tomo)
         subtomoPathList = self.getSubtomoPathList(coordFilePath)
 
-        print(subtomoPathList)
-
         subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=1)
-        print(subtomoCoordList)
 
         totalNumberOfSubtomos = len(subtomoPathList)
         tsId = tomo.getTsId()
 
-        print("total number of subtomos: " + str(totalNumberOfSubtomos))
+        print("Analyzing tomogram " + tsId)
+        print("Total number of subtomos: " + str(totalNumberOfSubtomos))
 
         self.loadModels()
 
@@ -198,39 +193,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.outputSubtomos.append(subtomogram)
             self.outputSubtomos.write()
             self._store()
-
-        # subtomoList = []
-        # currentVolId = None
-        #
-        # self.getOutputSetOfSubtomos()
-        #
-        # for index, subtomo in enumerate(self.inputSetOfSubTomograms.get().iterSubtomos(orderBy="_volId")):
-        #
-        #     if (subtomo.getVolId() != currentVolId and currentVolId is not None) or (
-        #             (index + 1) == totalNumberOfSubtomos):
-        #         # Make prediction
-        #         overallPrediction, predictionArray = self.makePrediction(subtomoList)
-        #
-        #         print("For volume id " + str(currentVolId) + " obtained prediction from " +
-        #               str(len(subtomoList)) + " subtomos is " + str(overallPrediction))
-        #
-        #         self.addTomoToOutput(volId=currentVolId, overallPrediction=overallPrediction)
-        #
-        #         # Generate output set of subtomograms with a prediction score
-        #         for i, s in enumerate(subtomoList):
-        #             s._misaliScore = Float(predictionArray[i])
-        #
-        #             self.outputSubtomos.append(s)
-        #             self.outputSubtomos.write()
-        #             self._store()
-        #
-        #         currentVolId = subtomo.getVolId()
-        #         subtomoList = []
-        #
-        #     if currentVolId is None:
-        #         currentVolId = subtomo.getVolId()
-        #
-        #     subtomoList.append(subtomo.clone())
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
