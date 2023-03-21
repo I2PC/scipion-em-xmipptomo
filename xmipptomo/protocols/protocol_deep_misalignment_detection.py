@@ -250,7 +250,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             overallPrediction = self.determineOverallPrediction(predictionArray)
 
-        overallPrediction = False
         return overallPrediction, predictionArray
 
     def addTomoToOutput(self, tomo, overallPrediction):
