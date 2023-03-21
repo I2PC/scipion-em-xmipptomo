@@ -138,7 +138,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             'boxsize': BOX_SIZE,
             'threads': 1,  # ***
             'outputPath': outputPath,
-            'downsample': tomo.getSamplingRate() / TARGET_SAMPLING_RATE,
+            'downsample': TARGET_SAMPLING_RATE / tomo.getSamplingRate(),
         }
 
         argsExtractSubtomos = "--tomogram %(tomogram)s " \
