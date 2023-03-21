@@ -182,7 +182,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
             newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
             newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setSamplingRate(TARGET_SAMPLING_RATE)
 
             subtomogram = SubTomogram()
             subtomogram.setLocation(subtomoPath)
