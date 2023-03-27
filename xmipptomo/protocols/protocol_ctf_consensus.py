@@ -24,17 +24,17 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import logging
 import pyworkflow.protocol.params as params
-from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
-
-from tomo.objects import SetOfCTFTomoSeries
+from pwem.protocols import EMProtocol
 from pwem import emlib
+from tomo.objects import SetOfCTFTomoSeries
 import xmipp3
 from xmipp3.convert import setXmippAttribute, getScipionObj
 
+import matplotlib.pyplot as plt
+import logging
 from cmath import rect, phase
 from math import radians, degrees
 
@@ -60,7 +60,7 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
     _dfCons = {}
     _astigCons = {}
     _freqResol = {}
-
+    _tiltAngle = {}
     # -------------------------- DEFINE param functions -----------------------
 
     def _defineParams(self, form):
@@ -156,21 +156,38 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
         self.initializeParams()
         self._insertFunctionStep(self.ctfConsensusStep)
         self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.plotFreqError)
+        self._insertFunctionStep(self.plotDefocusError)
+        self._insertFunctionStep(self.plotAstigError)
 
 # ----------------------------STEPS --------------------------------------
     def initializeParams(self):
+        self.retrieveTiltAngleDict()
         self.setSecondaryAttributes()
 
     def setSecondaryAttributes(self):
         if self.includeSecondary:
-            item = self.inputCtfTomoSeries.get().getFirstItem()
+            item = self.inputCtfTomoSeries.get().getFirstItem().getFirstItem()
             ctf1Attr = set(item.getObjDict().keys())
-
-            item = self.inputCtfTomoSeries.get().getFirstItem()
+            ctf1Attr_None = set([attr for attr in ctf1Attr if getattr(item, attr).get() is None])
+            item = self.inputCtfTomoSeries.get().getFirstItem().getFirstItem()
             ctf2Attr = set(item.getObjDict().keys())
-            self.secondaryAttributes = ctf2Attr - ctf1Attr
+            self.secondaryAttributes = (ctf2Attr - ctf1Attr).union(ctf1Attr_None)
         else:
             self.secondaryAttributes = set()
+
+    def retrieveTiltAngleDict(self):
+        dictTs = {}
+        if self.inputCtfTomoSeries.get():
+            for cTFTomoSeries in self.inputCtfTomoSeries.get().iterItems():
+                tsSeries = cTFTomoSeries.getTiltSeries()
+                dictTsAngle = {}
+                for ts in tsSeries:
+                    dictTsAngle[ts.getObjId()] = ts.getTiltAngle()
+
+                dictTs[cTFTomoSeries.getTsId()] = dictTsAngle
+
+        self._tiltAngle = dictTs
 
     def ctfConsensusStep(self):
         """
@@ -189,8 +206,8 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
         ctfSeriesSetDict2 = {series.getTsId(): series.getObjId() for series in ctfSeriesSet2.iterItems()}
         ctfSeriesSetIds2 = ctfSeriesSetDict2.keys()
         sharedSeriesIDs = list(set(ctfSeriesSetIds1).intersection(set(ctfSeriesSetIds2)))
-        print('Shared TS')
-        print(sharedSeriesIDs)
+        self.info('Processing the next CTF TOMO TS')
+        self.info(sharedSeriesIDs)
 
         if self.validationType.get() == 1:
             imagesToReject = self.numberImages.get()
@@ -201,19 +218,15 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
             failedDefocusCriteria = 0
             failedAstigmatismCriteria = 0
             failedResolutionCriteria = 0
+            dfDict = {}
+            astigDict = {}
+            resolDict = {}
 
             ctfSeriesDict1 = {ctf.getObjId(): ctf.clone() for ctf in ctfSeriesSet1[ctfSeriesSetDict1[tsId]].iterItems()}
             ctfSeriesIds1 = ctfSeriesDict1.keys()
             ctfSeriesDict2 = {ctf.getObjId(): ctf.clone() for ctf in ctfSeriesSet2[ctfSeriesSetDict2[tsId]].iterItems()}
             ctfSeriesIds2 = ctfSeriesDict2.keys()
             sharedCtfIDs = list(set(ctfSeriesIds1).intersection(set(ctfSeriesIds2)))
-            print('Shared tilt images')
-            print(sharedCtfIDs)
-
-            dfDict = {}
-            astigDict = {}
-            resolDict = {}
-            # TODO: un dict q guarde el angulo al que se saca todo esto
             md1 = emlib.MetaData()
             md2 = emlib.MetaData()
             for ctfId in sharedCtfIDs:
@@ -221,21 +234,21 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
                 ctf2 = ctfSeriesDict2.get(ctfId)
                 # Defocus criteria
                 if self.defocusCriteria.get() == 0:
-                    df = self._calculateConsensusDefocus(ctf1, ctf2)
-                    dfDict[ctfId] = df
-                    if df < self.defocusTolerance.get():
+                    dfErr = self._calculateConsensusDefocus(ctf1, ctf2)
+                    dfDict[ctfId] = [dfErr, self._tiltAngle.get(tsId)[ctfId]]
+                    if dfErr < self.defocusTolerance.get():
                         failedDefocusCriteria += 1
                 # Astigmatism criteria
                 if self.astigmatismCriteria.get() == 0:
-                    astig = self._calculateConsensusAstigmatism(ctf1, ctf2)
-                    astigDict[ctfId] = astig
-                    if astig < self.astigmatismTolerance.get():
+                    astigErr = self._calculateConsensusAstigmatism(ctf1, ctf2)
+                    astigDict[ctfId] = [astigErr, self._tiltAngle.get(tsId)[ctfId]]
+                    if astigErr < self.astigmatismTolerance.get():
                         failedAstigmatismCriteria += 1
                 # Resolution criteria
                 if self.resolutionCriteria.get() == 0:
                     res = self._calculateConsensusResolution(md1, md2, ctf1, ctf2)
                     setAttribute(ctf1, '_consensus_resolution', res)
-                    resolDict[ctfId] = res
+                    resolDict[ctfId] = [res, self._tiltAngle.get(tsId)[ctfId]]
                     if res < self.resolutionTolerance.get():
                         failedResolutionCriteria += 1
 
@@ -244,7 +257,6 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
                 else:
                     ctf = ctf1
 
-                # TODO: - Secondary data
                 if self.includeSecondary.get():
                     for attr in self.secondaryAttributes:
                         copyAttribute(ctf2, ctf, attr)
@@ -298,11 +310,10 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
         return _calculateDiff(astig1, astig2)
 
     def _calculateConsensusResolution(self, md1, md2, ctf1, ctf2):
-        # Podras definir los metadata aqui pero puedo perjudicar en tiempo
         try:
             self._ctfToMd(ctf1, md1)
             self._ctfToMd(ctf2, md2)
-            res = emlib.errorMaxFreqCTFs2D(md1, md2)  # TODO relacionar el angulo a la cons_res
+            res = emlib.errorMaxFreqCTFs2D(md1, md2)
         except TypeError as exc:
             print("Error reading ctf for id:%s. %s" % (ctf1.getObjId(), exc))
             res = 0  # more coherent number
@@ -357,8 +368,50 @@ class XmippProtCTFTomoSeriesConsensus(EMProtocol):
             self.badCTFTomoSeries.write()
             self._store()
 
-    def _summary(self):
-        return self._countDict
+    def plotFreqError(self):
+        for tsId, dictFreqError in self._freqResol.items():
+            angles = []
+            consfreqs = []
+            for freq_angle in dictFreqError.values():
+                consfreqs.append(freq_angle[0])
+                angles.append(freq_angle[1])
+            fig, ax = plt.subplots()
+            ax.plot(angles, consfreqs)
+            ax.set(xlabel='angles (degrees)', ylabel='consensus frequency',
+                   title=tsId + " Frequency")
+            ax.grid()
+            # plt.show()
+            plt.savefig(self._getExtraPath(tsId+"_resolution.png"))
+
+    def plotDefocusError(self):
+        for tsId, dictFreqError in self._dfCons.items():
+            angles = []
+            consdfs = []
+            for df_angle in dictFreqError.values():
+                consdfs.append(df_angle[0])
+                angles.append(df_angle[1])
+            fig, ax = plt.subplots()
+            ax.plot(angles, consdfs)
+            ax.set(xlabel='angles (degrees)', ylabel='consensus defocus tolerance',
+                   title=tsId + " Defocus")
+            ax.grid()
+            # plt.show()
+            plt.savefig(self._getExtraPath(tsId+"_defocus.png"))
+
+    def plotAstigError(self):
+        for tsId, dictFreqError in self._astigCons.items():
+            angles = []
+            consAstig = []
+            for astig_angle in dictFreqError.values():
+                consAstig.append(astig_angle[0])
+                angles.append(astig_angle[1])
+            fig, ax = plt.subplots()
+            ax.plot(angles, consAstig)
+            ax.set(xlabel='angles (degrees)', ylabel='consensus astigmatism tolerance',
+                   title=tsId + " Astigmatism")
+            ax.grid()
+            # plt.show()
+            plt.savefig(self._getExtraPath(tsId+"_astigmatism.png"))
 
 # -------------------------------- UTILS -----------------------------------------
 def _calculateDiff(value1, value2):
@@ -373,7 +426,6 @@ def averageAngles(angle1, angle2):
     c1 = rect(1, radians(angle1*2))
     c2 = rect(1, radians(angle2*2))
     return degrees(phase((c1 + c2)*0.5))/2
-
 
 def copyAttribute(src, dst, label, default=None):
     setAttribute(dst, label, getattr(src, label, default))
