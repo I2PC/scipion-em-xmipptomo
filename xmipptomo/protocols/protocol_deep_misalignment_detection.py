@@ -234,8 +234,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             subtomoDataTmp = ih.read(subtomo)
             subtomoDataTmp = subtomoDataTmp.getData()
 
-            print("subtomo " + str(index) + " mean " + subtomoDataTmp.mean())
-            print("subtomo " + str(index) + " std " + subtomoDataTmp.std())
+            print("subtomo " + str(index) + " mean " + str(subtomoDataTmp.mean()))
+            print("subtomo " + str(index) + " std " + str(subtomoDataTmp.std()))
 
             subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
 
