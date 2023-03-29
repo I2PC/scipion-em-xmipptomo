@@ -234,6 +234,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             subtomoDataTmp = ih.read(subtomo)
             subtomoDataTmp = subtomoDataTmp.getData()
 
+            print("subtomo " + str(index) + " mean " + subtomoDataTmp.mean())
+            print("subtomo " + str(index) + " std " + subtomoDataTmp.std())
+
             subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
 
         std = subtomoArray.std()
@@ -245,10 +248,18 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         overallPrediction = self.determineOverallPrediction(predictionArray)
 
+        print("first prediction array")
+        print(predictionArray)
+        print("first overall prediction " + str(overallPrediction))
+
         if overallPrediction:
             predictionArray = self.secondModel.predict(subtomoArray)
 
             overallPrediction = self.determineOverallPrediction(predictionArray)
+
+            print("second prediction array")
+            print(predictionArray)
+            print("second overall prediction " + str(overallPrediction))
 
         return overallPrediction, predictionArray
 
