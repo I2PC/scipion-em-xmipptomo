@@ -285,20 +285,32 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     @staticmethod
     def determineOverallPrediction(predictionList):
-        predictionClasses = np.round(predictionList)
+        # predictionClasses = np.round(predictionList)
+        #
+        # overallPrediction = 0
+        #
+        # for i in predictionClasses:
+        #     overallPrediction += i
+        #
+        # print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
+        #       str(predictionList.size - overallPrediction) + "misaligned")
+        #
+        # overallPrediction = overallPrediction / predictionList.size
+        #
+        # return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+
+        predictionClasses = predictionList
 
         overallPrediction = 0
 
         for i in predictionClasses:
             overallPrediction += i
 
-        print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
-              str(predictionList.size - overallPrediction) + "misaligned")
-
         overallPrediction = overallPrediction / predictionList.size
 
-        return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+        print("Subtomo analysis preditcion: " + overallPrediction)
 
+        return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
     def getOutputSetOfAlignedTomograms(self):
         if self.alignedTomograms:
             self.alignedTomograms.enableAppend()
