@@ -234,8 +234,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             subtomoDataTmp = ih.read(subtomo)
             subtomoDataTmp = subtomoDataTmp.getData()
 
-            print("subtomo " + str(index) + " mean " + str(subtomoDataTmp.mean()))
-            print("subtomo " + str(index) + " std " + str(subtomoDataTmp.std()))
+            # print("subtomo " + str(index) + " mean " + str(subtomoDataTmp.mean()))
+            # print("subtomo " + str(index) + " std " + str(subtomoDataTmp.std()))
 
             subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
 
@@ -248,18 +248,18 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         overallPrediction = self.determineOverallPrediction(predictionArray)
 
-        print("first prediction array")
-        print(predictionArray)
-        print("first overall prediction " + str(overallPrediction))
+        # print("first prediction array")
+        # print(predictionArray)
+        # print("first overall prediction " + str(overallPrediction))
 
         if overallPrediction:
             predictionArray = self.secondModel.predict(subtomoArray)
 
             overallPrediction = self.determineOverallPrediction(predictionArray)
 
-            print("second prediction array")
-            print(predictionArray)
-            print("second overall prediction " + str(overallPrediction))
+            # print("second prediction array")
+            # print(predictionArray)
+            # print("second overall prediction " + str(overallPrediction))
 
         return overallPrediction, predictionArray
 
@@ -299,16 +299,14 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         #
         # return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
 
-        predictionClasses = predictionList
-
         overallPrediction = 0
 
-        for i in predictionClasses:
+        for i in predictionList:
             overallPrediction += i
 
         overallPrediction = overallPrediction / predictionList.size
 
-        print("Subtomo analysis preditcion: " + overallPrediction)
+        print("Subtomo analysis preditcion: " + str(overallPrediction))
 
         return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
     def getOutputSetOfAlignedTomograms(self):
