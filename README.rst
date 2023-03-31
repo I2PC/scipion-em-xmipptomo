@@ -16,5 +16,7 @@ Using the command line:
 
 .. code-block::
 
+    git clone git@github.com:I2PC/scipion-em-xmipptomo.git 
+    cd xmipptomo
     scipion installp -p local/path/to/scipion-em-xmipptomo --devel
 
