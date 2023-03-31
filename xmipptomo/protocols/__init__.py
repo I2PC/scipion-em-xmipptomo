@@ -32,6 +32,7 @@ from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
 from .protocol_cltomo import XmippProtCLTomo
 from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
+from .protocol_dose_filter import XmippProtDoseFilter
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
