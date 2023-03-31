@@ -32,6 +32,7 @@ from pyworkflow.protocol import params
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
+from pwem.emlib.image import ImageHandler
 
 
 class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
@@ -122,6 +123,8 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
         tsFileName = ts.getFirstItem().getFileName()
 
+        ih = ImageHandler()
+
         """Output even set"""
         outputOddSetOfTiltSeries = self.getOutputEvenSetOfTiltSeries()
         tsFileNameEvenMrc = pwutils.removeExt(os.path.basename(tsFileName)) + "_even.mrc"
@@ -129,6 +132,8 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         evenTs = tomoObj.TiltSeries(tsId=tsId)
         evenTs.copyInfo(ts)
         outputOddSetOfTiltSeries.append(evenTs)
+
+        evenDimension = ih.getDimensions(self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
 
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
@@ -139,6 +144,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameEvenMrc)))
                 evenTs.append(newTi)
         evenTs.write(properties=False)
+        evenTs.setDim(evenDimension[:-1])
         outputOddSetOfTiltSeries.update(evenTs)
         outputOddSetOfTiltSeries.write()
         self._store()
@@ -151,6 +157,8 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
         oddTs.copyInfo(ts)
         outputOddSetOfTiltSeries.append(oddTs)
 
+        oddDimension = ih.getDimensions(self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
+
         dimCounter = 0
         for index, tiltImage in enumerate(ts):
             if (index+1) % 2 == 1:
@@ -160,6 +168,7 @@ class XmippProtSplitTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.setLocation(dimCounter, self._getExtraPath(os.path.join(tsId, tsFileNameOddMrc)))
                 oddTs.append(newTi)
         oddTs.write(properties=False)
+        oddTs.setDim(oddDimension[:-1])
         outputOddSetOfTiltSeries.update(oddTs)
         outputOddSetOfTiltSeries.write()
         self._store()

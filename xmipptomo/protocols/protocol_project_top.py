@@ -47,6 +47,8 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     _devStatus = BETA
     _possibleOutputs = SubtomoProjectOutput
 
+    _dirChoices = ['X', 'Y', 'Z']
+
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='General parameters')
@@ -56,7 +58,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         form.addParam('radAvg', BooleanParam, default=False, label='Compute radial average?',
                       help='Compute the radial average with respect to Z of the input volumes and from them, '
                            'it computes their projections in the desired direction')
-        form.addParam('dirParam', EnumParam, choices=['X', 'Y', 'Z'], default=2, display=EnumParam.DISPLAY_HLIST,
+        form.addParam('dirParam', EnumParam, choices=self._dirChoices, default=2, display=EnumParam.DISPLAY_HLIST,
                       label='Projection direction', condition='radAvg == False')
         form.addParam('rangeParam', EnumParam, choices=['All', 'Range'], default=0, display=EnumParam.DISPLAY_HLIST,
                       label='Range of slices', condition='radAvg == False',
@@ -67,56 +69,77 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
 
-        self._insertFunctionStep('projectZStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.projectStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions -------------------------------
-    def projectZStep(self):
+    def projectStep(self):
         input = self.input.get()
         x, y, z = input.getDim()
+
+        print("Dimensions (x,y,z) are: %s, %s, %s." % (x,y,z))
+
+
         dir = self.dirParam.get()
-        if self.rangeParam.get() == 1:
-            cropParam = self.cropParam.get()
+        partialProjection = self.rangeParam.get() == 1
+
+        if partialProjection:
+            bottomSlice = int(x/2 - self.cropParam.get())
+            topSlice = int(x/2 + self.cropParam.get())
+
 
         fnProj = self._getExtraPath("projections.mrcs")
         lib.createEmptyFile(fnProj, x, y, 1, input.getSize())
 
+        tmpOrientedSubtomoFn = self._getExtraPath("oriented.mrc")
+
         for subtomo in input.iterItems():
-            fn = subtomo.getLocation()
-            if fn[1].endswith('.mrc'):
-                fn = list(fn)
-                fn[1] += ':mrc'
-                fn = tuple(fn)
-                subtomo.setFileName(fn[1])
-            vol = Volume()
-            vol.setLocation('%d@%s' % fn)
-            vol = ih().read(vol.getLocation())
+
+            fn = "%s@%s" % subtomo.getLocation()
+            if fn.endswith('.mrc'):
+                fn += ':mrc'
+
+            if subtomo.hasTransform():
+
+                ih().rotateVolume(fn, tmpOrientedSubtomoFn, subtomo.getTransform())
+                fn = tmpOrientedSubtomoFn
+
+            vol = ih().read(fn)
             img = ih().createImage()
+
             if self.radAvg.get():
                 img = vol.radialAverageAxis()
             else:
                 volData = vol.getData()
+
                 proj = np.empty([x, y])
+
+                # X axis
                 if dir == 0:
-                    if self.rangeParam.get() == 1:
-                        volData = volData[:, :, int(x/2 - cropParam):int(x/2 + cropParam):1]
+                    if partialProjection:
+                        volData = volData[:, :, bottomSlice:topSlice]
                     for zi in range(z):
                         for yi in range(y):
-                            proj[zi, yi] = np.sum(volData[zi, yi, :])
+                            proj[yi, zi] = np.sum(volData[zi, yi, :])
+                # Y axis
                 elif dir == 1:
-                    if self.rangeParam.get() == 1:
-                        volData = volData[:, int(x/2 - cropParam):int(x/2 + cropParam):1, :]
+                    if partialProjection:
+                        volData = volData[:, bottomSlice:topSlice, :]
                     for zi in range(z):
                         for xi in range(x):
                             proj[zi, xi] = np.sum(volData[zi, :, xi])
+                # Z axis
                 elif dir == 2:
-                    if self.rangeParam.get() == 1:
-                        volData = volData[int(x/2 - cropParam):int(x/2 + cropParam):1, :, :]
+                    if partialProjection:
+                        volData = volData[bottomSlice:topSlice, :, :]
                     for xi in range(x):
                         for yi in range(y):
-                            proj[xi, yi] = np.sum(volData[:, yi, xi])
+                            proj[yi, xi] = np.sum(volData[:, yi, xi])
+
+                # Make the projection to be the image data
                 img.setData(proj)
 
+            # Write the image at a specific slice
             img.write('%d@%s' % (subtomo.getObjId(), fnProj))
 
     def createOutputStep(self):
@@ -138,8 +161,6 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 p.setTransform(transform)
             imgSetOut.append(p)
 
-        imgSetOut.setObjComment(self.getSummary(imgSetOut))
-
         self._defineOutputs(**{SubtomoProjectOutput.particles.name:imgSetOut})
         self._defineSourceRelation(self.input, imgSetOut)
 
@@ -157,20 +178,26 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
         vols = self.input.get()
-        return ["Projection of %d volumes with dimensions %s obtained."
-                % (vols.getSize(), vols.getDimensions())]
+
+        methods=[]
+        if self.radAvg:
+            methods.append("Radial average computed for %d volumes with dimensions %s were obtained." % (vols.getSize(), vols.getDimensions()))
+        else:
+            methods.append("Projections on the %s axis of %d volumes with dimensions %s were obtained using %s slices."
+                       % (self._dirChoices[self.dirParam.get()], vols.getSize(), vols.getDimensions(),
+                          "all" if self.rangeParam.get() == 0 else self.cropParam.get()))
+        return methods
+
 
     def _summary(self):
         summary = []
-        if not self.isFinished():
-            summary.append("Output views not ready yet.")
 
-        if self.getOutputsSize() >= 1:
-            for key, output in self.iterOutputAttributes():
-                summary.append("*%s:* \n %s " % (key, output.getObjComment()))
+        if self.radAvg:
+            summary.append("Radial average: %s" % self.radAvg)
+        else:
+
+            summary.append("Projections direction: %s" % self._dirChoices[self.dirParam.get()])
+            summary.append("Number: %s" % ("All" if self.rangeParam.get() == 0 else self.cropParam.get()))
+
         return summary
 
-    def getSummary(self, imgSetOut):
-        summary = []
-        summary.append("Number of projections generated: %s" % imgSetOut.getSize())
-        return "\n".join(summary)
