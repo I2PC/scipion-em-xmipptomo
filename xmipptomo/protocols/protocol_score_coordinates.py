@@ -149,7 +149,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
         for coord in coordinates.iterCoordinates():
             newCoord = coord.clone()
-            newCoord.setBoxSize(outSet.getBoxSize())
             newCoord.setVolume(coord.getVolume())
             scoreCoordOutlier = scoreOutliers[coord.getObjId()] if scoreOutliers else None
             scoreCoordCarbon = scoreCarbon[coord.getObjId()] if scoreCarbon else None

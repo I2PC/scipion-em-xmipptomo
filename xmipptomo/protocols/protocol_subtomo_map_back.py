@@ -26,6 +26,8 @@
 # *
 # **************************************************************************
 import enum
+import os
+
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
@@ -140,9 +142,19 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         # img = ImageHandler()
         # img.convert(sourceRef, fnRef)
 
+        refSampling = self.inputRef.get().getSamplingRate()
+        tomoSampling = self.getInputSetOfTomograms().getSamplingRate()
+        # for xmipp 0.5 means halving, 2 means doubling
+        factor = refSampling/tomoSampling
         if invertContrast:
             self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRef, fnRef))
-        else:
+            sourceRef = fnRef
+
+        if factor != 1:
+            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRef, factor, fnRef))
+
+
+        if not os.path.exists(fnRef):
             createLink(sourceRef, fnRef)
 
     def getSourceReferenceFn(self):
