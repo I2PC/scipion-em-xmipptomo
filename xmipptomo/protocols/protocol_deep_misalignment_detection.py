@@ -301,6 +301,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         overallPrediction = 0
 
+        print("prediction list:")
+        print(predictionList)
+
         for i in predictionList:
             overallPrediction += i
 
