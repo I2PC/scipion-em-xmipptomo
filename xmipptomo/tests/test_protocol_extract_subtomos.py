@@ -28,6 +28,7 @@ from tomo.protocols.protocol_import_coordinates import IMPORT_FROM_EMAN
 from ..protocols import *
 import tomo.protocols
 
+from xmipptomo.protocols.protocol_extract_subtomos import OUTPUTATTRIBUTE
 from xmipptomo.protocols import XmippProtExtractSubtomos
 
 
@@ -56,7 +57,7 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
         setupTestProject(cls)
         TestXmippProtExtractSubtomosBase.setData()
 
-    def _runXmippTomoExtraction(self, doInvert=False, boxSize=32):
+    def _runImportCoordinatesAndTomograms(self):
         protImportTomogram = self.newProtocol(tomo.protocols.ProtImportTomograms,
                                               filesPath=self.tomogram,
                                               samplingRate=5)
@@ -75,27 +76,41 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
                            "There was a problem with tomogram output")
         self.assertSetSize(protImportCoordinates3d.outputCoordinates, 5,
                            "There was a problem with coordinates 3d output")
+        return protImportCoordinates3d, protImportTomogram
 
-        protTomoExtraction = self.newProtocol(XmippProtExtractSubtomos,
-                                              tomograms=protImportTomogram.outputTomograms,
-                                              coords=protImportCoordinates3d.outputCoordinates,
-                                              invertContrast=doInvert,
-                                              boxSize=boxSize)
+    def _runXmippTomoExtraction(self, doInvert=False, boxSize=32, differenttomogram = False):
+        protImportCoordinates3d, protImportTomogram = self._runImportCoordinatesAndTomograms()
+        if differenttomogram:
+            protTomoExtraction = self.newProtocol(XmippProtExtractSubtomos,
+                                                  tomograms=protImportTomogram.outputTomograms,
+                                                  coords=protImportCoordinates3d.outputCoordinates,
+                                                  invertContrast=doInvert,
+                                                  boxSize=boxSize)
+        else:
+            protTomoExtraction = self.newProtocol(XmippProtExtractSubtomos,
+                                                  coords=protImportCoordinates3d.outputCoordinates,
+                                                  invertContrast=doInvert,
+                                                  boxSize=boxSize)
         self.launchProtocol(protTomoExtraction)
-        self.assertSetSize(protTomoExtraction.outputSetOfSubtomogram, 5,
+        self.assertSetSize(getattr(protTomoExtraction, OUTPUTATTRIBUTE), 5,
                            "There was a problem with SetOfSubtomogram output")
         return protTomoExtraction
 
 
     def test_extractParticlesWithDoInvert(self):
         protTomoExtraction = self._runXmippTomoExtraction(doInvert=True)
-        output = protTomoExtraction.outputSetOfSubtomogram
+        output = getattr(protTomoExtraction, OUTPUTATTRIBUTE)
         self.assessOutput(output)
 
 
     def test_extractParticlesModifiedBoxSize(self):
         protTomoExtraction = self._runXmippTomoExtraction(boxSize=64)
-        output =protTomoExtraction.outputSetOfSubtomogram
+        output =getattr(protTomoExtraction, OUTPUTATTRIBUTE)
+        self.assessOutput(output)
+
+    def test_extractParticlesFromDifferentTomogram(self):
+        protTomoExtraction = self._runXmippTomoExtraction(differenttomogram=True)
+        output =getattr(protTomoExtraction, OUTPUTATTRIBUTE)
         self.assessOutput(output)
 
 

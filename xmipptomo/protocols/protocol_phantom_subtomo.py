@@ -32,12 +32,13 @@ from pwem.convert.transformations import euler_matrix
 from pwem.objects.data import Transform, Integer
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
+from pyworkflow.protocol.params import LEVEL_ADVANCED,IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D, \
-    SetOfTomograms
+from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D
+
 import tomo.constants as const
 from pwem.convert.headers import setMRCSamplingRate
+from pyworkflow.object import Pointer
 
 FN_PARAMS = 'projection.params'
 FN_PHANTOM_DESCR = 'phantom.descr'
@@ -89,6 +90,12 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         form.addParam('mwangle', IntParam, label='Missing wedge angle', default=60,
                       condition='mwfilter==True and (not simulateTiltSeries)',
                       help='Missing wedge (along y) for data between +- this angle.')
+
+        form.addBooleanParam('randomseed', 'Force a randomization seed',
+                             'Activate to force same random results (useful for tests).',
+                             default=False,
+                             expertLevel=LEVEL_ADVANCED)
+
         # Angles
         form.addSection(label='Rotation')
         form.addParam('rotate', BooleanParam, label='Apply rotation?', default=False,
@@ -203,7 +210,6 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
         self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnInVol)
 
-
     def definingOrientationsAndRegisteringInformation(self, dim, mwangle, fnVol):
         self.createOutputSet(dim)
         tomo = None
@@ -212,12 +218,19 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             tomos = self.tomos.get()
             tomo = tomos.getFirstItem()
             self.coordsSet = self._createSetOfCoordinates3D(tomos)
+            self.coordsSet.setSamplingRate(tomos.getSamplingRate())
+            point = Pointer(self)
+            point.setExtended(OutputPhantomSubtomos.outputCoord.name)
+            self.outputSet.setCoordinates3D(point)
             self._store(self.coordsSet)
 
         # Create acquisition
         acq = TomoAcquisition()
         acq.setAngleMax(mwangle)
         acq.setAngleMin(mwangle * -1)
+
+        if self.randomseed.get():
+            np.random.seed(42)
 
         for i in range(int(self.nsubtomos.get())):
             fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
@@ -240,9 +253,6 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
             # Add the subtomogram and the coordinate if applies
             self._addSubtomogram(tomo, acq, fn_aux, rot, tilt, psi, shiftX, shiftY, shiftZ)
-
-        if coordsBool:
-            self.outputSet.setCoordinates3D(self.coordsSet)
 
     def createGeometricalPhantom(self):
         fnVol = self._getExtraPath(FN_PHANTOM+MRC_EXT)
@@ -285,7 +295,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                 tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
                 psi = np.random.randint(self.psimin.get(), self.psimax.get())
                 rotErr = rot
-                tiltErr = rot
+                tiltErr = tilt
 
         if self.applyShift:
             # Shifts
@@ -416,12 +426,12 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         return self.coords.get()
 
     def createOutputStep(self):
-        self._defineOutputs(outputSubtomograms=self.outputSet)
+        self._defineOutputs(**{OutputPhantomSubtomos.outputSubtomograms.name: self.outputSet})
         if self.option.get() == 0:
             self._defineSourceRelation(self.inputVolume.get(), self.outputSet)
         if self.generateCoordinates():
-            self._defineOutputs(outputCoord=self.coordsSet)
-            self._defineSourceRelation(self.tomos.get(), self.outputSet)
+            self._defineOutputs(**{OutputPhantomSubtomos.outputCoord.name: self.coordsSet})
+            self._defineSourceRelation(self.tomos.get(), self.coordsSet)
 
 
     def createParamsFile(self):
