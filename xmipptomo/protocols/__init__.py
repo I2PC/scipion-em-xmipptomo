@@ -34,6 +34,8 @@ from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
+from .protocol_denoising_confidence import XmippProtConfTomo
+from .protocol_extract_particlestacks import XmippProtExtractParticleStacks
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
 from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_flexalign import XmippProtTsFlexAlign
@@ -50,6 +52,7 @@ from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
 from .protocol_half_maps_subtomos import XmippProtHalfMapsSubtomo
+
 
 
 

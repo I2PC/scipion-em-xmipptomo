@@ -33,10 +33,17 @@ import os
 
 import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
-from pwem.emlib import lib
 import numpy as np
+from pwem.emlib import lib
 import pwem.emlib.metadata as md
+from pwem.emlib.image import ImageHandler
+import pyworkflow as pw
+from pyworkflow.object import Set
 from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+
+OUTPUT_TILTSERIES_NAME = "TiltSeries"
+OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
+
 from pwem.objects import Transform
 
 
@@ -100,31 +107,38 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
                              'y': ci[1],
                              'z': ci[2]})
 
-def xmdToTiltSeries(fnXmd, sampling=1, tsid='defaulttsId'):
+
+def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defaulttsId', suffix=''):
     """
-    This function takes a metadata files as input and stores the Tilt Series in the SQLite database
+    This function takes a metadata files as input and stores the Tilt Series
     """
     mdts = md.MetaData(fnXmd)
-    counter = 0
-    print('entro')
-    for objId in md:
-        fnImg = mdts.getValue(lib.MDL_IMAGE, objId)
+    counter = 1
+
+    ih = ImageHandler()
+    newTs = TiltSeries(tsId=tsid)
+    newTs.copyInfo(inTs, copyId=True)
+    outputSetOfTs.append(newTs)
+    fnStack = os.path.join(odir, tsid + suffix +'.mrcs')
+
+    for objId in mdts:
+        fnImg = os.path.join(odir, mdts.getValue(lib.MDL_IMAGE, objId))
         tilt = mdts.getValue(lib.MDL_ANGLE_TILT, objId)
-        #tsid = mdts.getValue(lib.MDL_TSID, objId)
 
-        if counter == 0:
-            newTs = TiltSeries(tsId=tsid)
-
-        newTs.copyInfo(tsid)
+        originalTi = inTs[counter]
         newTi = TiltImage()
-        newTi.setLocation(fnImg)
-        newTi.setTiltAngle(tilt)
+        newTi.copyInfo(originalTi, copyId=True, copyTM=True)
+        newTi.setOddEven([])
+
+        newLocation = (counter, fnStack)
+        ih.convert(fnImg, newLocation)
+        pw.utils.cleanPath(fnImg)
+        newTi.setLocation(newLocation)
+
         newTs.append(newTi)
         newTs.setSamplingRate(sampling)
         counter = counter + 1
-
     return newTs
-
 
 
 def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
@@ -135,9 +149,9 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
 
     tsid = ts.getTsId()
 
-    for item in ts:
-        transform = item.getTransform()
+    for index, item in enumerate(ts):
 
+        #transform = item.getTransform()
         #if transform is None:
         #    tm = convertMatrix(np.eye(4))
         #else:
@@ -148,18 +162,19 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
         fn = str(tiIndex) + "@" + item.getFileName()
         nRow = md.Row()
         nRow.setValue(lib.MDL_IMAGE, fn)
+        if ts.hasOddEven():
+            fnOdd  = item.getOdd()
+            fnEven = item.getEven()
+            nRow.setValue(lib.MDL_HALF1, fnOdd)
+            nRow.setValue(lib.MDL_HALF2, fnEven)
         nRow.setValue(lib.MDL_TSID, tsid)
         nRow.setValue(lib.MDL_ANGLE_TILT, item.getTiltAngle())
         # nRow.setValue(lib.MDL_ANGLE_ROT, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
         # alignmentToRow(Maq, nRow, ALIGN_PROJ)
         nRow.addToMd(mdts)
 
-    if ts is None:
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
-    else:
-        fnts = os.path.join(tomoPath, fnXmd)
 
-    print(fnts)
     mdts.write(fnts)
 
     return fnts
