@@ -246,7 +246,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         predictionArray = self.firstModel.predict(subtomoArray)
 
-        overallPrediction = self.determineOverallPrediction(predictionArray)
+        overallPrediction = self.determineOverallPrediction(predictionArray, overallCriteria=0)
 
         # print("first prediction array")
         # print(predictionArray)
@@ -255,7 +255,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if overallPrediction:
             predictionArray = self.secondModel.predict(subtomoArray)
 
-            overallPrediction = self.determineOverallPrediction(predictionArray)
+            overallPrediction = self.determineOverallPrediction(predictionArray, overallCriteria=1)
 
             # print("second prediction array")
             # print(predictionArray)
@@ -284,34 +284,47 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         print(self.firstModel.summary())
 
     @staticmethod
-    def determineOverallPrediction(predictionList):
-        # predictionClasses = np.round(predictionList)
-        #
-        # overallPrediction = 0
-        #
-        # for i in predictionClasses:
-        #     overallPrediction += i
-        #
-        # print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
-        #       str(predictionList.size - overallPrediction) + "misaligned")
-        #
-        # overallPrediction = overallPrediction / predictionList.size
-        #
-        # return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+    def determineOverallPrediction(predictionList, overallCriteria):
+        """
+        This method return an overall prediction based on the different singular predictions for each gold bead. This
+        can be estimated with a voting system (no considering the actual score value) or as the average of the obtained
+        scores for each gold beads.
+        :param predictionList: vector with the score values predicted for each gold bead
+        :param overallCriteria: criteria to be used to calculate the overall prediction as the most voted option (0) or
+        the average of all the scores (1)
+        :return: bool indicating if the tomogram present misalignment or not
+        """
 
-        overallPrediction = 0
+        if overallCriteria == 0:
+            predictionClasses = np.round(predictionList)
 
-        print("prediction list:")
-        print(predictionList)
+            overallPrediction = 0
 
-        for i in predictionList:
-            overallPrediction += i
+            for prediction in predictionClasses:
+                overallPrediction += prediction
 
-        overallPrediction = overallPrediction / predictionList.size
+            print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
+                  str(predictionList.size - overallPrediction) + "misaligned")
 
-        print("Subtomo analysis preditcion: " + str(overallPrediction))
+            overallPrediction = overallPrediction / predictionList.size
 
-        return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+            return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+
+        elif overallCriteria == 1:
+            overallPrediction = 0
+
+            print("prediction list:")
+            print(predictionList)
+
+            for prediction in predictionList:
+                overallPrediction += prediction
+
+            overallPrediction = overallPrediction / predictionList.size
+
+            print("Subtomo analysis preditcion: " + str(overallPrediction))
+
+            return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+
     def getOutputSetOfAlignedTomograms(self):
         if self.alignedTomograms:
             self.alignedTomograms.enableAppend()
