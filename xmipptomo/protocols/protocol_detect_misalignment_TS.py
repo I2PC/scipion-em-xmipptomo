@@ -85,7 +85,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('thrSDHCC',
                       params.FloatParam,
                       advanced=True,
-                      default=5,
+                      default=3,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
