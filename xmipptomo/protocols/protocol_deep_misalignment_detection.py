@@ -285,7 +285,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if overallPrediction:
             secondPredictionArray = self.secondModel.predict(subtomoArray)
 
-            overallPrediction = self.determineOverallPrediction(secondPredictionArray, overallCriteria=1)
+            overallPrediction = self.determineOverallPrediction(secondPredictionArray, overallCriteria=0)
 
             # print("second prediction array")
             # print(secondPredictionArray)
