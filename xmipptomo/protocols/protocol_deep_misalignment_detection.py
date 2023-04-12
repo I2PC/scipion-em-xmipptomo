@@ -291,6 +291,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             # print(secondPredictionArray)
             # print("second overall prediction " + str(overallPrediction))
 
+        else:
+            secondPredictionArray = np.full(firstPredictionArray.shape(), -1)
+
         return overallPrediction, firstPredictionArray, secondPredictionArray
 
     def addTomoToOutput(self, tomo, overallPrediction):
