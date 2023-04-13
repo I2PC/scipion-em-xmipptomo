@@ -31,7 +31,7 @@ from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.object import Set, Float
-from pyworkflow.protocol import FileParam, PointerParam, EnumParam
+from pyworkflow.protocol import FileParam, PointerParam, EnumParam, FloatParam, BooleanParam
 from tomo import constants
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, SubTomogram, Coordinate3D
 from tomo.protocols import ProtTomoBase
@@ -54,7 +54,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alignedTomograms = None
-        self.misalignedTomograms = None
+        self.strongMisalignedTomograms = None
+        self.weakMisalignedTomograms = None
         self.outputSubtomos = None
         self.outputSubtomosBis = None
         self.isot = None
@@ -90,14 +91,24 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                       help='Tomograms from which extract the fiducials (gold beads) at the specified coordinates '
                            'locations.')
 
-        # form.addParam('inputSetOfSubTomograms',
-        #               PointerParam,
-        #               pointerClass='SetOfSubTomograms',
-        #               important=True,
-        #               label='Input set of subtomos',
-        #               help='Set of 3D coordinates of the location of the fiducials used to predict if the tomogram '
-        #                    'presents misalignment.')
+        form.addParam('misaliThrBool',
+                      BooleanParam,
+                      default=True,
+                      label='Use misalignment threshold?',
+                      help='Threshold to settle if a tomogram presents weak or strong misalignment. If this value is '
+                           'not provided two output set of tomograms are generated, those discarded which present '
+                           'strong misalignment and those which do not. If this value is provided the second group of '
+                           'tomograms is splitted into two, using this threshold to settle if the tomograms present'
+                           'or not a weak misalignment.')
 
+        form.addParam('misaliThr',
+                      FloatParam,
+                      default=0.42,
+                      condition='misaliThrBool==True',
+                      label='Misalignment threshold',
+                      help='Threshold value to settle if a tomogram presents weak or strong misalignment.')
+
+        # Only for devel purposes
         form.addParam('firstModelPath', FileParam,
                       label='Input model for first split',
                       help='Input model for first split prediction')
@@ -228,9 +239,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.alignedTomograms.write()
 
-        if self.misalignedTomograms:
-            self.misalignedTomograms.setStreamState(Set.STREAM_CLOSED)
-            self.misalignedTomograms.write()
+        if self.weakMisalignedTomograms:
+            self.weakMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.weakMisalignedTomograms.write()
+
+        if self.strongMisalignedTomograms:
+            self.strongMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
+            self.strongMisalignedTomograms.write()
 
         self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
         self.outputSubtomos.write()
@@ -256,6 +271,14 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         return tomoDict
 
     def makePrediction(self, subtomoPathList):
+        """
+        :param subtomoPathList: list to every subtomo extracted to be analyzed
+        :return: overallPrediction: alignment statement for the whole tomograms obtained from the estimations of each
+        subtomo:
+            1: strong misalignment (first split negative)
+            2: weak misalignment (second split negative). Implies the existence of an input alignment threshold
+            3: alignment (second split positive)
+        """
         ih = ImageHandler()
 
         numberOfSubtomos = len(subtomoPathList)
@@ -280,6 +303,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         overallPrediction, predictionAverage = self.determineOverallPrediction(firstPredictionArray, overallCriteria=1)
 
+        if not overallPrediction:
+            overallPrediction = 1  # Strong misalignment
+
         # print("first prediction array")
         # print(firstPredictionArray)
         # print("first overall prediction " + str(overallPrediction))
@@ -287,28 +313,43 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if overallPrediction:
             secondPredictionArray = self.secondModel.predict(subtomoArray)
 
-            overallPrediction, predictionAverage = self.determineOverallPrediction(secondPredictionArray, overallCriteria=1)
+            overallPrediction, predictionAverage = self.determineOverallPrediction(secondPredictionArray,
+                                                                                   overallCriteria=1)
+
+            if self.misaliThrBool.get():  # Using threshold
+
+                if predictionAverage > self.misaliThr.get():
+                    overallPrediction = 3  # Alignment
+                else:
+                    overallPrediction = 2  # Weak misalignment
 
             # print("second prediction array")
             # print(secondPredictionArray)
             # print("second overall prediction " + str(overallPrediction))
 
         else:
+            # Set misalignment score to -1 for those subtomos removed by the first network
             secondPredictionArray = np.full(firstPredictionArray.shape, -1)
 
         return overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray
 
     def addTomoToOutput(self, tomo, overallPrediction):
-        if overallPrediction:  # Ali
+        if overallPrediction == 1:  # Strong misali
+            self.getOutputSetOfStrongMisalignedTomograms()
+            self.strongMisalignedTomograms.append(tomo)
+            self.strongMisalignedTomograms.write()
+            self._store()
+
+        elif overallPrediction == 2:  # Weak misali
+            self.getOutputSetOfWeakMisalignedTomograms()
+            self.weakMisalignedTomograms.append(tomo)
+            self.weakMisalignedTomograms.write()
+            self._store()
+
+        elif overallPrediction == 3:  # Ali
             self.getOutputSetOfAlignedTomograms()
             self.alignedTomograms.append(tomo)
             self.alignedTomograms.write()
-            self._store()
-
-        else:  # Misali
-            self.getOutputSetOfMisalignedTomograms()
-            self.misalignedTomograms.append(tomo)
-            self.misalignedTomograms.write()
             self._store()
 
     def loadModels(self):
@@ -349,7 +390,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             # aligned (1) or misaligned (0)
             return (True if overallPrediction > 0.5 else False), predictionAvg
 
-        #
         elif overallCriteria == 1:
             print("prediction list:")
             print(predictionList)
@@ -375,21 +415,37 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         return self.alignedTomograms
 
-    def getOutputSetOfMisalignedTomograms(self):
-        if self.misalignedTomograms:
-            self.misalignedTomograms.enableAppend()
+    def getOutputSetOfStrongMisalignedTomograms(self):
+        if self.strongMisalignedTomograms:
+            self.strongMisalignedTomograms.enableAppend()
 
         else:
-            misalignedTomograms = self._createSetOfTomograms(suffix='Misali')
+            strongMisalignedTomograms = self._createSetOfTomograms(suffix='StrongMisali')
 
-            misalignedTomograms.copyInfo(self.isot)
+            strongMisalignedTomograms.copyInfo(self.isot)
 
-            misalignedTomograms.setStreamState(Set.STREAM_OPEN)
+            strongMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
 
-            self._defineOutputs(misalignedTomograms=misalignedTomograms)
-            self._defineSourceRelation(self.isot, misalignedTomograms)
+            self._defineOutputs(strongMisalignedTomograms=strongMisalignedTomograms)
+            self._defineSourceRelation(self.isot, strongMisalignedTomograms)
 
-        return self.misalignedTomograms
+        return self.strongMisalignedTomograms
+
+    def getOutputSetOfWeakMisalignedTomograms(self):
+        if self.weakMisalignedTomograms:
+            self.weakMisalignedTomograms.enableAppend()
+
+        else:
+            weakMisalignedTomograms = self._createSetOfTomograms(suffix='WeakMisali')
+
+            weakMisalignedTomograms.copyInfo(self.isot)
+
+            weakMisalignedTomograms.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(weakMisalignedTomograms=weakMisalignedTomograms)
+            self._defineSourceRelation(self.isot, weakMisalignedTomograms)
+
+        return self.weakMisalignedTomograms
 
     def getOutputSetOfSubtomos(self):
         if self.outputSubtomos:
