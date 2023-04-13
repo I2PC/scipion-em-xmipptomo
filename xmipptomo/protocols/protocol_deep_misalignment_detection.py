@@ -166,11 +166,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         self.loadModels()
 
-        overallPrediction, firstPredictionArray, secondPredictionArray = self.makePrediction(subtomoPathList)
+        overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray = \
+            self.makePrediction(subtomoPathList)
 
         print("For volume id " + str(tsId) + " obtained prediction from " +
               str(len(subtomoPathList)) + " subtomos is " + str(overallPrediction))
 
+        tomo._misaliScore = Float(predictionAverage)
         self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
 
         # -------------------------------------------------------------------------------------FS
@@ -276,7 +278,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         firstPredictionArray = self.firstModel.predict(subtomoArray)
 
-        overallPrediction = self.determineOverallPrediction(firstPredictionArray, overallCriteria=0)
+        overallPrediction, predictionAverage = self.determineOverallPrediction(firstPredictionArray, overallCriteria=0)
 
         # print("first prediction array")
         # print(firstPredictionArray)
@@ -285,7 +287,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if overallPrediction:
             secondPredictionArray = self.secondModel.predict(subtomoArray)
 
-            overallPrediction = self.determineOverallPrediction(secondPredictionArray, overallCriteria=0)
+            overallPrediction, predictionAverage = self.determineOverallPrediction(secondPredictionArray, overallCriteria=0)
 
             # print("second prediction array")
             # print(secondPredictionArray)
@@ -294,7 +296,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         else:
             secondPredictionArray = np.full(firstPredictionArray.shape, -1)
 
-        return overallPrediction, firstPredictionArray, secondPredictionArray
+        return overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray
 
     def addTomoToOutput(self, tomo, overallPrediction):
         if overallPrediction:  # Ali
@@ -326,7 +328,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         :param overallCriteria: criteria to be used to calculate the overall prediction as the most voted option (0) or
         the average of all the scores (1)
         :return: bool indicating if the tomogram present misalignment or not
+        :return average of the predicted scores
         """
+
+        predictionAvg = np.average(predictionList)
 
         if overallCriteria == 0:
             predictionClasses = np.round(predictionList)
@@ -341,22 +346,18 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             overallPrediction = overallPrediction / predictionList.size
 
-            return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+            # aligned (1) or misaligned (0)
+            return (True if overallPrediction > 0.5 else False), predictionAvg
 
+        #
         elif overallCriteria == 1:
-            overallPrediction = 0
-
             print("prediction list:")
             print(predictionList)
 
-            for prediction in predictionList:
-                overallPrediction += prediction
+            print("Subtomo analysis preditcion: " + str(predictionAvg))
 
-            overallPrediction = overallPrediction / predictionList.size
-
-            print("Subtomo analysis preditcion: " + str(overallPrediction))
-
-            return True if overallPrediction > 0.5 else False  # aligned (1) or misaligned (0)
+            # aligned (1) or misaligned (0)
+            return (True if predictionAvg > 0.5 else False), predictionAvg
 
     def getOutputSetOfAlignedTomograms(self):
         if self.alignedTomograms:
