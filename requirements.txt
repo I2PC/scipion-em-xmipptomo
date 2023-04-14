@@ -1,3 +1,4 @@
 scipion-em-xmipp
 scipion-em-tomo
 scipion-em >= 3.0.8
+scipion-em-imod
