@@ -103,7 +103,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         form.addParam('misaliThr',
                       FloatParam,
-                      default=0.42,
+                      default=0.45,
                       condition='misaliThrBool==True',
                       label='Misalignment threshold',
                       help='Threshold value to settle if a tomogram presents weak or strong misalignment.')
