@@ -35,7 +35,7 @@ from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms,
                             ProtImportSubTomograms,
-                            ProtImportTs)
+                            ProtImportTs, TomoProtFitEllipsoid)
 
 
 from xmipptomo.protocols import XmippProtSubtomoProject, XmippProtConnectedComponents, XmippProtApplyTransformSubtomo, \
@@ -277,7 +277,7 @@ class XmippTomoScoreCoordinates(BaseTest):
                                               samplingRate=2,
                                               objLabel='Import Tomogram')
         self.launchProtocol(protImportTomogram)
-        self.assertSetSize(protImportTomogram.Tomograms,
+        self.assertSetSize(protImportTomogram.Tomograms, size=1, msg=
                              "There was a problem with import tomograms output")
 
         protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
@@ -443,7 +443,7 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         self.assertTrue(subtraction.outputSubtomograms.getFirstItem().getDim() == (40, 40, 40))
 
 class TestXmipptomoProtCCtoROI(BaseTest):
-    """ This class check if the protocol connected componnents to ROIs works properly."""
+    """ This class check if the protocol connected components to ROIs works properly."""
 
     @classmethod
     def setUpClass(cls):
@@ -485,7 +485,7 @@ class TestXmipptomoProtCCtoROI(BaseTest):
         self.assertIsNotNone(protJoinCoordinates.outputSet,
                              "There was a problem with join coordinates output")
 
-        protFitVesicles = self.newProtocol(XmippProtFitEllipsoid,
+        protFitVesicles = self.newProtocol(TomoProtFitEllipsoid,
                                            input=protJoinCoordinates.outputSet,
                                            inputTomos=protImportTomogram.Tomograms)
         self.launchProtocol(protFitVesicles)
