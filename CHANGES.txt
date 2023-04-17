@@ -1,3 +1,6 @@
+V3.23.03.3:
+ - Fit vesicles removed (moved to tomo)
+ -
 V3.23.03.2:
  - Mapback scales any reference to match the tomogram sampling.
 V3.23.03.1:
