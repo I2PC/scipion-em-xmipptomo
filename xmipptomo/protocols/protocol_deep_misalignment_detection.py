@@ -306,11 +306,14 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if not overallPrediction:
             overallPrediction = 1  # Strong misalignment
 
+            # Set misalignment score to -1 if subtomos removed by the first network
+            secondPredictionArray = np.full(firstPredictionArray.shape, -1)
+
         # print("first prediction array")
         # print(firstPredictionArray)
         # print("first overall prediction " + str(overallPrediction))
 
-        if overallPrediction:
+        else:
             secondPredictionArray = self.secondModel.predict(subtomoArray)
 
             overallPrediction, predictionAverage = self.determineOverallPrediction(secondPredictionArray,
@@ -326,10 +329,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             # print("second prediction array")
             # print(secondPredictionArray)
             # print("second overall prediction " + str(overallPrediction))
-
-        else:
-            # Set misalignment score to -1 for those subtomos removed by the first network
-            secondPredictionArray = np.full(firstPredictionArray.shape, -1)
 
         return overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray
 
