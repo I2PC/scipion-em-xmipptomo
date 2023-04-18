@@ -31,7 +31,6 @@ import tomo.protocols
 from xmipptomo.protocols.protocol_extract_subtomos import OUTPUTATTRIBUTE
 from xmipptomo.protocols import XmippProtExtractSubtomos
 
-
 class TestXmippProtExtractSubtomosBase(BaseTest):
     @classmethod
     def setUpClass(cls):

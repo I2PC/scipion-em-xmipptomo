@@ -89,7 +89,7 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
-    
+
 def removeTmpElements(tmpElements):
     """This function removes all given temporary files and directories."""
     # Removing selected elements
