@@ -83,15 +83,15 @@ class TestXmippProtProjectSubtomograms(TestXmippProtExtractSubtomosProts):
 
     def _runXmippProjectSubtomograms(self):
         """This function creates and runs a XmippProtProjectSubtomograms protocol with controlled params."""
-        protXmippTomoToSPA = self.newProtocol(
+        protXmippProjectSubtomograms = self.newProtocol(
             XmippProtProjectSubtomograms,
             inputSubtomograms=self.subtomograms,
             tiltRangeNSamples=40
         )
-        self.launchProtocol(protXmippTomoToSPA)
-        self.assertIsNotNone(getattr(protXmippTomoToSPA, PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE, None), "Projections were not properly generated.")
+        self.launchProtocol(protXmippProjectSubtomograms)
+        self.assertIsNotNone(getattr(protXmippProjectSubtomograms, PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE, None), "Projections were not properly generated.")
     
-    def test_tomoToSPA(self):
+    def test_projectSubtomos(self):
         """This function runs XmippProtProjectSubtomograms using the output of XmippExtractSubtomos as input."""
         self._runXmippProjectSubtomograms()
         # Last test calls cleaning function so it does not count as a separate test
