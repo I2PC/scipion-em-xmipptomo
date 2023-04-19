@@ -27,13 +27,8 @@
 This module contains utils functions for xmipp tomo protocols
 """
 
-import math
-import csv
-
-import emtable
+import math, csv, emtable, os, shutil
 from tomo.constants import BOTTOM_LEFT_CORNER
-from pwem import emlib
-
 
 def calculateRotationAngleFromTM(ti):
     """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
@@ -94,3 +89,13 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
+
+def removeTmpElements(tmpElements):
+    """This function removes all given temporary files and directories."""
+    # Removing selected elements
+    for item in tmpElements:
+        if os.path.exists(item):
+            if os.path.isdir(item):
+                shutil.rmtree(item)
+            else:
+                os.remove(item)
