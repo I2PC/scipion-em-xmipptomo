@@ -286,8 +286,13 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         This function retuns the first two dimensions of the subtomograms.
         """
-        dimensions = self.inputSubtomograms.get().getFirstItem().getDimensions()
-        return '{} {}'.format(dimensions[0], dimensions[1])
+        try:
+            dimensions = self.inputSubtomograms.get().getFirstItem().getDimensions()
+            return '{} {}'.format(dimensions[0], dimensions[1])
+        except TypeError:
+            errorMessage = " ".join(["No subtomograms were received. Check the output of the previous protocol.",
+                                     "If you are using the integrated test, run the extract subtomos's test first."])
+            raise Exception(errorMessage)
 
     def getXmippParamPath(self):
         """
