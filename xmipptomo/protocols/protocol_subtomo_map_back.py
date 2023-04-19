@@ -26,6 +26,8 @@
 # *
 # **************************************************************************
 import enum
+import os
+
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
@@ -94,7 +96,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                            "Relion and Eman require white particles over a black background. ")
         form.addParam('paintingType', EnumParam,
                       choices=['Copy', 'Average', 'Highlight', 'Binarize'],
-                      default=PAINTING_TYPES.COPY, important=True,
+                      default=PAINTING_TYPES.HIGHLIGHT, important=True,
                       display=EnumParam.DISPLAY_HLIST,
                       label='Painting mode',
                       help='The program has several painting options:\n*Copy*: Copying the reference onto the tomogram.'
@@ -140,9 +142,19 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         # img = ImageHandler()
         # img.convert(sourceRef, fnRef)
 
+        refSampling = self.inputRef.get().getSamplingRate()
+        tomoSampling = self.getInputSetOfTomograms().getSamplingRate()
+        # for xmipp 0.5 means halving, 2 means doubling
+        factor = refSampling/tomoSampling
         if invertContrast:
             self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRef, fnRef))
-        else:
+            sourceRef = fnRef
+
+        if factor != 1:
+            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRef, factor, fnRef))
+
+
+        if not os.path.exists(fnRef):
             createLink(sourceRef, fnRef)
 
     def getSourceReferenceFn(self):

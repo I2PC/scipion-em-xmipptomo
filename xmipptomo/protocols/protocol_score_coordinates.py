@@ -74,8 +74,8 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                       label="Score carbon closeness?")
         form.addParam('carbonThreshold', params.FloatParam, default=0.8,
                       label="Carbon distance threshold", condition='carbon == True and filter == 1',
-                      help='Score value between 0 and 1. Only coordinates with a score largen than or equal '
-                           'to the tresghold will be kept in the output')
+                      help='Score value between 0 and 1. Only coordinates with a score larger than or equal '
+                           'to the threshold will be kept in the output')
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
@@ -149,7 +149,6 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
         for coord in coordinates.iterCoordinates():
             newCoord = coord.clone()
-            newCoord.setBoxSize(outSet.getBoxSize())
             newCoord.setVolume(coord.getVolume())
             scoreCoordOutlier = scoreOutliers[coord.getObjId()] if scoreOutliers else None
             scoreCoordCarbon = scoreCarbon[coord.getObjId()] if scoreCarbon else None
