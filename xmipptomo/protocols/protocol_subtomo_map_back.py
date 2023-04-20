@@ -344,15 +344,15 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     def _validate(self):
         validateMsgs = []
         if self._useClasses():
-            for subtomo in self.inputClasses.get().getFirstItem().iterItems():
-                if not subtomo.hasCoordinate3D():
-                    validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
-                    break
-                if not subtomo.hasTransform():
-                    validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
-                    break
+            subtomo = self.inputClasses.get().getFirstItem().getFirstItem()
+            if not subtomo.hasCoordinate3D():
+                validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
+
+            if not subtomo.hasTransform():
+                validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
+
         else:
-            if not self.inputRef:
+            if not self.inputRef.get():
                 validateMsgs.append("When using coordinates or subtomograms the %s is mandatory." % REFERENCE)
 
             if self._isInputASetOfSubtomograms():
@@ -360,9 +360,6 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                 if not subtomo.hasCoordinate3D():
                     validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
                                             'coordinates.')
-                if not subtomo.hasTransform():
-                    validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with '
-                                            'alignment.')
         return validateMsgs
 
     def _summary(self):
