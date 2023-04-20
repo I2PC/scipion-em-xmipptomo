@@ -579,7 +579,8 @@ class TestXmipptomoSplitTS(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.inputDataSet = DataSet.getDataSet('tomo-em')
-        cls.inputSoTS = cls.inputDataSet.getFile('ts1_imod')
+        cls.inputSoTS = cls.inputDataSet.getFile('tutorialData/BB*.st')
+
 
     def runWorkflow(self):
         protImportTS = self.newProtocol(ProtImportTs,
