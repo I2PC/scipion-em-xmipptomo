@@ -203,7 +203,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             subtomogram.setCoordinate3D(newCoord3D)
             subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
             subtomogram.setVolName(tomo.getTsId())
-            subtomogram._misaliScore = Float(firstPredictionArray[i])
+            subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
+            subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
 
             self.outputSubtomos.append(subtomogram)
             self.outputSubtomos.write()
