@@ -39,7 +39,7 @@ from pyworkflow.protocol import STEPS_PARALLEL
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 from pyworkflow.utils import createLink
 
-from tomo.objects import Tomogram, SetOfCoordinates3D, SetOfSubTomograms, SetOfClassesSubTomograms, SubTomogram, \
+from tomo.objects import Tomogram, SetOfCoordinates3D, SetOfSubTomograms, SetOfClassesSubTomograms, ClassSubTomogram, \
     MATRIX_CONVERSION, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import alignmentToRow
@@ -138,34 +138,35 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     def prepareReference(self, invertContrast):
         """ Prepares the reference for the mapback"""
         fnRef = self.getFinalRefName()
-        sourceRef = self.getSourceReferenceFn()
+        refItem = self.getSourceReference()
+        sourceRefFn = refItem.getFileName()
+        refSampling = refItem.getSamplingRate()
 
         # Do we need this conversion!!
         # img = ImageHandler()
         # img.convert(sourceRef, fnRef)
 
-        refSampling = self.inputRef.get().getSamplingRate()
         tomoSampling = self.getInputSetOfTomograms().getSamplingRate()
         # for xmipp 0.5 means halving, 2 means doubling
         factor = refSampling/tomoSampling
         if invertContrast:
-            self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRef, fnRef))
-            sourceRef = fnRef
+            self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRefFn, fnRef))
+            sourceRefFn = fnRef
 
         if factor != 1:
-            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRef, factor, fnRef))
+            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRefFn, factor, fnRef))
 
 
         if not os.path.exists(fnRef):
-            createLink(sourceRef, fnRef)
+            createLink(sourceRefFn, fnRef)
 
-    def getSourceReferenceFn(self):
+    def getSourceReference(self):
         """ Returns the source reference file name: representative from the first class or the reference param"""
         if self._useClasses():
             firstClass = self.inputClasses.get().getFirstItem()
             return firstClass.getRepresentative()
         else:
-            return self.inputRef.get().getFileName()
+            return self.inputRef.get()
 
     def getFinalRefName(self):
         """ returns the final path of the reference"""
