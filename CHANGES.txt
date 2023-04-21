@@ -1,3 +1,9 @@
+V3.23.03.4:
+ - Mapback waits now when scheduled and not the reference is needed (validation added)
+
+V3.23.03.3:
+ - Fit vesicles removed (moved to tomo)
+
 V3.23.03.2:
  - Mapback scales any reference to match the tomogram sampling.
 V3.23.03.1:
@@ -50,10 +56,6 @@ V3.1.1:
 
    xmipptomo - Filter coordinates by map ( XmippProtFilterCoordinatesByMap ):
       Filter coordinate by map both given a mask or a resolucion map from a tomogram
-
-   xmipptomo - fit vesicles ( XmippProtFitEllipsoid ):
-      This protocol adjust a SetOfSubtomograms with coordinates assigned or a SetOfCoordinates3D, to a vesicle
-      (ellipsoid), defining regions of interest (SetOfMeshes) for each vesicle as output.
 
    xmipptomo - half maps ( XmippProtHalfMapsSubtomo ):
       Create half maps from a SetOfSubtomograms and its alignment

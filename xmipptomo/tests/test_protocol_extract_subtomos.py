@@ -67,12 +67,12 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
         protImportCoordinates3d = self.newProtocol(tomo.protocols.ProtImportCoordinates3D,
                                                    auto=IMPORT_FROM_EMAN,
                                                    filesPath=self.coords3D,
-                                                   importTomograms=protImportTomogram.outputTomograms,
+                                                   importTomograms=protImportTomogram.Tomograms,
                                                    filesPattern='', boxSize=32,
                                                    samplingRate=5)
 
         self.launchProtocol(protImportCoordinates3d)
-        self.assertSetSize(protImportTomogram.outputTomograms, 1,
+        self.assertSetSize(protImportTomogram.Tomograms, 1,
                            "There was a problem with tomogram output")
         self.assertSetSize(protImportCoordinates3d.outputCoordinates, 5,
                            "There was a problem with coordinates 3d output")
@@ -82,7 +82,7 @@ class TestXmippProtExtractSubtomos(TestXmippProtExtractSubtomosBase):
         protImportCoordinates3d, protImportTomogram = self._runImportCoordinatesAndTomograms()
         if differenttomogram:
             protTomoExtraction = self.newProtocol(XmippProtExtractSubtomos,
-                                                  tomograms=protImportTomogram.outputTomograms,
+                                                  tomograms=protImportTomogram.Tomograms,
                                                   coords=protImportCoordinates3d.outputCoordinates,
                                                   invertContrast=doInvert,
                                                   boxSize=boxSize)

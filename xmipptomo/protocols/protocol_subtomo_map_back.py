@@ -45,6 +45,8 @@ from tomo.protocols import ProtTomoBase
 from xmipp3.convert import alignmentToRow
 import tomo.constants as const
 
+REFERENCE = 'Reference'
+
 
 # Painting types
 class PAINTING_TYPES:
@@ -87,7 +89,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                       condition='selection==1', allowsNull=True,
                       help="Subtomograms to be mapped back, they should have alignment and coordinates.")
         form.addParam('inputRef', PointerParam, pointerClass="Volume, SubTomogram, AverageSubTomogram",
-                      label='Reference', condition='selection==1', allowsNull=True,
+                      label=REFERENCE, condition='selection==1', allowsNull=True,
                       help="Subtomogram reference, average, representative or initial model of the subtomograms.")
         form.addParam('inputTomograms', PointerParam, pointerClass="SetOfTomograms",
                       label='Original tomograms', help="Original tomograms from which the subtomograms were extracted", allowsNull=True)
@@ -342,21 +344,22 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     def _validate(self):
         validateMsgs = []
         if self._useClasses():
-            for subtomo in self.inputClasses.get().getFirstItem().iterItems():
-                if not subtomo.hasCoordinate3D():
-                    validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
-                    break
-                if not subtomo.hasTransform():
-                    validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
-                    break
-        elif self._isInputASetOfSubtomograms():
-            subtomo = self.inputSubtomos.get().getFirstItem()
+            subtomo = self.inputClasses.get().getFirstItem().getFirstItem()
             if not subtomo.hasCoordinate3D():
-                validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
-                                        'coordinates.')
+                validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
+
             if not subtomo.hasTransform():
-                validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with '
-                                        'alignment.')
+                validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
+
+        else:
+            if not self.inputRef.get():
+                validateMsgs.append("When using coordinates or subtomograms the %s is mandatory." % REFERENCE)
+
+            if self._isInputASetOfSubtomograms():
+                subtomo = self.inputSubtomos.get().getFirstItem()
+                if not subtomo.hasCoordinate3D():
+                    validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
+                                            'coordinates.')
         return validateMsgs
 
     def _summary(self):
