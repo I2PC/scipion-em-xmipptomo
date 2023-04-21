@@ -57,7 +57,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         self.strongMisalignedTomograms = None
         self.weakMisalignedTomograms = None
         self.outputSubtomos = None
-        self.outputSubtomosBis = None
         self.isot = None
 
     # --------------------------- DEFINE param functions ------------------------
@@ -186,7 +185,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         tomo._misaliScore = Float(predictionAverage)
         self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
 
-        # -------------------------------------------------------------------------------------FS
         # Generate output set of subtomograms with a prediction score
         self.getOutputSetOfSubtomos()
 
@@ -210,31 +208,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.outputSubtomos.write()
             self._store()
 
-        # -------------------------------------------------------------------------------------SS
-        # Generate output set of subtomograms with a prediction score
-        print(self.outputSubtomosBis)
-        self.getOutputSetOfSubtomosBis()
-        print(self.outputSubtomosBis)
-
-        for i, subtomoPath in enumerate(subtomoPathList):
-            newCoord3D = Coordinate3D()
-            newCoord3D.setVolume(tomo)
-            newCoord3D.setVolId(i)
-            newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
-
-            subtomogram = SubTomogram()
-            subtomogram.setLocation(subtomoPath)
-            subtomogram.setCoordinate3D(newCoord3D)
-            subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
-            subtomogram.setVolName(tomo.getTsId())
-            subtomogram._misaliScore = Float(secondPredictionArray[i])
-
-            self.outputSubtomosBis.append(subtomogram)
-            self.outputSubtomosBis.write()
-            self._store()
-
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
@@ -250,9 +223,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
         self.outputSubtomos.write()
-
-        self.outputSubtomosBis.setStreamState(Set.STREAM_CLOSED)
-        self.outputSubtomosBis.write()
 
         self._store()
 
@@ -463,23 +433,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self._defineSourceRelation(self.isot, outputSubtomos)
 
         return self.outputSubtomos
-
-    def getOutputSetOfSubtomosBis(self):
-        if self.outputSubtomosBis:
-            self.outputSubtomosBis.enableAppend()
-
-        else:
-            outputSubtomosBis = self._createSetOfSubTomograms(suffix="SS")
-
-            outputSubtomosBis.copyInfo(self.isot)
-            outputSubtomosBis.setSamplingRate(TARGET_SAMPLING_RATE)
-
-            outputSubtomosBis.setStreamState(Set.STREAM_OPEN)
-
-            self._defineOutputs(outputSubtomosBis=outputSubtomosBis)
-            self._defineSourceRelation(self.isot, outputSubtomosBis)
-
-        return self.outputSubtomosBis
 
     @staticmethod
     def getSubtomoPathList(coordFilePath):
