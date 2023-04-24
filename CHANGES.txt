@@ -1,4 +1,6 @@
 V3.23.03.4:
+ - Map back fix: works with 3d classes
+V3.23.03.4:
  - Mapback waits now when scheduled and not the reference is needed (validation added)
 
 V3.23.03.3:
