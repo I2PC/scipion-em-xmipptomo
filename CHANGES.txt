@@ -1,3 +1,6 @@
+V3.23.03.5:
+ - Map back fix: works with "other tomograms"
+
 V3.23.03.4:
  - Map back fix: works with 3d classes
 V3.23.03.4:
