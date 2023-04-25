@@ -243,7 +243,11 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
 
     def getTomogram(self, tsId):
         """ Returns a tomogram object based on its tsId"""
-        return self._getTomogramsInvolved()[tsId]
+        if self.inputTomograms.get() is None:
+
+            return self._getTomogramsInvolved()[tsId]
+        else:
+            return self.inputTomograms.get()[{Tomogram.TS_ID_FIELD:tsId}]
 
     def runMapBack(self, tsId, paintingType, removeBackground, threshold):
 
@@ -254,10 +258,14 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         self.removeTomogramBackground(tomo)
 
         input = self._getInput()
+        # Using subtomograms
+        usingSubtomograms = isinstance(input, SetOfSubTomograms)
 
-        inputSR = input.getSamplingRate()
+        inputSR=input.getCoordinates3D().getSamplingRate() if usingSubtomograms else input.getSamplingRate()
         tomoSR = tomo.getSamplingRate()
         scaleFactor = inputSR/tomoSR
+        self.info("Coordinates have to be multiplied by %s due to the sampling rate ratio"
+                  " between the coordinates and the tomograms used." % scaleFactor)
         mdGeometry = lib.MetaData()
 
         ref = self.getFinalRefName()
@@ -270,38 +278,27 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             self.runJob("xmipp_image_operate", " -i %s  --mult %d -o %s" %
                         (initialref, self.constant.get(), ref))
 
-        # Using subtomograms
-        usingSubtomograms = isinstance(input, SetOfSubTomograms)
 
         where = "_coordinate._tomoId='%s'" if usingSubtomograms else "_tomoId='%s'"
         where = where % tsId
 
-        for item in input.iterItems(where=where):
-            self.debug("Mapping back %s" % item)
-            if usingSubtomograms:
-                coord = item.getCoordinate3D()
-                # A coordinte does not have an objId in this case, we set it
-                coord.setObjId(item.getObjId())
-                transform = item.getTransform(convention=MATRIX_CONVERSION.XMIPP)
-            else: # Coordinate
-                coord = item
-                transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
+        for coord in input.iterCoordinates(volume=tomo):
+            self.debug("Mapping back %s" % coord)
+            transform = Transform(matrix=coord.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
 
-            if coord.getVolId() == tomo.getObjId() \
-                    or coord.getTomoId() == tomo.getTsId():
-                nRow = md.Row()
-                nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
-                coord.setVolume(tomo)
-                nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                # Compute inverse matrix
-                #A = subtomo.getTransform().getMatrix()
-                #subtomo.getTransform().setMatrix(np.linalg.inv(A))
-                # Convert transform matrix to Euler Angles (rot, tilt, psi)
-                from pwem import ALIGN_PROJ
-                alignmentToRow(transform, nRow, ALIGN_PROJ)
-                nRow.addToMd(mdGeometry)
+            nRow = md.Row()
+            nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
+            nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            # Compute inverse matrix
+            #A = subtomo.getTransform().getMatrix()
+            #subtomo.getTransform().setMatrix(np.linalg.inv(A))
+            # Convert transform matrix to Euler Angles (rot, tilt, psi)
+            from pwem import ALIGN_PROJ
+            alignmentToRow(transform, nRow, ALIGN_PROJ)
+            nRow.addToMd(mdGeometry)
+
         fnGeometry = self._getExtraPath("geometry%s.xmd" % tsId)
         mdGeometry.write(fnGeometry)
 
