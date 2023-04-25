@@ -1,8 +1,9 @@
-V3.23.03.5:
+V3.23.03.6:
  - Map back fix: works with "other tomograms"
 
-V3.23.03.4:
+V3.23.03.5:
  - Map back fix: works with 3d classes
+
 V3.23.03.4:
  - Mapback waits now when scheduled and not the reference is needed (validation added)
 
