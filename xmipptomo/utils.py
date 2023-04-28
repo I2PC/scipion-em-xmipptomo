@@ -29,10 +29,15 @@ This module contains utils functions for xmipp tomo protocols
 
 import math
 import csv
+import os
 
 import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
-from pwem import emlib
+from pwem.emlib import lib
+import numpy as np
+import pwem.emlib.metadata as md
+from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+from pwem.objects import Transform
 
 
 def calculateRotationAngleFromTM(ti):
@@ -41,7 +46,7 @@ def calculateRotationAngleFromTM(ti):
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
 
     return rotationAngle
 
@@ -55,7 +60,7 @@ def readXmdStatisticsFile(fnmd):
 
     table = emtable.Table(fileName=fnmd)
 
-    for row in table.iterRows(fileName='noname@'+fnmd):
+    for row in table.iterRows(fileName='noname@' + fnmd):
         avg.append(row.get('avg'))
         std.append(row.get('stddev'))
         x_pos.append(row.get('xcoor'))
@@ -94,3 +99,68 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
             writer.writerow({'x': ci[0],
                              'y': ci[1],
                              'z': ci[2]})
+
+def xmdToTiltSeries(fnXmd, sampling=1, tsid='defaulttsId'):
+    """
+    This function takes a metadata files as input and stores the Tilt Series in the SQLite database
+    """
+    mdts = md.MetaData(fnXmd)
+    counter = 0
+    print('entro')
+    for objId in md:
+        fnImg = mdts.getValue(lib.MDL_IMAGE, objId)
+        tilt = mdts.getValue(lib.MDL_ANGLE_TILT, objId)
+        #tsid = mdts.getValue(lib.MDL_TSID, objId)
+
+        if counter == 0:
+            newTs = TiltSeries(tsId=tsid)
+
+        newTs.copyInfo(tsid)
+        newTi = TiltImage()
+        newTi.setLocation(fnImg)
+        newTi.setTiltAngle(tilt)
+        newTs.append(newTi)
+        newTs.setSamplingRate(sampling)
+        counter = counter + 1
+
+    return newTs
+
+
+
+def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
+    """
+        Returns a metadata with the tilt series information, TsID, filename and tilt angle.
+    """
+    mdts = lib.MetaData()
+
+    tsid = ts.getTsId()
+
+    for item in ts:
+        transform = item.getTransform()
+
+        #if transform is None:
+        #    tm = convertMatrix(np.eye(4))
+        #else:
+        #    tm = transform.getMatrix(convention=MATRIX_CONVERSION.XMIPP)
+        #Maq = Transform(matrix=tm)
+
+        tiIndex = item.getLocation()[0]
+        fn = str(tiIndex) + "@" + item.getFileName()
+        nRow = md.Row()
+        nRow.setValue(lib.MDL_IMAGE, fn)
+        nRow.setValue(lib.MDL_TSID, tsid)
+        nRow.setValue(lib.MDL_ANGLE_TILT, item.getTiltAngle())
+        # nRow.setValue(lib.MDL_ANGLE_ROT, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
+        # alignmentToRow(Maq, nRow, ALIGN_PROJ)
+        nRow.addToMd(mdts)
+
+    if ts is None:
+        fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
+    else:
+        fnts = os.path.join(tomoPath, fnXmd)
+
+    print(fnts)
+    mdts.write(fnts)
+
+    return fnts
+
