@@ -27,25 +27,21 @@
 This module contains utils functions for xmipp tomo protocols
 """
 
+import shutil
 import math
 import csv
 import os
-
 import emtable
+
+import pyworkflow as pw
 from tomo.constants import BOTTOM_LEFT_CORNER
-import numpy as np
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
-import pyworkflow as pw
-from pyworkflow.object import Set
-from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+from tomo.objects import TiltSeries, TiltImage
 
 OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
-
-from pwem.objects import Transform
-
 
 def calculateRotationAngleFromTM(ti):
     """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
@@ -107,7 +103,6 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
                              'y': ci[1],
                              'z': ci[2]})
 
-
 def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defaulttsId', suffix=''):
     """
     This function takes a metadata files as input and stores the Tilt Series
@@ -139,7 +134,6 @@ def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defau
         newTs.setSamplingRate(sampling)
         counter = counter + 1
     return newTs
-
 
 def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
     """
@@ -179,3 +173,12 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
 
     return fnts
 
+def removeTmpElements(tmpElements):
+    """ This function removes all given temporary files and directories. """
+    # Removing selected elements
+    for item in tmpElements:
+        if os.path.exists(item):
+            if os.path.isdir(item):
+                shutil.rmtree(item)
+            else:
+                os.remove(item)
