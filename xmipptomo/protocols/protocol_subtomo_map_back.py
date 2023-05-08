@@ -39,11 +39,13 @@ from pyworkflow.protocol import STEPS_PARALLEL
 from pyworkflow.protocol.params import PointerParam, EnumParam, BooleanParam, FloatParam
 from pyworkflow.utils import createLink
 
-from tomo.objects import Tomogram, SetOfCoordinates3D, SetOfSubTomograms, SetOfClassesSubTomograms, SubTomogram, \
+from tomo.objects import Tomogram, SetOfCoordinates3D, SetOfSubTomograms, SetOfClassesSubTomograms, ClassSubTomogram, \
     MATRIX_CONVERSION, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from xmipp3.convert import alignmentToRow
 import tomo.constants as const
+
+REFERENCE = 'Reference'
 
 
 # Painting types
@@ -87,7 +89,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                       condition='selection==1', allowsNull=True,
                       help="Subtomograms to be mapped back, they should have alignment and coordinates.")
         form.addParam('inputRef', PointerParam, pointerClass="Volume, SubTomogram, AverageSubTomogram",
-                      label='Reference', condition='selection==1', allowsNull=True,
+                      label=REFERENCE, condition='selection==1', allowsNull=True,
                       help="Subtomogram reference, average, representative or initial model of the subtomograms.")
         form.addParam('inputTomograms', PointerParam, pointerClass="SetOfTomograms",
                       label='Original tomograms', help="Original tomograms from which the subtomograms were extracted", allowsNull=True)
@@ -136,34 +138,35 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     def prepareReference(self, invertContrast):
         """ Prepares the reference for the mapback"""
         fnRef = self.getFinalRefName()
-        sourceRef = self.getSourceReferenceFn()
+        refItem = self.getSourceReference()
+        sourceRefFn = refItem.getFileName()
+        refSampling = refItem.getSamplingRate()
 
         # Do we need this conversion!!
         # img = ImageHandler()
         # img.convert(sourceRef, fnRef)
 
-        refSampling = self.inputRef.get().getSamplingRate()
         tomoSampling = self.getInputSetOfTomograms().getSamplingRate()
         # for xmipp 0.5 means halving, 2 means doubling
         factor = refSampling/tomoSampling
         if invertContrast:
-            self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRef, fnRef))
-            sourceRef = fnRef
+            self.runJob("xmipp_image_operate", " -i %s  --mult -1 -o %s" % (sourceRefFn, fnRef))
+            sourceRefFn = fnRef
 
         if factor != 1:
-            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRef, factor, fnRef))
+            self.runJob("xmipp_image_resize", " -i %s  --factor %0.2f -o %s" % (sourceRefFn, factor, fnRef))
 
 
         if not os.path.exists(fnRef):
-            createLink(sourceRef, fnRef)
+            createLink(sourceRefFn, fnRef)
 
-    def getSourceReferenceFn(self):
+    def getSourceReference(self):
         """ Returns the source reference file name: representative from the first class or the reference param"""
         if self._useClasses():
             firstClass = self.inputClasses.get().getFirstItem()
             return firstClass.getRepresentative()
         else:
-            return self.inputRef.get().getFileName()
+            return self.inputRef.get()
 
     def getFinalRefName(self):
         """ returns the final path of the reference"""
@@ -240,7 +243,11 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
 
     def getTomogram(self, tsId):
         """ Returns a tomogram object based on its tsId"""
-        return self._getTomogramsInvolved()[tsId]
+        if self.inputTomograms.get() is None:
+
+            return self._getTomogramsInvolved()[tsId]
+        else:
+            return self.inputTomograms.get()[{Tomogram.TS_ID_FIELD:tsId}]
 
     def runMapBack(self, tsId, paintingType, removeBackground, threshold):
 
@@ -251,10 +258,14 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         self.removeTomogramBackground(tomo)
 
         input = self._getInput()
+        # Using subtomograms
+        usingSubtomograms = isinstance(input, SetOfSubTomograms)
 
-        inputSR = input.getSamplingRate()
+        inputSR=input.getCoordinates3D().getSamplingRate() if usingSubtomograms else input.getSamplingRate()
         tomoSR = tomo.getSamplingRate()
         scaleFactor = inputSR/tomoSR
+        self.info("Coordinates have to be multiplied by %s due to the sampling rate ratio"
+                  " between the coordinates and the tomograms used." % scaleFactor)
         mdGeometry = lib.MetaData()
 
         ref = self.getFinalRefName()
@@ -267,38 +278,27 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
             self.runJob("xmipp_image_operate", " -i %s  --mult %d -o %s" %
                         (initialref, self.constant.get(), ref))
 
-        # Using subtomograms
-        usingSubtomograms = isinstance(input, SetOfSubTomograms)
 
         where = "_coordinate._tomoId='%s'" if usingSubtomograms else "_tomoId='%s'"
         where = where % tsId
 
-        for item in input.iterItems(where=where):
-            self.debug("Mapping back %s" % item)
-            if usingSubtomograms:
-                coord = item.getCoordinate3D()
-                # A coordinte does not have an objId in this case, we set it
-                coord.setObjId(item.getObjId())
-                transform = item.getTransform(convention=MATRIX_CONVERSION.XMIPP)
-            else: # Coordinate
-                coord = item
-                transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
+        for coord in input.iterCoordinates(volume=tomo):
+            self.debug("Mapping back %s" % coord)
+            transform = Transform(matrix=coord.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
 
-            if coord.getVolId() == tomo.getObjId() \
-                    or coord.getTomoId() == tomo.getTsId():
-                nRow = md.Row()
-                nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
-                coord.setVolume(tomo)
-                nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
-                # Compute inverse matrix
-                #A = subtomo.getTransform().getMatrix()
-                #subtomo.getTransform().setMatrix(np.linalg.inv(A))
-                # Convert transform matrix to Euler Angles (rot, tilt, psi)
-                from pwem import ALIGN_PROJ
-                alignmentToRow(transform, nRow, ALIGN_PROJ)
-                nRow.addToMd(mdGeometry)
+            nRow = md.Row()
+            nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
+            nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)*scaleFactor))
+            # Compute inverse matrix
+            #A = subtomo.getTransform().getMatrix()
+            #subtomo.getTransform().setMatrix(np.linalg.inv(A))
+            # Convert transform matrix to Euler Angles (rot, tilt, psi)
+            from pwem import ALIGN_PROJ
+            alignmentToRow(transform, nRow, ALIGN_PROJ)
+            nRow.addToMd(mdGeometry)
+
         fnGeometry = self._getExtraPath("geometry%s.xmd" % tsId)
         mdGeometry.write(fnGeometry)
 
@@ -342,21 +342,22 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     def _validate(self):
         validateMsgs = []
         if self._useClasses():
-            for subtomo in self.inputClasses.get().getFirstItem().iterItems():
-                if not subtomo.hasCoordinate3D():
-                    validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
-                    break
-                if not subtomo.hasTransform():
-                    validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
-                    break
-        elif self._isInputASetOfSubtomograms():
-            subtomo = self.inputSubtomos.get().getFirstItem()
+            subtomo = self.inputClasses.get().getFirstItem().getFirstItem()
             if not subtomo.hasCoordinate3D():
-                validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
-                                        'coordinates.')
+                validateMsgs.append('Please provide a class which contains subtomograms with 3D coordinates.')
+
             if not subtomo.hasTransform():
-                validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with '
-                                        'alignment.')
+                validateMsgs.append('Please provide a class which contains subtomograms with alignment.')
+
+        else:
+            if not self.inputRef.get():
+                validateMsgs.append("When using coordinates or subtomograms the %s is mandatory." % REFERENCE)
+
+            if self._isInputASetOfSubtomograms():
+                subtomo = self.inputSubtomos.get().getFirstItem()
+                if not subtomo.hasCoordinate3D():
+                    validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
+                                            'coordinates.')
         return validateMsgs
 
     def _summary(self):
