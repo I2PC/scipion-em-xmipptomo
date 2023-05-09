@@ -92,6 +92,11 @@ jobs:
         BUILD_TESTS: True
       run: ${{ github.workspace }}/../scipion/scipion3 run ./xmipp noAsk
     
+    # Install scipion-em-xmipp, because scipion-em-xmipptomo depends on it
+    - name: Install scipion-em-xmipp
+      working-directory: ${{ github.workspace }}/../xmipp-bundle/src/scipion-em-xmipp
+      run: ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel
+    
     # Check out the repository in the pull request
     - name: Checkout repository
       uses: actions/checkout@v3
