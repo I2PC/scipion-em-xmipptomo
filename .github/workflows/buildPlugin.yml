@@ -89,7 +89,7 @@ jobs:
     - name: Compile Xmipp
       working-directory: ${{ github.workspace }}/../xmipp-bundle
       env:
-        BUILD_TESTS: True
+        BUILD_TESTS: False
       run: ${{ github.workspace }}/../scipion/scipion3 run ./xmipp noAsk
     
     # Install scipion-em-xmipp, because scipion-em-xmipptomo depends on it
