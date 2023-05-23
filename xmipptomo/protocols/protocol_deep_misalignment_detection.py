@@ -157,7 +157,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                               "--boxsize %(boxsize)d " \
                               "--threads %(threads)d " \
                               "-o %(outputPath)s " \
-                              "--downsample %(downsample)f" \
+                              "--downsample %(downsample)f " \
                               "--subtomo "
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
