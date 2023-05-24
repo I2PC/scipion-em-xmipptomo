@@ -30,23 +30,17 @@ Deep Consensus picking protocol suited for Cryo-ET
 """
 import os, time
 
-import xmipp3
-from xmipp3 import XmippProtocol
-from xmipp3.protocols.protocol_pick_noise import pickNoise_prepareInput, IN_COORDS_POS_DIR_BASENAME
-from xmipp3.convert import readSetOfParticles, writeSetOfParticles
-from xmipp3.convert import readSetOfCoordinates, writeSetOfCoordinates
-from xmipp3.convert import setXmippAttributes
+# Tomo-specific
+from tomo.protocols import ProtTomoPicking
+from tomo.objects import SetOfCoordinates3D
 
-from pwem import emlib
-from pwem.protocols import ProtParticlePicking, ProtUserSubSet
+# Needed for the GUI definition and pyworkflow objects
+from pyworkflow.protocol import params
+from pyworkflow import BETA
+from pyworkflow.object import Integer, Float
 
-
-from pyworkflow import VERSION_3_0
-import pyworkflow.utils as pwutils
-from pyworkflow.protocol import params, STATUS_NEW
-from pyworkflow import PROD, BETA
-
-from threading import Semaphore
+# TODO: probably import the program class from Xmipp3.protocols
+# Import the workers from the xmipp package
 
 # Define some descriptors
 AND = 'by_all'
@@ -54,7 +48,7 @@ OR = 'by_at_least_one'
 UNION_INTERSECTIONS = 'by_at_least_two'
 
 
-class XmippProtConsensusPicking3D(ProtParticlePicking, XmippProtocol):
+class XmippProtPickingConsensusTomo(ProtTomoPicking):
     """ 
         This protocol receives a set of coordinates representing 3D particles
         that come from different picking sources. It then trains a model and
@@ -73,9 +67,10 @@ class XmippProtConsensusPicking3D(ProtParticlePicking, XmippProtocol):
     # Identification parameters
     _label = 'deep consensus picking 3D'
     _devStatus = BETA
-    _lastUpdateVersion = VERSION_3_0
-    _conda_env = 'xmipp_DLTK_v0.3'
+    #_conda_env = 'xmipp_DLTK_v0.3'
+    _conda_env = 'tfm_mikel'
     _stepsCheckSecs = 5 # Scipion steps check interval (in seconds)
+    _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
     # Protocol-specific options/switches/etc
 
@@ -100,13 +95,9 @@ class XmippProtConsensusPicking3D(ProtParticlePicking, XmippProtocol):
     FORM_DATA_TRAIN_CUSTOM_OPT_COORDS = 1
     FORM_DATA_TRAIN_CUSTOM_TYPELIST = [FORM_DATA_TRAIN_CUSTOM_OPT_SUBTOM, FORM_DATA_TRAIN_CUSTOM_OPT_COORDS]
 
-    
 
-    # Parameters for the streaming part
-    cnn_semaphore = Semaphore(1)
-
-    def __init__(self, **args):
-        ProtParticlePicking.__init__(self,**args)
+    def __init__(self, **kwargs):
+        ProtTomoPicking.__init__(self,**kwargs)
 
     #--------------- DEFINE param functions ---------------
 
@@ -235,26 +226,104 @@ class XmippProtConsensusPicking3D(ProtParticlePicking, XmippProtocol):
                         'NN, this has to be increased.'
         )
 
-    def _validate(self):
-        error_message = []
-        return error_message
+
 
     #--------------- INSERT steps functions ----------------
     
 
     def _insertAllSteps(self):
-        pass
+        self._insertFunctionStep(self.prepareConfigStep)
+        self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.preProcessStep)
+        self._insertFunctionStep(self.processTrainStep)
+        self._insertFunctionStep(self.processScoreStep)
+        self._insertFunctionStep(self.postProcessStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     #--------------- STEPS functions -----------------------
 
-    
+    def prepareConfigStep(self):
+        """
+        Block 0 - Internal parameter preparation
+
+        Prepare all of the parameters that come from the form
+        for their convenient use in the rest of steps.
+        """
+        pass
+
+    def convertInputStep(self):
+        """
+        Block 0 - Handle of previous things
+
+        Take the input from the picking programs and convert
+        them to a format the protocol will be using.
+        """
+        pass
+
+    def preProcessStep(self):
+        """
+        Block 1 - Aconditioning of data structures
+
+        Generate the picker relation table, launch the coord
+        consensus, generate the representative table, fill
+        the representation table. Filter representatives and
+        set labels for good, dubious and bad subtomos
+        """
+        pass
+
+    def processTrainStep(self):
+        """
+        Block 2 - Neural Network TRAIN operations
+
+        Extract the good subtomos,
+        generate noise for data augmentation, do the data splits
+        and launch the neural network training. Save the NN
+        model into a H5 file both intermediate and final.
+        """
+        # This protocol executes on the Xmipp program side
+        pass
+
+    def processScoreStep(self):
+        """
+        Block 2 - Neural Network SCORE operations
+
+        Load the selected NN model, extract the dubious
+        subtomograms and score them against the model. Then
+        generate the score tables.
+        """
+        # This protocol executes on the Xmipp program side
+        pass
+
+    def postProcessStep(self):
+        """
+        Block 3 - Handle of posterous things
+
+        Apply the desired filters and thresholds to the 
+        results.
+        """
+        pass
+
+    def createOutputStep(self):
+        """
+        Block 3 - Prepare output
+
+        Leave everything in a format suitable for later processing
+        in the CryoET workflows.
+        """
+
+        # Create the output files
+
+
+        # Create the relations
+        # The final entity relates a tomogram, the coordinates
+        # of the representatives and their scores
+
 
     #--------------- INFO functions -------------------------
 
-
-
-    def _citations(self):
-        return []
+    def _validate(self):
+        error_message = []
+        return error_message
 
     def _summary(self):
         return []
@@ -263,13 +332,34 @@ class XmippProtConsensusPicking3D(ProtParticlePicking, XmippProtocol):
         return []
 
     #--------------- UTILS functions -------------------------
-    def cnnFree(self):
-        return self.cnn_semaphore._value == 1
 
-    def loadTrainedParams(self):
-        pass
-    def saveTrainedParams(self, params):
-        pass
+    def _validate(self):
+        errors = []
+        errors.append(self._validateParallelProcessing)
+        errors.append(self._validateCondaEnvironment)
+        errors.append(self._validateXmippBinaries)
+        return errors
+
+    def _validateParallelProcessing(self):
+        nGpus = len(self.getGpuList())
+        nMPI = self.numberOfMpi.get()
+        nThreads = self.numberOfThreads.get()
+        errors = []
+        if nGpus < 1:
+            errors.append("A GPU is needed for this protocol to run.")
+        if nThreads != 1:
+            errors.append("Multithreading not yet supported. Set Threads parameter to 1.")
+        if nMPI != 1:
+            errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
+        return errors
+
+    def _validateCondaEnvironment(self):
+        errors = []
+        return errors
+
+    def _validateXmippBinaries(self):
+        errors = []
+        return errors
         
 class XmippProtDeepConsSubSet3D():
     """
