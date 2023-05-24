@@ -166,47 +166,48 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         tomo = self.tomoDict[key]
         subtomoPathList = self.getSubtomoPathList(coordFilePath)
 
-        subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=1)
+        if len(subtomoPathList) != 0:
+            subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=1)
 
-        totalNumberOfSubtomos = len(subtomoPathList)
-        tsId = tomo.getTsId()
+            totalNumberOfSubtomos = len(subtomoPathList)
+            tsId = tomo.getTsId()
 
-        print("Analyzing tomogram " + tsId)
-        print("Total number of subtomos: " + str(totalNumberOfSubtomos))
+            print("Analyzing tomogram " + tsId)
+            print("Total number of subtomos: " + str(totalNumberOfSubtomos))
 
-        self.loadModels()
+            self.loadModels()
 
-        overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray = \
-            self.makePrediction(subtomoPathList)
+            overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray = \
+                self.makePrediction(subtomoPathList)
 
-        print("For volume id " + str(tsId) + " obtained prediction from " +
-              str(len(subtomoPathList)) + " subtomos is " + str(overallPrediction))
+            print("For volume id " + str(tsId) + " obtained prediction from " +
+                  str(len(subtomoPathList)) + " subtomos is " + str(overallPrediction))
 
-        tomo._misaliScore = Float(predictionAverage)
-        self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
+            tomo._misaliScore = Float(predictionAverage)
+            self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
 
-        # Generate output set of subtomograms with a prediction score
-        self.getOutputSetOfSubtomos()
+            # Generate output set of subtomograms with a prediction score
+            self.getOutputSetOfSubtomos()
 
-        for i, subtomoPath in enumerate(subtomoPathList):
-            newCoord3D = Coordinate3D()
-            newCoord3D.setVolume(tomo)
-            newCoord3D.setVolId(i)
-            newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
-            newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
+            for i, subtomoPath in enumerate(subtomoPathList):
+                newCoord3D = Coordinate3D()
+                newCoord3D.setVolume(tomo)
+                newCoord3D.setVolId(i)
+                newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
+                newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
+                newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
 
-            subtomogram = SubTomogram()
-            subtomogram.setLocation(subtomoPath)
-            subtomogram.setCoordinate3D(newCoord3D)
-            subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
-            subtomogram.setVolName(tomo.getTsId())
-            subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
-            subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
+                subtomogram = SubTomogram()
+                subtomogram.setLocation(subtomoPath)
+                subtomogram.setCoordinate3D(newCoord3D)
+                subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
+                subtomogram.setVolName(tomo.getTsId())
+                subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
+                subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
 
-            self.outputSubtomos.append(subtomogram)
-            self.outputSubtomos.write()
-            self._store()
+                self.outputSubtomos.append(subtomogram)
+                self.outputSubtomos.write()
+                self._store()
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
