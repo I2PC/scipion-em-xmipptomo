@@ -75,6 +75,13 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                            "correlation filter. If not, and empty output is possible. This second case might happen "
                            "if the tomogram does not present any gold bead or if it presents misalignment")
 
+        form.addParam('relaxedModeThr',
+                      params.IntParam,
+                      label='Relaxed mode threshold',
+                      default='3',
+                      condition='relaxedMode==True',
+                      help="Size of the box containing the high contrast feature in pixels.")
+
         # Advanced parameters
         form.addParam('numberSampSlices',
                       params.IntParam,
@@ -163,7 +170,9 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                                "--samplingRate %(samplingRate)f "
 
         if self.relaxedMode.get():
-            argsPeakHighContrast += "--relaxedMode "
+            paramsPeakHighContrast['relaxedModeThr'] = self.relaxedModeThr.get()
+
+            argsPeakHighContrast += "--relaxedModeThr %(relaxedModeThr)d "
 
         self.runJob('xmipp_image_peak_high_contrast', argsPeakHighContrast % paramsPeakHighContrast)
 
