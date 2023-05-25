@@ -328,7 +328,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         print(self.firstModel.summary())
 
         self.secondModel = load_model(self.secondModelPath.get())
-        print(self.firstModel.summary())
+        print(self.secondModel.summary())
 
     @staticmethod
     def determineOverallPrediction(predictionList, overallCriteria):
