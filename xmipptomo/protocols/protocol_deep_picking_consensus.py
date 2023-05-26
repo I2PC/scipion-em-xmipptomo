@@ -32,7 +32,7 @@ import os, time
 
 # Tomo-specific
 from tomo.protocols import ProtTomoPicking
-from tomo.objects import SetOfCoordinates3D
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 
 # Needed for the GUI definition and pyworkflow objects
 from pyworkflow.protocol import params
@@ -232,7 +232,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.prepareConfigStep)
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.processTrainStep)
@@ -242,14 +241,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     #--------------- STEPS functions -----------------------
 
-    def prepareConfigStep(self):
-        """
-        Block 0 - Internal parameter preparation
-
-        Prepare all of the parameters that come from the form
-        for their convenient use in the rest of steps.
-        """
-        pass
 
     def convertInputStep(self):
         """
@@ -257,7 +248,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         Take the input from the picking programs and convert
         them to a format the protocol will be using.
+
+        Prepare all of the parameters that come from the form
+        for their convenient use in the rest of steps.
         """
+        
         pass
 
     def preProcessStep(self):
@@ -269,6 +264,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         the representation table. Filter representatives and
         set labels for good, dubious and bad subtomos
         """
+        # TODO: asegurar dimensiones de las cajas
+        # Porque claro por ejemplo con el approach de marchan, todos los pickers
+        # beben del boxsize de cryolo pero eso no tiene xq ser asi.
         pass
 
     def processTrainStep(self):
@@ -310,14 +308,20 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         Leave everything in a format suitable for later processing
         in the CryoET workflows.
         """
+        #
+        tomograms : SetOfTomograms = None
+        outputPath = self._getExtraPath("CBOX_3D")
+        suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
-        # Create the output files
+        coordinates :SetOfCoordinates3D = self._createSetOfCoordinates3D()
+        coordinates.setName("")
+        coordinates.setSamplingRate()
 
 
-        # Create the relations
-        # The final entity relates a tomogram, the coordinates
-        # of the representatives and their scores
 
+        name = self.OUTPUT_PREFIX + suffix
+        self._defineOutputs(**{name: coordinates})
+        self._defineSourceRelation(tomograms, coordinates)
 
     #--------------- INFO functions -------------------------
 
