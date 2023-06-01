@@ -98,7 +98,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                            "Relion and Eman require white particles over a black background. ")
         form.addParam('paintingType', EnumParam,
                       choices=['Copy', 'Average', 'Highlight', 'Binarize'],
-                      default=PAINTING_TYPES.COPY, important=True,
+                      default=PAINTING_TYPES.HIGHLIGHT, important=True,
                       display=EnumParam.DISPLAY_HLIST,
                       label='Painting mode',
                       help='The program has several painting options:\n*Copy*: Copying the reference onto the tomogram.'

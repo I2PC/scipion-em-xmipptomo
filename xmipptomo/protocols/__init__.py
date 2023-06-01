@@ -32,13 +32,17 @@ from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
 from .protocol_cltomo import XmippProtCLTomo
 from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
+from .protocol_dose_filter import XmippProtDoseFilter
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
+from .protocol_denoising_confidence import XmippProtConfTomo
+from .protocol_extract_particlestacks import XmippProtExtractParticleStacks
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
 from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_phantom_tomo import XmippProtPhantomTomo
 from .protocol_project_top import XmippProtSubtomoProject
+from .protocol_reconstruct_tomograms import XmippProtReconstructTomograms
 from .protocol_resizeTS import XmippProtResizeTiltSeries
 from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
@@ -49,12 +53,4 @@ from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
 from .protocol_half_maps_subtomos import XmippProtHalfMapsSubtomo
-
-
-
-
-
-
-
-
-
+from .protocol_project_subtomograms import XmippProtProjectSubtomograms
