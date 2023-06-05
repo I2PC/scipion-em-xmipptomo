@@ -30,10 +30,9 @@ import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.object import Set, Float
-from pyworkflow.protocol import FileParam, PointerParam, EnumParam, FloatParam, BooleanParam
-from tomo import constants
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms, SubTomogram, Coordinate3D
+from pyworkflow.object import Set
+from pyworkflow.protocol import FileParam, PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 from tensorflow.keras.models import load_model
 from xmipptomo import utils
@@ -71,7 +70,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                            'These fiducails will be the ones used to study misalignment artifacts over them. '
                            'The coordinate denotes the center of the subtomogram')
 
-        form.addParam('tomoSource', EnumParam,
+        form.addParam('tomoSource',
+                      EnumParam,
                       choices=['same as picking', 'other'],
                       default=0,
                       display=EnumParam.DISPLAY_HLIST,
@@ -107,6 +107,30 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                       label='Misalignment threshold',
                       help='Threshold value to settle if a tomogram presents weak or strong misalignment.')
 
+        # Advanced parameters
+        form.addParam('modelPick',
+                      EnumParam,
+                      choices=['strict', 'loose'],
+                      default=0,
+                      display=EnumParam.DISPLAY_HLIST,
+                      expertLevel=LEVEL_ADVANCED,
+                      label='Model for weak misalignment estimation',
+                      help='Choose model for weak misalignment estimation. By default, strict model is picked in '
+                           'order to avoid false positives. In case loose model is chosen, less good aligned '
+                           'tomograms are lost. As a tradeoff, the number of false positives will increase.')
+
+        form.addParam('misalignmentCriteria',
+                      EnumParam,
+                      choices=['mean', 'votes'],
+                      default=0,
+                      display=EnumParam.DISPLAY_HLIST,
+                      expertLevel=LEVEL_ADVANCED,
+                      label='Misalignment criteria',
+                      help='Criteria used for making a decision on the presence of misalignment on the tomogram '
+                           'based on the individual scores of each subtomogram. By default the mean of this scores '
+                           'is calculated. The other option is to implement a voting system based on if each subtomo '
+                           'score is closer to 0 o 1.')
+
         # Only for devel purposes
         form.addParam('firstModelPath', FileParam,
                       label='Input model for first split',
@@ -132,8 +156,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                                      key,
                                      coordFilePath)
             self._insertFunctionStep(self.subtomoPrediction,
-                                     key,
-                                     coordFilePath)
+                                     key)
             self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEP functions --------------------------------
@@ -162,52 +185,36 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
-    def subtomoPrediction(self, key, coordFilePath):
+    def subtomoPrediction(self, key):
         tomo = self.tomoDict[key]
-        subtomoPathList = self.getSubtomoPathList(coordFilePath)
 
-        if len(subtomoPathList) != 0:
-            subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=1)
+        subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
 
-            totalNumberOfSubtomos = len(subtomoPathList)
-            tsId = tomo.getTsId()
+        paramsMisaliPrediction = {
+            'inputModel1': self.firstModelPath.get(),  # change this to first model paths
+            'inputModel2': self.secondModelPath.get(),  # change this to second strict model paths
+            'subtomoFilePath': subtomoFilePath,
+        }
 
-            print("Analyzing tomogram " + tsId)
-            print("Total number of subtomos: " + str(totalNumberOfSubtomos))
+        argsMisaliPrediction = "--inputModel1 %(inputModel1)s " \
+                               "--inputModel2 %(inputModel2)s " \
+                               "--subtomoFilePath %(subtomoFilePath)s "
 
-            self.loadModels()
+        # Use loose model
+        if self.modelPick.get() == 1:
+            paramsMisaliPrediction['inputModel2'] = self.secondModelPath.get()  # change this to second loose model paths
 
-            overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray = \
-                self.makePrediction(subtomoPathList)
+        # Set misalignment threshold
+        if self.misaliThrBool.get():
+            paramsMisaliPrediction['misaliThr'] = self.misaliThr.get()
 
-            print("For volume id " + str(tsId) + " obtained prediction from " +
-                  str(len(subtomoPathList)) + " subtomos is " + str(overallPrediction))
+            argsMisaliPrediction += "--misaliThr %(misaliThr)f "
 
-            tomo._misaliScore = Float(predictionAverage)
-            self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
+        # Set misalignment criteria
+        if self.misalignmentCriteria.get() == 1:
+            argsMisaliPrediction += "--misalignmentCriteriaVotes "
 
-            # Generate output set of subtomograms with a prediction score
-            self.getOutputSetOfSubtomos()
-
-            for i, subtomoPath in enumerate(subtomoPathList):
-                newCoord3D = Coordinate3D()
-                newCoord3D.setVolume(tomo)
-                newCoord3D.setVolId(i)
-                newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
-                newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
-                newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
-
-                subtomogram = SubTomogram()
-                subtomogram.setLocation(subtomoPath)
-                subtomogram.setCoordinate3D(newCoord3D)
-                subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
-                subtomogram.setVolName(tomo.getTsId())
-                subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
-                subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
-
-                self.outputSubtomos.append(subtomogram)
-                self.outputSubtomos.write()
-                self._store()
+        self.runJob('xmipp_deep_misalignment_detection', argsMisaliPrediction % paramsMisaliPrediction)
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
