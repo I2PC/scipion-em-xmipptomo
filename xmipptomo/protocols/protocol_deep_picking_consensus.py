@@ -39,6 +39,8 @@ from pyworkflow.protocol import params
 from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
 
+import pandas as pd
+
 # TODO: probably import the program class from Xmipp3.protocols
 # Import the workers from the xmipp package
 
@@ -97,7 +99,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
 
     def __init__(self, **kwargs):
-        ProtTomoPicking.__init__(self,**kwargs)
+        pass
+        #ProtTomoPicking.__init__(self,**kwargs)
 
     #--------------- DEFINE param functions ---------------
 
@@ -149,8 +152,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         group_input = form.addGroup('Input')
         ## Input
-        group_input.addParam('inputCoordinates', params.MultiPointerParam,
-                        pointerClass = 'SetOfCoordinates', allowsNull=False,
+        group_input.addParam('inputSets', params.MultiPointerParam,
+                        pointerClass = 'SetOf3DCoordinates', allowsNull=False,
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
@@ -162,9 +165,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help='Two sets of coordinates are determined to be of '
                         'the same particle if they are within this radius. The'
                         ' radius is given in [fraction of particle size] units.'
-                        
-        
         )
+
         group_input.addParam('classThreshold', params.FloatParam, default=0.5,
                         label = 'Tolerance threshold',
                         help='Choose a threshold in the range [0,1] to adjust '
@@ -179,6 +181,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help = 'Number of process cycles that will be done '
                         'with the data in order to train the Neural Network.',
         )
+
         form.addParam('learningrate', params.FloatParam, default = 0.01,
                         label = 'Learning rate',
                         help = 'Hyperparameter that controls the difference '
@@ -188,6 +191,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'Very low value cause the NN to get stuck in local '
                         'minimas.'
         )
+
         form.addParam('dynLearningrate', params.BooleanParam, default = True,
                         label = 'Dynamic learning rate',
                         help = 'The learning rate can be updated on runtime '
@@ -226,13 +230,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'NN, this has to be increased.'
         )
 
-
-
     #--------------- INSERT steps functions ----------------
     
-
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.processTrainStep)
         self._insertFunctionStep(self.processScoreStep)
@@ -240,20 +240,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self._insertFunctionStep(self.createOutputStep)
 
     #--------------- STEPS functions -----------------------
-
-
-    def convertInputStep(self):
-        """
-        Block 0 - Handle of previous things
-
-        Take the input from the picking programs and convert
-        them to a format the protocol will be using.
-
-        Prepare all of the parameters that come from the form
-        for their convenient use in the rest of steps.
-        """
-        
-        pass
 
     def preProcessStep(self):
         """
@@ -264,9 +250,70 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         the representation table. Filter representatives and
         set labels for good, dubious and bad subtomos
         """
+
+        # The form has a parameter called inputSet that carries
+        # the 3D coordinates from the input pickers
+        self.inputSetsOf3DCoordinates = self.inputSets.get()
+
+        # Ahora tengo: sets de coordenadas que vienen de distintos pickers
+        # Toca: juntar todo
+
+        # Picker tables
+        colnames = ['pick_id','x', 'y', 'z', 'tomogram_id']
+        self.untreated = pd.DataFrame(columns=colnames)
+
+        colnames_md = ['pick_id', 'boxsize', 'pick_count']
+        self.pickerMD = pd.DataFrame(columns=colnames_md)
+
+        self.nr_pickers = 1
+        # For each of the sets selected as input in the GUI...
+        pickerCoordinates : SetOfCoordinates3D
+        for pickerCoordinates in self.inputSetsOf3DCoordinates:
+            # Assign incrementing ID
+            id = self.nr_pickers
+            # For each individual coordinate in this particular set...
+            for coordinates in pickerCoordinates:
+                # TODO: Tomo_id not discovered
+                # TODO: coordinates not discovered
+                tomo_id = None
+                c_x = None
+                c_y = None
+                c_z = None
+                line = {id, c_x, c_y, c_z, tomo_id}
+                self.untreated = self.untreated.add(line)
+            self.nr_pickers += 1
+
+        # Ahora tengo: Un DF con todas las coordenadas
+        # Toca: escribirlos en alguna parte para que Xmipp los vea
+        # TODO: 
+
+        # Ahora tengo: fichero con los datos del DF
+        # Toca: coordinate consensus - offload a Xmipp3 incoming
+        
+        self.coordConsensusStep(self)
+        #Ahora tengo: centroides (x,y,z) con representantes (pick0, pick1)
+
         # TODO: asegurar dimensiones de las cajas
-        # Porque claro por ejemplo con el approach de marchan, todos los pickers
-        # beben del boxsize de cryolo pero eso no tiene xq ser asi.
+        self.boxConsensusStep(self)
+        
+    def coordConsensusStep(self):
+        """
+        Block 1 AUX - Perform consensus in the coordinates
+
+        This step launches a call to the associated Xmipp program, triggering
+        a K-Means algorithm on either GPU or CPU for coordinates consensus.
+        """
+
+        # TODO: kmeanstf? or a mano mas bien para la info adicional
+        # TODO: Mantener la info del picker de origen!!!!
+        pass
+
+    def boxConsensusStep(self):
+        """
+        Block 1 AUX - Perform consensus in the box size
+
+
+        """
         pass
 
     def processTrainStep(self):
@@ -318,7 +365,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         coordinates.setSamplingRate()
 
 
-
+        # TODO: Xmipp metadata para salida (no guai para next protocols)
+        # A ve tambien te digo mejor parametro extendido
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coordinates})
         self._defineSourceRelation(tomograms, coordinates)
