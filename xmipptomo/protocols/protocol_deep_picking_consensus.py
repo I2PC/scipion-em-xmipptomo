@@ -32,7 +32,7 @@ import os, time
 
 # Tomo-specific
 from tomo.protocols import ProtTomoPicking
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D
 
 # Needed for the GUI definition and pyworkflow objects
 from pyworkflow.protocol import params
@@ -259,10 +259,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Toca: juntar todo
 
         # Picker tables
-        colnames = ['pick_id','x', 'y', 'z', 'tomogram_id']
+        colnames = ['pick_id','x', 'y', 'z']
         self.untreated = pd.DataFrame(columns=colnames)
 
-        colnames_md = ['pick_id', 'boxsize', 'pick_count']
+        colnames_md = ['pick_id', 'boxsize', 'pick_count', 'tomo_id']
         self.pickerMD = pd.DataFrame(columns=colnames_md)
 
         self.nr_pickers = 1
@@ -271,14 +271,25 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         for pickerCoordinates in self.inputSetsOf3DCoordinates:
             # Assign incrementing ID
             id = self.nr_pickers
+            # Picker parameters
+            count = self.getSize()
+            bsize = pickerCoordinates.getBoxSize()
+            # Add each picker to the pickers lists
+            picker_line = [id, bsize, count]
+            self.pickerMD.add(picker_line)
+
+            # Get the coordinates
+            coords = pickerCoordinates.iterCoordinates()
+
             # For each individual coordinate in this particular set...
-            for coordinates in pickerCoordinates:
+            coordinate : Coordinate3D
+            for coordinate in coords:
                 # TODO: Tomo_id not discovered
                 # TODO: coordinates not discovered
-                tomo_id = None
-                c_x = None
-                c_y = None
-                c_z = None
+                tomo_id = coordinate.getTomoId()
+                c_x = coordinate.getX()
+                c_y = coordinate.getY()
+                c_z = coordinate.getZ()
                 line = {id, c_x, c_y, c_z, tomo_id}
                 self.untreated = self.untreated.add(line)
             self.nr_pickers += 1
