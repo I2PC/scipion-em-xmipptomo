@@ -27,13 +27,15 @@ import os
 
 import numpy as np
 
+from pwem.emlib import MetaData, MDL_MAX, MDL_MIN
 from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.object import Set
 from pyworkflow.protocol import FileParam, PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram
 from tomo.protocols import ProtTomoBase
+from tomo import constants
 from tensorflow.keras.models import load_model
 from xmipptomo import utils
 
@@ -157,7 +159,11 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                                      coordFilePath)
             self._insertFunctionStep(self.subtomoPrediction,
                                      key)
-            self._insertFunctionStep(self.closeOutputSetsStep)
+            self._insertFunctionStep(self.createOutputStep,
+                                     key,
+                                     coordFilePath)
+
+        self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEP functions --------------------------------
     def extractSubtomos(self, key, coordFilePath):
@@ -216,6 +222,53 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_deep_misalignment_detection', argsMisaliPrediction % paramsMisaliPrediction)
 
+    def createOutputStep(self, key, coordFilePath):
+        tomo = self.tomoDict[key]
+        tsId = tomo.getTsId()
+        subtomoPathList = self.getSubtomoPathList(coordFilePath)
+
+        subtomoFilePath = self._getExtraPath(os.path.join(tsId), COORDINATES_FILE_NAME)
+        outputSubtomoXmdFilePath = os.path.join(os.path.dirname(subtomoFilePath), "misalignmentSubtomoStatistics.xmd")
+        outputTomoXmdFilePath = os.path.join(os.path.dirname(subtomoFilePath), "misalignmentTomoStatistics.xmd")
+
+        if len(subtomoPathList) != 0:
+            self.getOutputSetOfSubtomos()
+
+            subtomoCoordList = utils.retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=1)
+
+            firstPredictionArray, secondPredictionArray = self.readPredictionArrays(outputSubtomoXmdFilePath)
+            overallPrediction, predictionAverage = self.readTomoScores(outputTomoXmdFilePath)
+
+            print("For volume id " + str(tsId) + " obtained prediction from " + str(len(subtomoPathList)) +
+                  " subtomos is " + str(overallPrediction))
+
+            tomo._misaliScore = predictionAverage
+            self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
+            
+            for i, subtomoPath in enumerate(subtomoPathList):
+                newCoord3D = Coordinate3D()
+                newCoord3D.setVolume(tomo)
+                newCoord3D.setVolId(i)
+                newCoord3D.setX(subtomoCoordList[i][0], constants.BOTTOM_LEFT_CORNER)
+                newCoord3D.setY(subtomoCoordList[i][1], constants.BOTTOM_LEFT_CORNER)
+                newCoord3D.setZ(subtomoCoordList[i][2], constants.BOTTOM_LEFT_CORNER)
+
+                subtomogram = SubTomogram()
+                subtomogram.setLocation(subtomoPath)
+                subtomogram.setCoordinate3D(newCoord3D)
+                subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
+                subtomogram.setVolName(tomo.getTsId())
+                subtomogram._strongMisaliScore = firstPredictionArray[i]
+                subtomogram._weakMisaliScore = secondPredictionArray[i]
+
+                self.outputSubtomos.append(subtomogram)
+                self.outputSubtomos.write()
+                self._store()
+
+            else:
+                print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+                      "MISALIGNMENT!")
+
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
             self.alignedTomograms.setStreamState(Set.STREAM_CLOSED)
@@ -249,68 +302,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
         return tomoDict
 
-    def makePrediction(self, subtomoPathList):
-        """
-        :param subtomoPathList: list to every subtomo extracted to be analyzed
-        :return: overallPrediction: alignment statement for the whole tomograms obtained from the estimations of each
-        subtomo:
-            1: strong misalignment (first split negative)
-            2: weak misalignment (second split negative). Implies the existence of an input alignment threshold
-            3: alignment (second split positive)
-        """
-        ih = ImageHandler()
-
-        numberOfSubtomos = len(subtomoPathList)
-
-        subtomoArray = np.zeros((numberOfSubtomos, 32, 32, 32), dtype=np.float64)
-
-        for index, subtomo in enumerate(subtomoPathList):
-            subtomoDataTmp = ih.read(subtomo)
-            subtomoDataTmp = subtomoDataTmp.getData()
-
-            # print("subtomo " + str(index) + " mean " + str(subtomoDataTmp.mean()))
-            # print("subtomo " + str(index) + " std " + str(subtomoDataTmp.std()))
-
-            subtomoArray[index, :, :, :] = subtomoDataTmp[:, :, :]
-
-        std = subtomoArray.std()
-        mean = subtomoArray.mean()
-
-        subtomoArray = (subtomoArray - mean) / std
-
-        firstPredictionArray = self.firstModel.predict(subtomoArray)
-
-        overallPrediction, predictionAverage = self.determineOverallPrediction(firstPredictionArray, overallCriteria=1)
-
-        if not overallPrediction:
-            overallPrediction = 1  # Strong misalignment
-
-            # Set misalignment score to -1 if subtomos removed by the first network
-            secondPredictionArray = np.full(firstPredictionArray.shape, -1)
-
-        # print("first prediction array")
-        # print(firstPredictionArray)
-        # print("first overall prediction " + str(overallPrediction))
-
-        else:
-            secondPredictionArray = self.secondModel.predict(subtomoArray)
-
-            overallPrediction, predictionAverage = self.determineOverallPrediction(secondPredictionArray,
-                                                                                   overallCriteria=1)
-
-            if self.misaliThrBool.get():  # Using threshold
-
-                if predictionAverage > self.misaliThr.get():
-                    overallPrediction = 3  # Alignment
-                else:
-                    overallPrediction = 2  # Weak misalignment
-
-            # print("second prediction array")
-            # print(secondPredictionArray)
-            # print("second overall prediction " + str(overallPrediction))
-
-        return overallPrediction, predictionAverage, firstPredictionArray, secondPredictionArray
-
     def addTomoToOutput(self, tomo, overallPrediction):
         if overallPrediction == 1:  # Strong misali
             self.getOutputSetOfStrongMisalignedTomograms()
@@ -330,52 +321,30 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
             self.alignedTomograms.write()
             self._store()
 
-    def loadModels(self):
-        self.firstModel = load_model(self.firstModelPath.get())
-        print(self.firstModel.summary())
+    @staticmethod
+    def readPredictionArrays(outputSubtomoXmdFilePath):
+        mData = MetaData()
+        mData.read(outputSubtomoXmdFilePath)
 
-        self.secondModel = load_model(self.secondModelPath.get())
-        print(self.secondModel.summary())
+        firstPredictionArray = []
+        secondPredictionArray = []
+
+        for objId in mData:
+            firstPredictionArray.append(mData.getValue(MDL_MAX, objId))
+            secondPredictionArray.append(mData.getValue(MDL_MIN, objId))
+
+        return firstPredictionArray, secondPredictionArray
 
     @staticmethod
-    def determineOverallPrediction(predictionList, overallCriteria):
-        """
-        This method return an overall prediction based on the different singular predictions for each gold bead. This
-        can be estimated with a voting system (no considering the actual score value) or as the average of the obtained
-        scores for each gold beads.
-        :param predictionList: vector with the score values predicted for each gold bead
-        :param overallCriteria: criteria to be used to calculate the overall prediction as the most voted option (0) or
-        the average of all the scores (1)
-        :return: bool indicating if the tomogram present misalignment or not
-        :return average of the predicted scores
-        """
+    def readTomoScores(outputTomoXmdFilePath):
+        mData = MetaData()
+        mData.read(outputTomoXmdFilePath)
 
-        predictionAvg = np.average(predictionList)
+        for objId in mData:
+            overallPrediction = mData.getValue(MDL_MAX, objId)
+            predictionAverage = mData.getValue(MDL_MIN, objId)
 
-        if overallCriteria == 0:
-            predictionClasses = np.round(predictionList)
-
-            overallPrediction = 0
-
-            for prediction in predictionClasses:
-                overallPrediction += prediction
-
-            print("Subtomo analysis: " + str(overallPrediction) + " aligned vs " +
-                  str(predictionList.size - overallPrediction) + "misaligned")
-
-            overallPrediction = overallPrediction / predictionList.size
-
-            # aligned (1) or misaligned (0)
-            return (True if overallPrediction > 0.5 else False), predictionAvg
-
-        elif overallCriteria == 1:
-            print("prediction list:")
-            print(predictionList)
-
-            print("Subtomo analysis preditcion: " + str(predictionAvg))
-
-            # aligned (1) or misaligned (0)
-            return (True if predictionAvg > 0.5 else False), predictionAvg
+        return overallPrediction, predictionAverage
 
     def getOutputSetOfAlignedTomograms(self):
         if self.alignedTomograms:
