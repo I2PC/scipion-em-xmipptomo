@@ -40,6 +40,7 @@ from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
 
 import pandas as pd
+import numpy as np
 
 # TODO: probably import the program class from Xmipp3.protocols
 # Import the workers from the xmipp package
@@ -258,11 +259,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Ahora tengo: sets de coordenadas que vienen de distintos pickers
         # Toca: juntar todo
 
-        # Picker tables
-        colnames = ['pick_id','x', 'y', 'z']
+        # Combined table
+        colnames = ['pick_id','x', 'y', 'z', 'tomo_id']
         self.untreated = pd.DataFrame(columns=colnames)
 
-        colnames_md = ['pick_id', 'boxsize', 'pick_count', 'tomo_id']
+        # Pickers table
+        colnames_md = ['pick_id', 'boxsize', 'pick_count', 'samplingrate']
         self.pickerMD = pd.DataFrame(columns=colnames_md)
 
         self.nr_pickers = 1
@@ -274,7 +276,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             # Picker parameters
             count = self.getSize()
             bsize = pickerCoordinates.getBoxSize()
-            # Add each picker to the pickers lists
+            srate = pickerCoordinates.getSamplingRate()
+            # Add this picker to the pickers lists
             picker_line = [id, bsize, count]
             self.pickerMD.add(picker_line)
 
@@ -294,9 +297,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 self.untreated = self.untreated.add(line)
             self.nr_pickers += 1
 
-        # Ahora tengo: Un DF con todas las coordenadas
+        # TODO: asegurar dimensiones de las cajas
+        print(self.nr_pickers + " pickers with following sizes:")
+        for item in self.pickerMD:
+            print("ID " + item['pick_id'] + " : " + item['pick_count'] 
+                  + "occurences of size " + item['boxsize'])
+        self.boxSizeConsensusStep(self)
+
+        # Ahora tengo: Un DF con todas las coordenadas same boxsize
         # Toca: escribirlos en alguna parte para que Xmipp los vea
-        # TODO: 
+        # TODO: write to CSV or similar?
 
         # Ahora tengo: fichero con los datos del DF
         # Toca: coordinate consensus - offload a Xmipp3 incoming
@@ -304,8 +314,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.coordConsensusStep(self)
         #Ahora tengo: centroides (x,y,z) con representantes (pick0, pick1)
 
-        # TODO: asegurar dimensiones de las cajas
-        self.boxConsensusStep(self)
+        
         
     def coordConsensusStep(self):
         """
@@ -319,14 +328,37 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # TODO: Mantener la info del picker de origen!!!!
         pass
 
-    def boxConsensusStep(self):
+    def boxSizeConsensusStep(self, method='biggest'):
         """
         Block 1 AUX - Perform consensus in the box size
+        
+        Consensuates the box size from the different inputs according to
+        a selected method.
 
-
+        Methods:
+          - biggest: max value amongst the pickers
+          - smallest: min value amongst the pickers
+          - mean: average value amongst the pickers
         """
-        pass
 
+
+        # TODO: Check the voxel size consistency
+        
+        # Fetch the different box sizes from pickers
+        values = [ row['boxsize'] for row in self.pickerMD ]
+
+        result : Integer
+
+        if method is 'biggest':
+            result = max(values)
+        elif method is 'smallest':
+            result = min(values)
+        elif method is 'mean':
+            result = np.average(values)
+        
+        self.consboxsize = Integer(result)
+
+        
     def processTrainStep(self):
         """
         Block 2 - Neural Network TRAIN operations
