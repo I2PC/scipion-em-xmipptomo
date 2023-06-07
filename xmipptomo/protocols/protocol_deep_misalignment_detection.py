@@ -133,15 +133,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                            'is calculated. The other option is to implement a voting system based on if each subtomo '
                            'score is closer to 0 o 1.')
 
-        # Only for devel purposes
-        form.addParam('firstModelPath', FileParam,
-                      label='Input model for first split',
-                      help='Input model for first split prediction')
-
-        form.addParam('secondModelPath', FileParam,
-                      label='Input model for second split',
-                      help='Input model for second split prediction')
-
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
         self.tomoDict = self.getTomoDict()
@@ -197,18 +188,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
 
         paramsMisaliPrediction = {
-            'inputModel1': self.firstModelPath.get(),  # change this to first model paths
-            'inputModel2': self.secondModelPath.get(),  # change this to second strict model paths
-            'subtomoFilePath': subtomoFilePath,
+            'modelPick': self.modelPick.get(),
+            'subtomoFilePath': subtomoFilePath
         }
 
-        argsMisaliPrediction = "--inputModel1 %(inputModel1)s " \
-                               "--inputModel2 %(inputModel2)s " \
+        argsMisaliPrediction = "--modelPick %(modelPick)d " \
                                "--subtomoFilePath %(subtomoFilePath)s "
-
-        # Use loose model
-        if self.modelPick.get() == 1:
-            paramsMisaliPrediction['inputModel2'] = self.secondModelPath.get()  # change this to second loose model paths
 
         # Set misalignment threshold
         if self.misaliThrBool.get():
