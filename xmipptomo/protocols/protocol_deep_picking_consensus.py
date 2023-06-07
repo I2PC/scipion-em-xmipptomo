@@ -32,7 +32,7 @@ import os, time
 
 # Tomo-specific
 from tomo.protocols import ProtTomoPicking
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D
+from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomogram
 
 # Needed for the GUI definition and pyworkflow objects
 from pyworkflow.protocol import params
@@ -41,6 +41,8 @@ from pyworkflow.object import Integer, Float
 
 import pandas as pd
 import numpy as np
+
+from pwem import emlib
 
 # TODO: probably import the program class from Xmipp3.protocols
 # Import the workers from the xmipp package
@@ -235,6 +237,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
+        self._insertFunctionStep(self.coordConsensusStep)
         self._insertFunctionStep(self.processTrainStep)
         self._insertFunctionStep(self.processScoreStep)
         self._insertFunctionStep(self.postProcessStep)
@@ -252,82 +255,107 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         set labels for good, dubious and bad subtomos
         """
 
-        # The form has a parameter called inputSet that carries
+        # The form has a parameter called inputSets that carries
         # the 3D coordinates from the input pickers
-        self.inputSetsOf3DCoordinates = self.inputSets.get()
+        self.inputSetsOf3DCoordinates = [item.get() for item in self.inputSets]
+
+        # Calculate the total amount of ROIs to save resources
+        # The SetOfCoordinates3D is a EMSet -> Set
+        totalROIs = sum(map(len, self.inputSetsOf3DCoordinates))
 
         # Ahora tengo: sets de coordenadas que vienen de distintos pickers
         # Toca: juntar todo
 
         # Combined table
         colnames = ['pick_id','x', 'y', 'z', 'tomo_id']
-        self.untreated = pd.DataFrame(columns=colnames)
+        self.untreated = pd.DataFrame(index=range(totalROIs),columns=colnames)
 
         # Pickers table
-        colnames_md = ['pick_id', 'boxsize', 'pick_count', 'samplingrate']
-        self.pickerMD = pd.DataFrame(columns=colnames_md)
+        colnames_md = ['boxsize', 'samplingrate']
+        self.nr_pickers = len(self.inputSetsOf3DCoordinates)
+        self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
 
-        self.nr_pickers = 1
+        pick_id = 0
         # For each of the sets selected as input in the GUI...
         pickerCoordinates : SetOfCoordinates3D
+        # Index for total ROIs
+        indizea = 0
         for pickerCoordinates in self.inputSetsOf3DCoordinates:
             # Assign incrementing ID
-            id = self.nr_pickers
+            id = self.pick_id
             # Picker parameters
-            count = self.getSize()
             bsize = pickerCoordinates.getBoxSize()
             srate = pickerCoordinates.getSamplingRate()
             # Add this picker to the pickers lists
-            picker_line = [id, bsize, count]
-            self.pickerMD.add(picker_line)
-
+            picker_line = [bsize, srate]
+            # Assign the corresponding line
+            self.pickerMD.loc[pick_id] = picker_line
             # Get the coordinates
             coords = pickerCoordinates.iterCoordinates()
 
             # For each individual coordinate in this particular set...
             coordinate : Coordinate3D
             for coordinate in coords:
-                # TODO: Tomo_id not discovered
-                # TODO: coordinates not discovered
-                tomo_id = coordinate.getTomoId()
+                asoc_vol : Tomogram = coordinate.getVolume()
+                tomo_id = asoc_vol.getFileName()
                 c_x = coordinate.getX()
                 c_y = coordinate.getY()
                 c_z = coordinate.getZ()
-                line = {id, c_x, c_y, c_z, tomo_id}
-                self.untreated = self.untreated.add(line)
+                line = [id, c_x, c_y, c_z, tomo_id]
+                self.untreated.loc[indizea] = line
             self.nr_pickers += 1
 
-        # TODO: asegurar dimensiones de las cajas
+        # Join the DFs to get all of the required information in one single DF
+        self.untreated = self.untreated.join(self.pickerMD, on='pick_id')
+
+        # Print sizes before doing the consensus
         print(self.nr_pickers + " pickers with following sizes:")
         for item in self.pickerMD:
-            print("ID " + item['pick_id'] + " : " + item['pick_count'] 
-                  + "occurences of size " + item['boxsize'])
+            print("ID " + item['pick_id'] 
+                  + ", occurences of size " + item['boxsize'])
+            
+        # Do the box size consensus
         self.boxSizeConsensusStep(self)
 
         # Ahora tengo: Un DF con todas las coordenadas same boxsize
         # Toca: escribirlos en alguna parte para que Xmipp los vea
-        # TODO: write to CSV or similar?
+        self.writeCoordsStep(self)
 
         # Ahora tengo: fichero con los datos del DF
-        # Toca: coordinate consensus - offload a Xmipp3 incoming
-        
-        self.coordConsensusStep(self)
-        #Ahora tengo: centroides (x,y,z) con representantes (pick0, pick1)
+        # End block
+        # END STEP
 
-        
-        
-    def coordConsensusStep(self):
+    def _getCoordsMDPath(self):
+        return self._getExtraPath("coords.xmd")
+
+    def writeCoordsStep(self):
         """
-        Block 1 AUX - Perform consensus in the coordinates
-
-        This step launches a call to the associated Xmipp program, triggering
-        a K-Means algorithm on either GPU or CPU for coordinates consensus.
+        Block 1 AUX - Write coordinates into Xmipp Metadata format
         """
+        
+        # Create a Xmipp MD Object
+        outMD = emlib.MetaData()
 
-        # TODO: kmeanstf? or a mano mas bien para la info adicional
-        # TODO: Mantener la info del picker de origen!!!!
+        # Picker ID
+        # We will use MDL_REF to store the ID of the picker of origin (int)
+        outMD.setColumnValues(emlib.MDL_REF, self.untreated['pick_id'].tolist())
+        # Coordinates
+        outMD.setColumnValues(emlib.MDL_XCOOR, self.untreated['x'].tolist())
+        outMD.setColumnValues(emlib.MDL_YCOOR, self.untreated['y'].tolist())
+        outMD.setColumnValues(emlib.MDL_ZCOOR, self.untreated['z'].tolist())
+        # Box size
+        # TODO: individualize el bocsise if not dimx==dimy==dimz
+        outMD.setColumnValues(emlib.MDL_XSIZE, self.untreated['boxsize'].tolist())
+        outMD.setColumnValues(emlib.MDL_YSIZE, self.untreated['boxsize'].tolist())
+        outMD.setColumnValues(emlib.MDL_ZSIZE, self.untreated['boxsize'].tolist())
+        # Sampling rate
+        outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, self.untreated['samplingrate'].tolist())
+        # (String) Path of the tomogram volume
+        outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, self.untreated['tomo_id'].tolist())
+        outMD.write(self._getCoordsMDPath())
+
         pass
-
+    
     def boxSizeConsensusStep(self, method='biggest'):
         """
         Block 1 AUX - Perform consensus in the box size
@@ -339,12 +367,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
           - biggest: max value amongst the pickers
           - smallest: min value amongst the pickers
           - mean: average value amongst the pickers
+          - first: first in the list
         """
 
-
-        # TODO: Check the voxel size consistency
-        
         # Fetch the different box sizes from pickers
+        assert self.pickerMD is not None
         values = [ row['boxsize'] for row in self.pickerMD ]
 
         result : Integer
@@ -355,8 +382,26 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             result = min(values)
         elif method is 'mean':
             result = np.average(values)
+        elif method is 'first':
+            result = values[0]
         
-        self.consboxsize = Integer(result)
+        self.consBoxSize = Integer(result)
+
+    def coordConsensusStep(self):
+        """
+        Block 2 - Perform consensus in the coordinates
+
+        This step launches a call to the associated Xmipp program, triggering
+        a K-Means algorithm on either GPU or CPU for coordinates consensus.
+        """
+
+        # TODO: kmeanstf? or a mano mas bien para la info adicional
+        # TODO: Mantener la info del picker de origen!!!!
+        # TODO: formar el comando, usar filename de las coords
+        # TODO: lanzar Xmipp 
+        pass
+
+    
 
         
     def processTrainStep(self):
