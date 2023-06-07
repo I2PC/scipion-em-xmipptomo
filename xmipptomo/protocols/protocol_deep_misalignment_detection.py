@@ -250,9 +250,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                 self.outputSubtomos.write()
                 self._store()
 
-            else:
-                print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
-                      "MISALIGNMENT!")
+        else:
+            print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+                  "MISALIGNMENT!")
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
