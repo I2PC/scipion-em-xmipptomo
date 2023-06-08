@@ -35,8 +35,9 @@ from .protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignmen
 from .protocol_dose_filter import XmippProtDoseFilter
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
+from .protocol_denoising_confidence import XmippProtConfTomo
+from .protocol_extract_particlestacks import XmippProtExtractParticleStacks
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
-from .protocol_fit_ellipsoid import XmippProtFitEllipsoid
 from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_peak_high_contrast import XmippProtPeakHighContrast
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
@@ -53,3 +54,4 @@ from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
 from .protocol_half_maps_subtomos import XmippProtHalfMapsSubtomo
+from .protocol_project_subtomograms import XmippProtProjectSubtomograms
