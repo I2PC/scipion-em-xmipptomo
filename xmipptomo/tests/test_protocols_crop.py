@@ -58,7 +58,7 @@ class TestCropTomograms(TestReSizeBase):
         Rrb = XmippProtCropTomograms()
         crop = self.newProtocol(XmippProtCropTomograms,
                                     objLabel='crop tomos',
-                                    inputSet=self.protImportTomos.outputTomograms,
+                                    inputSet=self.protImportTomos.Tomograms,
                                     xcrop0=100,
                                     xcropF=900,
                                     ycrop0=100,

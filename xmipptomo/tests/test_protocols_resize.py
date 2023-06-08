@@ -59,7 +59,7 @@ class TestReSizeTomograms(TestReSizeBase):
         Rrb = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
                                     objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.outputTomograms,
+                                    inputSet=self.protImportTomos.Tomograms,
                                     resizeOption = Rrb.RESIZE_SAMPLINGRATE,
                                     resizeSamplingRate = 32.28)
         self.launchProtocol(reSize)
@@ -73,7 +73,7 @@ class TestReSizeTomograms(TestReSizeBase):
         Rrb = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
                                     objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.outputTomograms,
+                                    inputSet=self.protImportTomos.Tomograms,
                                     resizeOption = Rrb.RESIZE_FACTOR,
                                     resizeFactor = 0.5)
         self.launchProtocol(reSize)
@@ -87,7 +87,7 @@ class TestReSizeTomograms(TestReSizeBase):
         Rrb = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
                                     objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.outputTomograms,
+                                    inputSet=self.protImportTomos.Tomograms,
                                     resizeOption = Rrb.RESIZE_PYRAMID,
                                     resizeLevel = 0)
         self.launchProtocol(reSize)

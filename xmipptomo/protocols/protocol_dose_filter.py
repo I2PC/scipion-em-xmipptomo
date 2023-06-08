@@ -25,10 +25,7 @@
 # **************************************************************************
 
 import os
-import imod.utils as utils
-import pwem.objects as data
 
-from pyworkflow import utils as pwutils
 from pyworkflow import BETA
 from pyworkflow.object import Set
 import pyworkflow.protocol.params as params
@@ -41,8 +38,6 @@ from pwem.protocols import EMProtocol
 from tomo.protocols.protocol_base import ProtTomoImportFiles
 from tomo.protocols import ProtTomoBase
 import tomo.objects as tomoObj
-
-from xmipptomo import utils
 
 SCIPION_IMPORT = 0
 FIXED_DOSE = 1
