@@ -41,6 +41,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
     """
 
     _label = 'peak high contrast'
+    _devStatus = BETA
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
