@@ -66,7 +66,21 @@ class TestDeepMisaligmentDetectionBase(BaseTest):
 
         return cls.protPHC
 
+    @classmethod
+    def _runDeepMisaliDetection(cls, inputSoC, tomoSource, inputSetOfT, misaliThrBool, misaliThr, modelPick,
+                                misalignmentCriteria):
+        cls.protDMD = cls.newProtocol(XmippProtDeepDetectMisalignment,
+                                      inputSetOfCoordinates=inputSoC,
+                                      tomoSource=tomoSource,
+                                      inputSetOfTomograms=inputSetOfT,
+                                      misaliThrBool=misaliThrBool,
+                                      misaliThr=misaliThr,
+                                      modelPick=modelPick,
+                                      misalignmentCriteria=misalignmentCriteria)
 
+        cls.launchProtocol(cls.protDMD)
+
+        return cls.protDMD
 
 
 class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
@@ -102,14 +116,39 @@ class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
                                   sdThr=cls.sdThr,
                                   numCoordThr=cls.numCoordThr,
                                   minCorrThr=cls.minCorrThr,
-                                  mahalaThr=cls.mahalaThr
-                                  )
+                                  mahalaThr=cls.mahalaThr)
+
+        cls.tomoSource = 0
+        cls.misaliThrBool = 1
+        cls.misaliThr = 0.45
+        cls.modelPick = 0
+        cls.misalignmentCriteria = 0
+
+        cls.protDMD = cls._runDeepMisaliDetection(inputSoC=cls.protPHC.outputSetOfCoordinates3D,
+                                                  tomoSource=cls.tomoSource,
+                                                  inputSetOfT=None,
+                                                  misaliThrBool=cls.misaliThrBool,
+                                                  misaliThr=cls.misaliThr,
+                                                  modelPick=cls.modelPick,
+                                                  misalignmentCriteria=cls.misalignmentCriteria)
+
 
     def test_importTomo(self):
         tomos = self.protImportTomo.Tomograms
+
         self.assertSetSize(tomos, size=1)
 
     def test_PHC(self):
         coords = self.protPHC.outputSetOfCoordinates3D
+
         self.assertSetSize(coords, size=55)
         self.assertEqual(coords.getSamplingRate(), self.inputTomoSR)
+
+    def test_DMD(self):
+        subtomos = self.protDMD.outputSubtomos
+        tomosAli = self.protDMD.alignedTomograms
+
+        self.assertSetSize(subtomos, size=55)
+        self.assertSetSize(tomosAli, size=1)
+        self.assertIsNone(self.protDMD.strongMisalignedTomograms)
+        self.assertIsNone(self.protDMD.weakMisalignedTomograms)
