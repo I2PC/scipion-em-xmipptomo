@@ -33,3 +33,9 @@ DataSet(name='monotomo', folder='monotomo',
                'odd1': 'even_tomogram_rx1.mrc',
                'odd2': 'even_tomogram_rx2.mrc',
                })
+
+DataSet(name='monotomo',
+        folder='tomo-em',
+        files={
+            'tomo1': 'even_tomogram_rx1.mrc'
+        })
