@@ -27,6 +27,7 @@
 from pyworkflow.tests import *
 from tomo.protocols.protocol_import_tomograms import ProtImportTomograms
 from xmipptomo.protocols.protocol_peak_high_contrast import XmippProtPeakHighContrast
+from xmipptomo.protocols.protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignment
 
 
 class TestDeepMisaligmentDetectionBase(BaseTest):
@@ -64,6 +65,8 @@ class TestDeepMisaligmentDetectionBase(BaseTest):
         cls.launchProtocol(cls.protPHC)
 
         return cls.protPHC
+
+
 
 
 class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
@@ -105,3 +108,8 @@ class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
     def test_importTomo(self):
         tomos = self.protImportTomo.Tomograms
         self.assertSetSize(tomos, size=1)
+
+    def test_PHC(self):
+        coords = self.protPHC.outputSetOfCoordinates3D
+        self.assertSetSize(coords, size=55)
+        self.assertEqual(coords.getSamplingRate(), self.inputTomoSR)
