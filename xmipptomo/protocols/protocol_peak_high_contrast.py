@@ -81,7 +81,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
                       label='Relaxed mode threshold',
                       default='3',
                       condition='relaxedMode==True',
-                      help="Size of the box containing the high contrast feature in pixels.")
+                      help="Minimum number of surviving coordinates to enter in relaxed mode.")
 
         # Advanced parameters
         form.addParam('numberSampSlices',
