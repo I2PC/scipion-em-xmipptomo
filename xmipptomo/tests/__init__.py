@@ -36,7 +36,7 @@ DataSet(name='monotomo',
                })
 
 DataSet(name='deepMisaliTomo',
-        folder='tomo-em',
+        folder='monotomo',
         files={
             'tomo1': 'even_tomogram_rx1.mrc'
         })
