@@ -43,6 +43,8 @@ import pandas as pd
 import numpy as np
 
 from pwem import emlib
+import tomo.constants as tconst
+
 
 # TODO: probably import the program class from Xmipp3.protocols
 # Import the workers from the xmipp package
@@ -270,21 +272,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.nr_pickers = len(self.inputSetsOf3DCoordinates)
         self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
 
-        pick_id = 0
         # For each of the sets selected as input in the GUI...
         pickerCoordinates : SetOfCoordinates3D
         # Index for total ROIs
         indizea = 0
-        for pickerCoordinates in self.inputSetsOf3DCoordinates:
+        for pick_id, pickerCoordinates in enumerate(self.inputSetsOf3DCoordinates):
             # Assign incrementing ID
-            id = self.pick_id
+            id = pick_id
             # Picker parameters
-            bsize = pickerCoordinates.getBoxSize()
+            bsize = int(pickerCoordinates.getBoxSize())
             srate = pickerCoordinates.getSamplingRate()
-            # Add this picker to the pickers lists
-            picker_line = [bsize, srate]
             # Assign the corresponding line
-            self.pickerMD.loc[pick_id] = picker_line
+            self.pickerMD.loc[pick_id, 'boxsize'] = bsize
+            self.pickerMD.loc[pick_id, 'samplingrate'] = srate
             # Get the coordinates
             coords = pickerCoordinates.iterCoordinates()
 
@@ -293,28 +293,29 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             for coordinate in coords:
                 asoc_vol : Tomogram = coordinate.getVolume()
                 tomo_id = asoc_vol.getFileName()
-                c_x = coordinate.getX()
-                c_y = coordinate.getY()
-                c_z = coordinate.getZ()
-                line = [id, c_x, c_y, c_z, tomo_id]
-                self.untreated.loc[indizea] = line
-            self.nr_pickers += 1
+                c_x = coordinate.getX(tconst.SCIPION)
+                c_y = coordinate.getY(tconst.SCIPION)
+                c_z = coordinate.getZ(tconst.SCIPION)
+                self.untreated.loc[indizea, 'pick_id'] = id
+                self.untreated.loc[indizea, 'x'] = c_x
+                self.untreated.loc[indizea, 'y'] = c_y
+                self.untreated.loc[indizea, 'z'] = c_z
+                self.untreated.loc[indizea, 'tomo_id'] = tomo_id
+                indizea += 1
 
         # Join the DFs to get all of the required information in one single DF
         self.untreated = self.untreated.join(self.pickerMD, on='pick_id')
 
         # Print sizes before doing the consensus
-        print(self.nr_pickers + " pickers with following sizes:")
-        for item in self.pickerMD:
-            print("ID " + item['pick_id'] 
-                  + ", occurences of size " + item['boxsize'])
-            
+        print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates.")
+        print(self.pickerMD)
+    
         # Do the box size consensus
-        self.boxSizeConsensusStep(self)
+        self.boxSizeConsensusStep()
 
         # Ahora tengo: Un DF con todas las coordenadas same boxsize
         # Toca: escribirlos en alguna parte para que Xmipp los vea
-        self.writeCoordsStep(self)
+        self.writeCoordsStep()
 
         # Ahora tengo: fichero con los datos del DF
         # End block
@@ -330,27 +331,30 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         
         # Create a Xmipp MD Object
         outMD = emlib.MetaData()
-
-        # Picker ID
-        # We will use MDL_REF to store the ID of the picker of origin (int)
+        # Row placeholder
+        # row = emlib.metadata.Row()
+        # for _, item in self.untreated.iterrows():
+        #     row.setValue(emlib.MDL_REF, int(item['pick_id']))
+        #     row.setValue(emlib.MDL_X, float(item['x']))
+        #     row.setValue(emlib.MDL_Y, float(item['y']))
+        #     row.setValue(emlib.MDL_Z, float(item['z']))
+        #     # # Assumed dimx==dimy==dimz
+        #     row.setValue(emlib.MDL_XSIZE, int(item['boxsize']))
+        #     row.setValue(emlib.MDL_SAMPLINGRATE, float(item['samplingrate']))
+        #     row.setValue(emlib.MDL_TOMOGRAM_VOLUME, str(item['tomo_id']))
+        #     row.writeToMd(outMD, outMD.addObject())
         outMD.setColumnValues(emlib.MDL_REF, self.untreated['pick_id'].tolist())
-        # Coordinates
-        outMD.setColumnValues(emlib.MDL_XCOOR, self.untreated['x'].tolist())
-        outMD.setColumnValues(emlib.MDL_YCOOR, self.untreated['y'].tolist())
-        outMD.setColumnValues(emlib.MDL_ZCOOR, self.untreated['z'].tolist())
-        # Box size
-        # Assumed dimx==dimy==dimz
-        outMD.setColumnValues(emlib.MDL_XSIZE, self.untreated['boxsize'].tolist())
-
-        # Sampling rate
+        outMD.setColumnValues(emlib.MDL_X, self.untreated['x'].tolist())
+        outMD.setColumnValues(emlib.MDL_Y, self.untreated['y'].tolist())
+        outMD.setColumnValues(emlib.MDL_Z, self.untreated['z'].tolist())
+        outMD.setColumnValues(emlib.MDL_PICKING_PARTICLE_SIZE, self.untreated['boxsize'].tolist())
         outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, self.untreated['samplingrate'].tolist())
-        # (String) Path of the tomogram volume
         outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, self.untreated['tomo_id'].tolist())
-        outMD.write(self._getCoordsMDPath())
 
-        pass
+        # (String) Path of the tomogram volume
+        outMD.write(self._getCoordsMDPath())
     
-    def boxSizeConsensusStep(self, method='biggest'):
+    def boxSizeConsensusStep(self, method="biggest"):
         """
         Block 1 AUX - Perform consensus in the box size
         
@@ -366,18 +370,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Fetch the different box sizes from pickers
         assert self.pickerMD is not None
-        values = [ row['boxsize'] for row in self.pickerMD ]
+        values = self.pickerMD['boxsize']
 
-        result : Integer
-
-        if method == 'biggest':
-            result = max(values)
-        elif method == 'smallest':
-            result = min(values)
-        elif method == 'mean':
-            result = np.average(values)
-        elif method == 'first':
+        result : Integer = 0
+        if method == "biggest":
+            result = values.max()
+        elif method == "smallest":
+            result = values.min()
+        elif method == "mean":
+            result = values.mean()
+        elif method == "first":
             result = values[0]
+
+        print("Determined box size: " + str(result))
         
         self.consBoxSize = Integer(result)
 
