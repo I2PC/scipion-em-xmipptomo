@@ -242,6 +242,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     #--------------- STEPS functions -----------------------
 
+    # BLOCK 1 - Protocol - Load information
     def preProcessStep(self):
         """
         Block 1 - Aconditioning of data structures
@@ -312,6 +313,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
         # Do the box size consensus
         self.boxSizeConsensusStep()
+        self.samplingRateConsensusStep()
 
         # Ahora tengo: Un DF con todas las coordenadas same boxsize
         # Toca: escribirlos en alguna parte para que Xmipp los vea
@@ -321,9 +323,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # End block
         # END STEP
 
+    # BLOCK 1 - Protocol - get path for coordinates XMD file
     def _getCoordsMDPath(self):
         return self._getExtraPath("coords.xmd")
 
+    # BLOCK 1 - Protocol - write all coords (raw, not consensuated)
     def writeCoordsStep(self):
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
@@ -354,6 +358,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # (String) Path of the tomogram volume
         outMD.write(self._getCoordsMDPath())
     
+    # BLOCK 1 - Protocol - select box size
     def boxSizeConsensusStep(self, method="biggest"):
         """
         Block 1 AUX - Perform consensus in the box size
@@ -372,7 +377,38 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         assert self.pickerMD is not None
         values = self.pickerMD['boxsize']
 
-        result : Integer = 0
+        result = self.valueConsensus(values, method)
+
+        print("Determined box size: " + str(result))
+        
+        self.consBoxSize = Integer(result)
+
+   # BLOCK 1 - Protocol - choose sampling rate consensus
+    def samplingRateConsensusStep(self, method="biggest"):
+        """
+        Block 1 AUX - Perform consensus in the sampling rate (angstroms/px)
+        
+        Consensuates the sampling rate from the different inputs according to
+        a selected method.
+
+        Methods:
+          - biggest: max value amongst the pickers
+          - smallest: min value amongst the pickers
+          - mean: average value amongst the pickers
+          - first: first in the list
+        """
+
+        # Fetch the different box sizes from pickers
+        assert self.pickerMD is not None
+        values = self.pickerMD['samplingrate']
+        result = self.valueConsensus(values, method)
+        print("Determined sampling rate (A/px): " + str(result))
+        self.consSampRate = Float()
+    
+    # BLOCK 1 - Protocol - Auxiliar value consensus function
+    def valueConsensus(self, inputSet: pd.Series, method="biggest"):
+        values = inputSet
+
         if method == "biggest":
             result = values.max()
         elif method == "smallest":
@@ -382,10 +418,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         elif method == "first":
             result = values[0]
 
-        print("Determined box size: " + str(result))
-        
-        self.consBoxSize = Integer(result)
+        return result
 
+    # BLOCK 2 - Program - consensuate coordinates
     def coordConsensusStep(self):
         """
         Block 2 - Perform consensus in the coordinates
@@ -394,15 +429,23 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         a K-Means algorithm on either GPU or CPU for coordinates consensus.
         """
 
-        # TODO: kmeanstf? or a mano mas bien para la info adicional
-        # TODO: Mantener la info del picker de origen!!!!
-        # TODO: formar el comando, usar filename de las coords
-        # TODO: lanzar Xmipp 
-        pass
+        program = ""
+        args = ''
 
-    
+        # Add the metadata filename - containing info per picked structure
+        args += '--coordsfile %s ' % self._getCoordsMDPath()
+        # Add the desired size-related parameters
+        args += '--consboxsize %d ' % self.consBoxSize
+        args += '--conssamprate %f ' % self.consSampRate
+        args += '--threads %d ' % self.numberOfThreads
 
-        
+        if None:
+            args += "loquesea"
+
+        print('\nHanding over to Xmipp program for coordinate consensus')
+        self.runJob(program, args)
+                     
+    # BLOCK 2 - Program - Launch NN train (if needed)
     def processTrainStep(self):
         """
         Block 2 - Neural Network TRAIN operations
@@ -415,6 +458,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # This protocol executes on the Xmipp program side
         pass
 
+    # BLOCK 2 - Program - Load model (if needed) and score 
     def processScoreStep(self):
         """
         Block 2 - Neural Network SCORE operations
@@ -426,15 +470,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # This protocol executes on the Xmipp program side
         pass
 
+    # BLOCK 3 - filter tables according to thresholds
     def postProcessStep(self):
         """
-        Block 3 - Handle of posterous things
+        Block 3 - Handling of posterous things
 
         Apply the desired filters and thresholds to the 
         results.
         """
         pass
-
+    
+    # BLOCK 3 - Prepare output for Scipion GUI
     def createOutputStep(self):
         """
         Block 3 - Prepare output
