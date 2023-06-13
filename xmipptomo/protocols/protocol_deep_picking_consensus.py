@@ -339,10 +339,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         outMD.setColumnValues(emlib.MDL_YCOOR, self.untreated['y'].tolist())
         outMD.setColumnValues(emlib.MDL_ZCOOR, self.untreated['z'].tolist())
         # Box size
-        # TODO: individualize el bocsise if not dimx==dimy==dimz
+        # Assumed dimx==dimy==dimz
         outMD.setColumnValues(emlib.MDL_XSIZE, self.untreated['boxsize'].tolist())
-        outMD.setColumnValues(emlib.MDL_YSIZE, self.untreated['boxsize'].tolist())
-        outMD.setColumnValues(emlib.MDL_ZSIZE, self.untreated['boxsize'].tolist())
+
         # Sampling rate
         outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, self.untreated['samplingrate'].tolist())
         # (String) Path of the tomogram volume
