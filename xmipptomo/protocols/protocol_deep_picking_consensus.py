@@ -371,13 +371,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         result : Integer
 
-        if method is 'biggest':
+        if method == 'biggest':
             result = max(values)
-        elif method is 'smallest':
+        elif method == 'smallest':
             result = min(values)
-        elif method is 'mean':
+        elif method == 'mean':
             result = np.average(values)
-        elif method is 'first':
+        elif method == 'first':
             result = values[0]
         
         self.consBoxSize = Integer(result)
