@@ -100,11 +100,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     FORM_DATA_TRAIN_CUSTOM_OPT_COORDS = 1
     FORM_DATA_TRAIN_CUSTOM_TYPELIST = [FORM_DATA_TRAIN_CUSTOM_OPT_SUBTOM, FORM_DATA_TRAIN_CUSTOM_OPT_COORDS]
 
-
-    def __init__(self, **kwargs):
-        pass
-        #ProtTomoPicking.__init__(self,**kwargs)
-
     #--------------- DEFINE param functions ---------------
 
     def _defineParams(self, form : params.Form):
