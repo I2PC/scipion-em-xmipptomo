@@ -151,7 +151,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         group_input = form.addGroup('Input')
         ## Input
         group_input.addParam('inputSets', params.MultiPointerParam,
-                        pointerClass = 'SetOf3DCoordinates', allowsNull=False,
+                        pointerClass = SetOfCoordinates3D, allowsNull=False,
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
@@ -455,23 +455,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     #--------------- INFO functions -------------------------
 
-    def _validate(self):
-        error_message = []
-        return error_message
-
-    def _summary(self):
-        return []
-
-    def _methods(self):
-        return []
-
     #--------------- UTILS functions -------------------------
 
     def _validate(self):
         errors = []
-        errors.append(self._validateParallelProcessing)
-        errors.append(self._validateCondaEnvironment)
-        errors.append(self._validateXmippBinaries)
+        errors += self._validateParallelProcessing()
+        errors += self._validateCondaEnvironment()
+        errors += self._validateXmippBinaries()
         return errors
 
     def _validateParallelProcessing(self):
