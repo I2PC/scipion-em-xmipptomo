@@ -306,57 +306,60 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Join the DFs to get all of the required information in one single DF
         self.untreated = self.untreated.join(self.pickerMD, on='pick_id')
+        
+        # Content of the self.untreated DF
+        # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
+
+        # Get different tomogram names
+        allTomoIds = self.untreated['tomo_id'].unique()
+        self.coordinatesByTomogram = []
+        # Generate separate dataframes for each tomo
+        for id in allTomoIds:
+            print("Unique tomogram found: " + id)
+            singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == id]
+            self.coordinatesByTomogram.append(singleTomoDf)
+            self.writeCoords(singleTomoDf, id)
 
         # Print sizes before doing the consensus
-        print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates.")
+        print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates from "
+              + str(len(allTomoIds)) + " individual tomograms.")
+        print("\nPICKER SUMMARY")
         print(self.pickerMD)
+        print("")
     
         # Do the box size consensus
         self.boxSizeConsensusStep()
         self.samplingRateConsensusStep()
 
-        # Ahora tengo: Un DF con todas las coordenadas same boxsize
-        # Toca: escribirlos en alguna parte para que Xmipp los vea
-        self.writeCoordsStep()
-
-        # Ahora tengo: fichero con los datos del DF
+        # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings
         # End block
         # END STEP
 
     # BLOCK 1 - Protocol - get path for coordinates XMD file
-    def _getCoordsMDPath(self):
-        return self._getExtraPath("coords.xmd")
+    def _getCoordsMDPath(self, suffix):
+        return self._getExtraPath(suffix+"_allpickedcoords.xmd")
 
-    # BLOCK 1 - Protocol - write all coords (raw, not consensuated)
-    def writeCoordsStep(self):
+    # BLOCK 1 - Protocol - write coords from DF (raw, not consensuated)
+    def writeCoords(self, df, tomoname):
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
         """
+
+        # (String) Path of the tomogram volume, get only the filename (last element of split-array)
+        filename = str(tomoname).split("/")[-1]
+        print("Saving coords for... " + filename )
         
         # Create a Xmipp MD Object
         outMD = emlib.MetaData()
-        # Row placeholder
-        # row = emlib.metadata.Row()
-        # for _, item in self.untreated.iterrows():
-        #     row.setValue(emlib.MDL_REF, int(item['pick_id']))
-        #     row.setValue(emlib.MDL_X, float(item['x']))
-        #     row.setValue(emlib.MDL_Y, float(item['y']))
-        #     row.setValue(emlib.MDL_Z, float(item['z']))
-        #     # # Assumed dimx==dimy==dimz
-        #     row.setValue(emlib.MDL_XSIZE, int(item['boxsize']))
-        #     row.setValue(emlib.MDL_SAMPLINGRATE, float(item['samplingrate']))
-        #     row.setValue(emlib.MDL_TOMOGRAM_VOLUME, str(item['tomo_id']))
-        #     row.writeToMd(outMD, outMD.addObject())
-        outMD.setColumnValues(emlib.MDL_REF, self.untreated['pick_id'].tolist())
-        outMD.setColumnValues(emlib.MDL_X, self.untreated['x'].tolist())
-        outMD.setColumnValues(emlib.MDL_Y, self.untreated['y'].tolist())
-        outMD.setColumnValues(emlib.MDL_Z, self.untreated['z'].tolist())
-        outMD.setColumnValues(emlib.MDL_PICKING_PARTICLE_SIZE, self.untreated['boxsize'].tolist())
-        outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, self.untreated['samplingrate'].tolist())
-        outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, self.untreated['tomo_id'].tolist())
-
-        # (String) Path of the tomogram volume
-        outMD.write(self._getCoordsMDPath())
+        outMD.setColumnValues(emlib.MDL_REF, df['pick_id'].tolist())
+        outMD.setColumnValues(emlib.MDL_X, df['x'].tolist())
+        outMD.setColumnValues(emlib.MDL_Y, df['y'].tolist())
+        outMD.setColumnValues(emlib.MDL_Z, df['z'].tolist())
+        outMD.setColumnValues(emlib.MDL_PICKING_PARTICLE_SIZE, df['boxsize'].tolist())
+        outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, df['samplingrate'].tolist())
+        outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, df['tomo_id'].tolist())
+        
+        outMD.write(self._getCoordsMDPath(filename))
     
     # BLOCK 1 - Protocol - select box size
     def boxSizeConsensusStep(self, method="biggest"):
@@ -384,7 +387,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.consBoxSize = Integer(result)
 
    # BLOCK 1 - Protocol - choose sampling rate consensus
-    def samplingRateConsensusStep(self, method="biggest"):
+    def samplingRateConsensusStep(self, method="smallest"):
         """
         Block 1 AUX - Perform consensus in the sampling rate (angstroms/px)
         
@@ -432,15 +435,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         program = ""
         args = ''
 
-        # Add the metadata filename - containing info per picked structure
-        args += '--coordsfile %s ' % self._getCoordsMDPath()
-        # Add the desired size-related parameters
-        args += '--consboxsize %d ' % self.consBoxSize
-        args += '--conssamprate %f ' % self.consSampRate
-        args += '--threads %d ' % self.numberOfThreads
-
-        if None:
-            args += "loquesea"
 
         print('\nHanding over to Xmipp program for coordinate consensus')
         self.runJob(program, args)
