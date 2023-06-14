@@ -56,6 +56,8 @@ AND = 'by_all'
 OR = 'by_at_least_one'
 UNION_INTERSECTIONS = 'by_at_least_two'
 
+# How many pickers need to se something to choose it as positive picking
+REQUIRED_PICKERS = 2
 
 class XmippProtPickingConsensusTomo(ProtTomoPicking):
     """ 
@@ -313,23 +315,25 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
         # Get different tomogram names
-        allTomoIds = self.untreated['tomo_id'].unique()
+        self.allTomoIds = self.untreated['tomo_id'].unique()
         self.coordinatesByTomogram = []
+        self.coordinatesByTomogramFileNames = []
 
         # Generate a separate folder for each tomogram's coordinates
-        self.pickedPerTomoFolder = self._getExtraPath() + "/pickedpertomo/"
-        pwutils.makePath(self.pickedPerTomoFolder)
+        self.FolderPickedPerTomo = self._getExtraPath() + "/pickedpertomo/"
+        pwutils.makePath(self.FolderPickedPerTomo)
 
         # Generate per tomogram dataframes and write to XMD
-        for name in allTomoIds:
+        for name in self.allTomoIds:
             print("Unique tomogram found: " + name)
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             self.coordinatesByTomogram.append(singleTomoDf)
-            self.writeCoords(self.pickedPerTomoFolder, singleTomoDf, name)
+            savedfile = self.writeCoords(self.FolderPickedPerTomo, singleTomoDf, name)
+            self.coordinatesByTomogramFileNames.append(savedfile)
 
         # Print sizes before doing the consensus
         print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates from "
-              + str(len(allTomoIds)) + " individual tomograms.")
+              + str(len(self.allTomoIds)) + " individual tomograms.")
         print("\nPICKER SUMMARY")
         print(self.pickerMD)
         print("")
@@ -343,13 +347,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # END STEP
 
     # BLOCK 1 - Protocol - write coords from DF (raw, not consensuated)
-    def writeCoords(self, path, df, tomoname):
+    def writeCoords(self, path, df, tomoname) -> str:
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
+        path: folder to save the data
+        df: dataframe containing the picking data
+        tomoname: tomogram of which this data is from
         """
 
         # (String) Path of the tomogram volume, get only the filename (last element of split-array)
-        filename = str(tomoname).split("/")[-1]
+        # Also remove .xmd
+        filename = str(tomoname).split("/")[-1].split(".")[0]
         print("Saving coords for... " + filename )
         
         # Create a Xmipp MD Object
@@ -362,7 +370,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, df['samplingrate'].tolist())
         outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, df['tomo_id'].tolist())
         
-        outMD.write(path + filename + "_allpickedcoords.xmd")
+        composedFileName = path + filename + "_allpickedcoords.xmd"
+        outMD.write(composedFileName)
+        return composedFileName
     
     # BLOCK 1 - Protocol - select box size
     def boxSizeConsensusStep(self, method="biggest"):
@@ -432,15 +442,25 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         Block 2 - Perform consensus in the coordinates
 
         This step launches a call to the associated Xmipp program, triggering
-        a K-Means algorithm on either GPU or CPU for coordinates consensus.
+        a 3D coordinates consensus.
         """
 
-        program = ""
-        args = ''
+        # Generate a separate folder for the coord consensus output
+        self.FolderCoordConsensus = self._getExtraPath() + "/coordConsensus/"
+        pwutils.makePath(self.FolderCoordConsensus)
 
-
-        print('\nHanding over to Xmipp program for coordinate consensus')
-        self.runJob(program, args)
+        program = "xmipp_coordinates_consensus_tomo"
+        tomoPickingMdFname : str
+        for tomoPickingMdFname in self.coordinatesByTomogramFileNames:
+            args = ''
+            args += '--input ' + tomoPickingMdFname
+            args += ' --outputPos ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_pos.xmd"
+            args += ' --outputDoubt ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_doubt.xmd"
+            args += ' --boxsize ' + str(self.consBoxSize)
+            args += ' --radius ' + str(float(self.consensusRadius.get()))
+            args += ' --number ' + str(REQUIRED_PICKERS)
+            print('\nHanding over to Xmipp program for coordinate consensus')
+            self.runJob(program, args)
                      
     # BLOCK 2 - Program - Launch NN train (if needed)
     def processTrainStep(self):
