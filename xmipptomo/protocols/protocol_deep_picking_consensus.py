@@ -38,6 +38,8 @@ from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomog
 from pyworkflow.protocol import params
 from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
+import pyworkflow.utils as pwutils
+
 
 import pandas as pd
 import numpy as np
@@ -313,12 +315,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get different tomogram names
         allTomoIds = self.untreated['tomo_id'].unique()
         self.coordinatesByTomogram = []
-        # Generate separate dataframes for each tomo
-        for id in allTomoIds:
-            print("Unique tomogram found: " + id)
-            singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == id]
+
+        # Generate a separate folder for each tomogram's coordinates
+        self.pickedPerTomoFolder = self._getExtraPath() + "/pickedpertomo/"
+        pwutils.makePath(self.pickedPerTomoFolder)
+
+        # Generate per tomogram dataframes and write to XMD
+        for name in allTomoIds:
+            print("Unique tomogram found: " + name)
+            singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             self.coordinatesByTomogram.append(singleTomoDf)
-            self.writeCoords(singleTomoDf, id)
+            self.writeCoords(self.pickedPerTomoFolder, singleTomoDf, name)
 
         # Print sizes before doing the consensus
         print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates from "
@@ -335,12 +342,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # End block
         # END STEP
 
-    # BLOCK 1 - Protocol - get path for coordinates XMD file
-    def _getCoordsMDPath(self, suffix):
-        return self._getExtraPath(suffix+"_allpickedcoords.xmd")
-
     # BLOCK 1 - Protocol - write coords from DF (raw, not consensuated)
-    def writeCoords(self, df, tomoname):
+    def writeCoords(self, path, df, tomoname):
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
         """
@@ -359,7 +362,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, df['samplingrate'].tolist())
         outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, df['tomo_id'].tolist())
         
-        outMD.write(self._getCoordsMDPath(filename))
+        outMD.write(path + filename + "_allpickedcoords.xmd")
     
     # BLOCK 1 - Protocol - select box size
     def boxSizeConsensusStep(self, method="biggest"):
