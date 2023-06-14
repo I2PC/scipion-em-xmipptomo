@@ -68,7 +68,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
                       PointerParam,
                       pointerClass=SetOfCoordinates3D,
                       label='Fiducial 3D coordinates',
-                      help='3D coordinates in dicating the location of the fiducials (gold beads) in the tomogram. '
+                      help='3D coordinates indicating the location of the fiducials (gold beads) in the tomogram. '
                            'These fiducails will be the ones used to study misalignment artifacts over them. '
                            'The coordinate denotes the center of the subtomogram')
 
