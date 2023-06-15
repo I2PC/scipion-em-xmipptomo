@@ -45,6 +45,7 @@ import pandas as pd
 import numpy as np
 
 from pwem import emlib
+from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
 
 
@@ -451,7 +452,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         program = "xmipp_coordinates_consensus_tomo"
         tomoPickingMdFname : str
+        ih = ImageHandler()
         for tomoPickingMdFname in self.coordinatesByTomogramFileNames:
+            dims = ih.getDimensions(tomoPickingMdFname)
             args = ''
             args += '--input ' + tomoPickingMdFname
             args += ' --outputAll ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_all.xmd"
@@ -460,6 +463,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --boxsize ' + str(self.consBoxSize)
             args += ' --radius ' + str(float(self.consensusRadius.get()))
             args += ' --number ' + str(REQUIRED_PICKERS)
+            args += ' --size ' + ' '.join(dims)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
                      
@@ -474,6 +478,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         model into a H5 file both intermediate and final.
         """
         # This protocol executes on the Xmipp program side
+
+        # TODO: Integrate with picking noise program
         pass
 
     # BLOCK 2 - Program - Load model (if needed) and score 
