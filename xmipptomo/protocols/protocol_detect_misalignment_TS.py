@@ -391,9 +391,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             chainId = row.get('frameId')
             xResid = row.get('shiftX')
             yResid = row.get('shiftY')
-            xCoor = row.get('xcoor')
-            yCoor = row.get('ycoor')
-            tiltIm = row.get('zcoor')
+            xCoor = row.get('x')
+            yCoor = row.get('y')
+            tiltIm = row.get('z')
 
             vCMinfo.append([xCoor, yCoor, tiltIm, chainId, xResid, yResid])
 
