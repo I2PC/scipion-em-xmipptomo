@@ -48,15 +48,6 @@ from pwem import emlib
 from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
 
-
-# TODO: probably import the program class from Xmipp3.protocols
-# Import the workers from the xmipp package
-
-# Define some descriptors
-AND = 'by_all'
-OR = 'by_at_least_one'
-UNION_INTERSECTIONS = 'by_at_least_two'
-
 # How many pickers need to se something to choose it as positive picking
 REQUIRED_PICKERS = 2
 
@@ -80,7 +71,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     _label = 'deep consensus picking 3D'
     _devStatus = BETA
     #_conda_env = 'xmipp_DLTK_v0.3'
-    _conda_env = 'tfm_mikel'
+    _conda_env = 'scipion3'
     _stepsCheckSecs = 5 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
@@ -124,7 +115,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         )
         form.addParallelSection(threads=1, mpi=1)
 
-        form.addSection(label='Input')
+        form.addSection(label='Main')
 
         group_model = form.addGroup('Neural Network model')
 
@@ -171,6 +162,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'the same particle if they are within this radius. The'
                         ' radius is given in [fraction of particle size] units.'
         )
+
+        form.addParam('fracNoise', params.FloatParam, default=0.9,
+                      label="Amount of noise picked for negative input",
+                      help='Controls how much noise is picked and given '
+                      'to the NN as negative input during training. It is'
+                      ' expressed in [0..1] - fraction of the total amount'
+                      ' of coordinates found on input')
 
         group_input.addParam('classThreshold', params.FloatParam, default=0.5,
                         label = 'Tolerance threshold',
@@ -240,8 +238,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.coordConsensusStep)
-        self._insertFunctionStep(self.processTrainStep)
-        self._insertFunctionStep(self.processScoreStep)
+        self._insertFunctionStep(self.prepareNNStep)
+        if not bool(self.skipTraining):
+            self._insertFunctionStep(self.processTrainStep)
+        self._insertFunctionStep(self.processOnlyScoreStep)
         self._insertFunctionStep(self.postProcessStep)
         self._insertFunctionStep(self.createOutputStep)
 
@@ -278,6 +278,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.nr_pickers = len(self.inputSetsOf3DCoordinates)
         self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
 
+        # Get fraction for noise picking
+        self.noiseFrac = float(self.fracNoise)
+
         # For each of the sets selected as input in the GUI...
         pickerCoordinates : SetOfCoordinates3D
         # Index for total ROIs
@@ -299,9 +302,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             for coordinate in coords:
                 asoc_vol : Tomogram = coordinate.getVolume()
                 tomo_id = asoc_vol.getFileName()
-                c_x = coordinate.getX(tconst.SCIPION)
-                c_y = coordinate.getY(tconst.SCIPION)
-                c_z = coordinate.getZ(tconst.SCIPION)
+                c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
+                c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
+                c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
                 self.untreated.loc[indizea, 'pick_id'] = id
                 self.untreated.loc[indizea, 'x'] = c_x
                 self.untreated.loc[indizea, 'y'] = c_y
@@ -317,19 +320,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Get different tomogram names
         self.allTomoIds = self.untreated['tomo_id'].unique()
-        self.coordinatesByTomogram = []
+        #self.coordinatesByTomogram = []
         self.coordinatesByTomogramFileNames = []
 
         # Generate a separate folder for each tomogram's coordinates
-        self.FolderPickedPerTomo = self._getExtraPath() + "/pickedpertomo/"
-        pwutils.makePath(self.FolderPickedPerTomo)
+        pwutils.makePath(self._getPickedPerTomoPath())
 
         # Generate per tomogram dataframes and write to XMD
         for name in self.allTomoIds:
             print("Unique tomogram found: " + name)
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
-            self.coordinatesByTomogram.append(singleTomoDf)
-            savedfile = self.writeCoords(self.FolderPickedPerTomo, singleTomoDf, name)
+            #self.coordinatesByTomogram.append(singleTomoDf)
+            savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
+            self.writeCoords(savedfile, singleTomoDf)
             self.coordinatesByTomogramFileNames.append(savedfile)
 
         # Print sizes before doing the consensus
@@ -348,7 +351,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # END STEP
 
     # BLOCK 1 - Protocol - write coords from DF (raw, not consensuated)
-    def writeCoords(self, path, df, tomoname) -> str:
+    def writeCoords(self, outpath, df):
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
         path: folder to save the data
@@ -358,22 +361,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # (String) Path of the tomogram volume, get only the filename (last element of split-array)
         # Also remove .xmd
-        filename = str(tomoname).split("/")[-1].split(".")[0]
-        print("Saving coords for... " + filename )
+        print("Saving coords for... " + outpath )
         
         # Create a Xmipp MD Object
         outMD = emlib.MetaData()
         outMD.setColumnValues(emlib.MDL_REF, df['pick_id'].tolist())
-        outMD.setColumnValues(emlib.MDL_X, df['x'].tolist())
-        outMD.setColumnValues(emlib.MDL_Y, df['y'].tolist())
-        outMD.setColumnValues(emlib.MDL_Z, df['z'].tolist())
+        outMD.setColumnValues(emlib.MDL_XCOOR, list(map(int, df['x'])))
+        outMD.setColumnValues(emlib.MDL_YCOOR, list(map(int, df['y'])))
+        outMD.setColumnValues(emlib.MDL_ZCOOR, list(map(int, df['z'])))
         outMD.setColumnValues(emlib.MDL_PICKING_PARTICLE_SIZE, df['boxsize'].tolist())
         outMD.setColumnValues(emlib.MDL_SAMPLINGRATE, df['samplingrate'].tolist())
         outMD.setColumnValues(emlib.MDL_TOMOGRAM_VOLUME, df['tomo_id'].tolist())
         
-        composedFileName = path + filename + "_allpickedcoords.xmd"
-        outMD.write(composedFileName)
-        return composedFileName
+        outMD.write(outpath)
     
     # BLOCK 1 - Protocol - select box size
     def boxSizeConsensusStep(self, method="biggest"):
@@ -420,7 +420,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         values = self.pickerMD['samplingrate']
         result = self.valueConsensus(values, method)
         print("Determined sampling rate (A/px): " + str(result))
-        self.consSampRate = Float()
+        self.consSampRate = Float(result)
     
     # BLOCK 1 - Protocol - Auxiliar value consensus function
     def valueConsensus(self, inputSet: pd.Series, method="biggest"):
@@ -447,40 +447,139 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
 
         # Generate a separate folder for the coord consensus output
-        self.FolderCoordConsensus = self._getExtraPath() + "/coordConsensus/"
-        pwutils.makePath(self.FolderCoordConsensus)
+        pwutils.makePath(self._getCoordConsensusPath())
 
         program = "xmipp_coordinates_consensus_tomo"
-        tomoPickingMdFname : str
-        ih = ImageHandler()
-        for tomoPickingMdFname in self.coordinatesByTomogramFileNames:
-            dims = ih.getDimensions(tomoPickingMdFname)
+        for tomo_id in self.allTomoIds:
+            tomoname = self._stripTomoFilename(tomo_id)
             args = ''
-            args += '--input ' + tomoPickingMdFname
-            args += ' --outputAll ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_all.xmd"
-            args += ' --outputPos ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_pos.xmd"
-            args += ' --outputDoubt ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_doubt.xmd"
+            args += '--input ' + self._getAllCoordsFilename(tomoname)
+            args += ' --outputAll ' + self._getConsCoordsFilename(tomoname)
+            args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
+            args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
             args += ' --boxsize ' + str(self.consBoxSize)
             args += ' --radius ' + str(float(self.consensusRadius.get()))
             args += ' --number ' + str(REQUIRED_PICKERS)
-            args += ' --size ' + ' '.join(dims)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
-                     
-    # BLOCK 2 - Program - Launch NN train (if needed)
-    def processTrainStep(self):
+    
+    # BLOCK 2 - Program - Launch Noise Picking algorithm for data
+    def noisePick(self, tomoPath, coordsPath, outPath):
+        """
+        Block 2 - Noise picker for training stages
+
+        Generates noise for input tomogram, thus adding an
+        almost certain negative input for the NN training stage,
+        when training is selected from the GUI or the model is 
+        built from scratch.
+        """
+
+        program = "xmipp_pick_noise_tomo"
+        ih = ImageHandler()
+        
+        # Prepare and launch script
+        dims = ih.getDimensions(tomoPath)
+        args = ''
+        args += ' --input ' + coordsPath # Ruta al _allpickedcoordinates
+        args += ' --radius 0.8'
+        args += ' --boxsize ' + str(self.consBoxSize)
+        args += ' --samplingrate ' + str(self.consSampRate)
+        args += ' --size ' + ' '.join(map(str, dims[0:3]))
+        args += ' --limit ' + str(self.noiseFrac)
+        args += ' --threads ' + str(self.numberOfThreads)
+        args += ' --output ' + outPath
+        print('\nHanding over to Xmipp program for noise picking')
+        self.runJob(program, args)                   
+  
+    def prepareNNStep(self):
         """
         Block 2 - Neural Network TRAIN operations
 
-        Extract the good subtomos,
-        generate noise for data augmentation, do the data splits
-        and launch the neural network training. Save the NN
+        - Launch extraction of all needed subtomos into /dataset/pos | neg | doubt
+        - Launch split generation
+        - Launch NN tren (chuchú)
+        - Save the NN
         model into a H5 file both intermediate and final.
         """
         # This protocol executes on the Xmipp program side
 
-        # TODO: Integrate with picking noise program
-        pass
+        # Check if train is needed
+        trainSkip = bool(self.skipTraining)
+
+        # Generate directory structure
+        folders = [self._getDoubtSubtomogramPath()]
+
+        # Only generate if training is needed
+        if not trainSkip:
+            folders.append(self._getPosSubtomogramPath())
+            folders.append(self._getNegSubtomogramPath())
+
+        for folder in folders:
+            pwutils.makePath(folder)
+
+        # Tengo: carpetas
+        # Necesito: extraer
+        for tomoPath in self.allTomoIds:
+            tomoName = self._stripTomoFilename(tomoPath)
+            if not trainSkip:
+                self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
+                self.noisePick(tomoPath, self._getAllCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName))
+                self.tomogramExtract(tomoPath, self._getNegCoordsFilename(tomoName), self._getNegSubtomogramPath())
+            self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
+        # Tengo: todo extraido
+        # Fin de paso - next: train if needed   
+            
+    # BLOCK 2 - Program - Launch NN train (if needed)
+    def processTrainStep(self):
+        """
+        Block 2 - Call for NN train
+
+        Launches the script responsible for training the NN.
+        """
+        folder = self._getNnPath()
+        pwutils.makePath(folder)
+
+        program = "xmipp_deep_picking_consensus_tomo"
+        args = ''
+        args += ' -t ' + self.numberOfThreads
+        args += ' -g ' + ','.join(map(str, self.getGpuList()))
+        args += ' --mode training'
+        args += ' --netpath ' + self._getNnPath()
+        args += ' --consboxsize ' + str(self.consBoxSize)
+        args += ' --conssamprate ' + str(self.consSampRate)
+        args += ' --truevolpath ' + self._getPosSubtomogramPath()
+        args += ' --falsevolpath ' + self._getNegSubtomogramPath()
+        args += ' -e 5'
+        args += ' -l 0.001'
+        args += ' -r 0.0001'
+        args += ' --ensemble 1'
+        self.runJob(program, args)
+
+        print('\nHanding over to Xmipp program for Train and Score')
+             
+          
+    # BLOCK 2 - Program - Launch tomogram extraction step
+    def tomogramExtract(self, tomoPath, coordsPath, outPath):
+        """
+        Block 2 - NN preparation
+
+        This program extracts subtomograms using Xmipp.
+        tomoPath - .mrc file path
+        coordsPath - .xmd coordinates
+        outPath - folder to leave .mrc files in
+        """
+
+        program = "xmipp_tomo_extract_subtomograms"
+        args = ''
+        args += '--tomogram ' + tomoPath
+        args += ' --coordinates ' + coordsPath
+        args += ' --boxsize ' + str(self.consBoxSize)
+        args += ' -o ' + outPath
+        args += ' --threads ' + str(self.numberOfThreads)
+
+        print('\nHanding over to Xmipp program for tomogram extraction')
+        self.runJob(program, args)
+
 
     # BLOCK 2 - Program - Load model (if needed) and score 
     def processScoreStep(self):
@@ -492,7 +591,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         generate the score tables.
         """
         # This protocol executes on the Xmipp program side
-        pass
+        print('\nHanding over to Xmipp program for Train and Score')
 
     # BLOCK 3 - filter tables according to thresholds
     def postProcessStep(self):
@@ -559,6 +658,50 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _validateXmippBinaries(self):
         errors = []
         return errors
+    
+        #--------------- FILENAMES functions -------------------
+
+    def _getNnPath(self, *args):
+        return self._getExtraPath('nn')
+
+    def _stripTomoFilename(self, tomopath: str):
+        # TODO: in a future, update to not explode with .mrc.gz and other dual extensions
+        return tomopath.split("/")[-1].split(".")[0]
+    
+    def _getCoordConsensusPath(self, *args):
+        return self._getExtraPath('coordconsensus', *args)
+
+    def _getPosCoordsFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_consensus_pos.xmd")
+    
+    def _getNegCoordsFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_consensus_neg.xmd")
+    
+    def _getDoubtCoordsFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_consensus_doubt.xmd")
+    
+    def _getConsCoordsFilename(self, tomo_name:str):
+        return self._getCoordConsensusPath(tomo_name+"_consensus_all.xmd")
+    
+    def _getAllCoordsFilename(self, tomo_name: str):
+        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
+
+    def _getDatasetPath(self, *args):
+        return self._getExtraPath('dataset', *args)
+    
+    def _getPosSubtomogramPath(self, *args):
+        return self._getDatasetPath('pos', *args)
+    
+    def _getNegSubtomogramPath(self, *args):
+        return self._getDatasetPath('neg', *args)
+    
+    def _getDoubtSubtomogramPath(self, *args):
+        return self._getDatasetPath('doubt', *args)
+
+    def _getPickedPerTomoPath(self, *args):
+        return self._getExtraPath('pickedpertomo', *args)
+    
+    
         
 class XmippProtDeepConsSubSet3D():
     """
