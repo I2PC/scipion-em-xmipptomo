@@ -454,6 +454,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         for tomoPickingMdFname in self.coordinatesByTomogramFileNames:
             args = ''
             args += '--input ' + tomoPickingMdFname
+            args += ' --outputAll ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_all.xmd"
             args += ' --outputPos ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_pos.xmd"
             args += ' --outputDoubt ' + self.FolderCoordConsensus + tomoPickingMdFname.split("/")[-1].split(".")[0] + "_consensus_doubt.xmd"
             args += ' --boxsize ' + str(self.consBoxSize)
