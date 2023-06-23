@@ -51,6 +51,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
     _label = 'detect misalignment from fiducials'
     _devStatus = BETA
+    _conda_env = 'xmipp_DLTK_v1.0'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -229,7 +230,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
 
             tomo._misaliScore = predictionAverage
             self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
-            
+
             for i, subtomoPath in enumerate(subtomoPathList):
                 newCoord3D = Coordinate3D()
                 newCoord3D.setVolume(tomo)
