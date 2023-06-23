@@ -25,18 +25,14 @@
 # **************************************************************************
 import os
 
-import numpy as np
-
 from pwem.emlib import MetaData, MDL_MAX, MDL_MIN
-from pwem.emlib.image import ImageHandler
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.object import Set
-from pyworkflow.protocol import FileParam, PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
+from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram
 from tomo.protocols import ProtTomoBase
 from tomo import constants
-from tensorflow.keras.models import load_model
 from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
