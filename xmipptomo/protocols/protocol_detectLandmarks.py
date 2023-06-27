@@ -177,7 +177,10 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
 
         lmList = utils.parseLandmarkCoordinatesFile(os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME))
 
+        print(lmList)
+
         for i, lmInfo in enumerate(lmList):
+            print(lmInfo)
             lm.addLandmark(xCoor=lmInfo[0],
                            yCoor=lmInfo[1],
                            tiltIm=lmInfo[2],
@@ -185,6 +188,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
                            xResid=0.0,
                            yResid=0.0)
 
+        self.outputSetOfLandmarkModels.append(lm)
         self._store()
 
     def closeOutputSetsStep(self):
