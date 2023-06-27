@@ -36,11 +36,10 @@ from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
 import emtable
 
-METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
-VMC_FILE_NAME = "vCM.xmd"
+OUTPUT_COORDS_FILENAME = "outputLandmarkCoordinates.xmd"
 
 
-class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
+class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
     """
     Scipion protocol for xmipp_tomo_detect_landmarks. Detect landmarks in a tilt series.
     """
@@ -97,10 +96,13 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
             dlsID = self._insertFunctionStep(self.convertInputStep,
                                              tsObjId,
                                              prerequisites=[cisID])
-            allcossId.append(dlsID)
+            cosID = self._insertFunctionStep(self.createOutputStep,
+                                             tsObjId,
+                                             prerequisites=[dlsID])
+            allcosId.append(cosID)
 
         self._insertFunctionStep(self.closeOutputSetsStep,
-                                 prerequisites=allcossId)
+                                 prerequisites=allcosId)
 
     # --------------------------- STEPS functions ----------------------------
     def convertInputStep(self, tsObjId):
@@ -139,7 +141,7 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
 
         params = {
             'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
-            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_landmarkCoordinates', extension='.xmd')),
+            'o': os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME),
             'thrSD': self.thrSD.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
             'fiducialSize': self.fiducialSize.get() * 10,
@@ -159,6 +161,36 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
                "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f "
 
         self.runJob('xmipp_tomo_detect_landmarks', args % params)
+
+    def generateOutputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+
+        firstItem = ts.getFirstItem()
+
+        self.getOutputSetOfLandmarkModels()
+
+        lmFileName = os.path.join(extraPrefix, firstItem.parseFileName(suffix='_lm', extension='.sfid'))
+        lm = tomoObj.LandmarkModel(tsId=tsId,
+                                   fileName=lmFileName,
+                                   modelName=None,
+                                   size=self.fiducialSize.get() * 10,
+                                   applyTSTransformation=Boolean(False))
+        lm.setTiltSeries(ts)
+
+        lmList = self.parseLandmarkCoordinatesFile(vcmFilePath=os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME))
+
+        for i, lmInfo in enumerate(lmList):
+            lm.addLandmark(xCoor=lmInfo[0],
+                           yCoor=lmInfo[1],
+                           tiltIm=lmInfo[2],
+                           chainId=i,
+                           xResid=0.0,
+                           yResid=0.0)
+
+        self._store()
 
     # --------------------------- UTILS functions ----------------------------
     def getOutputSetOfLandmarkModels(self):
