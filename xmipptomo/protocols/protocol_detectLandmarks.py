@@ -79,10 +79,43 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
+        allcossId = []
 
+        for ts in self.inputSetOfTiltSeries.get():
+            tsObjId = ts.getObjId()
+            cisID = self._insertFunctionStep(self.convertInputStep,
+                                             tsObjId,
+                                             prerequisites=[])
+            allcossId.append()
+
+        self._insertFunctionStep(self.closeOutputSetsStep,
+                                 prerequisites=allcossId)
 
     # --------------------------- STEPS functions ----------------------------
+    def convertInputStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
 
+        extraPrefix = self._getExtraPath(tsId)
+        tmpPrefix = self._getTmpPath(tsId)
+
+        path.makePath(tmpPrefix)
+        path.makePath(extraPrefix)
+
+        firstItem = ts.getFirstItem()
+
+        """Apply the transformation form the input tilt-series"""
+        # Use Xmipp interpolation via Scipion
+        if firstItem.hasTransform():
+            avgRotAngle = utils.calculateAverageRotationAngleFromTM(ts)
+            swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
+
+            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+            ts.applyTransform(outputTsFileName, swapXY=swap)
+
+        else:
+            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+            ts.applyTransform(outputTsFileName)
 
     # --------------------------- UTILS functions ----------------------------
     def getOutputSetOfLandmarkModels(self):
