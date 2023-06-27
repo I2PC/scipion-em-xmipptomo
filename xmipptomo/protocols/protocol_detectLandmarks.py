@@ -63,19 +63,27 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
                       important=True,
                       label='Input set of tilt-series')
 
-        form.addParam('landmarkSize',
+        form.addParam('fiducialSize',
                       params.FloatParam,
                       important=True,
                       label='Landmark size (nm)',
                       help='Landmark size in nanometers (nm).')
 
+        # Advanced params
         form.addParam('thrSD',
                       params.FloatParam,
                       advanced=True,
-                      default=3,
+                      default=5,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
+
+        form.addParam('targetLMsize',
+                      params.FloatParam,
+                      advanced=True,
+                      default=8,
+                      label='Target landmark size (px)',
+                      help='Target landmark size to adjust down sampling before filtering. Default value is 8 px.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
@@ -86,7 +94,10 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
             cisID = self._insertFunctionStep(self.convertInputStep,
                                              tsObjId,
                                              prerequisites=[])
-            allcossId.append()
+            dlsID = self._insertFunctionStep(self.convertInputStep,
+                                             tsObjId,
+                                             prerequisites=[cisID])
+            allcossId.append(dlsID)
 
         self._insertFunctionStep(self.closeOutputSetsStep,
                                  prerequisites=allcossId)
@@ -116,6 +127,38 @@ class XmippProtdetectLandmarkTS(EMProtocol, ProtTomoBase):
         else:
             outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
             ts.applyTransform(outputTsFileName)
+
+    def detectLandmarksStep(self, tsObjId):
+        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+        tmpPrefix = self._getTmpPath(tsId)
+
+        firstItem = ts.getFirstItem()
+
+        params = {
+            'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
+            'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_landmarkCoordinates', extension='.xmd')),
+            'thrSD': self.thrSD.get(),
+            'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+            'fiducialSize': self.fiducialSize.get() * 10,
+            'targetLMsize': self.targetLMsize.get()
+        }
+
+        args = "-i %(i)s " \
+               "--tlt %(tlt)s " \
+               "--inputCoord %(inputCoord)s " \
+               "-o %(o)s " \
+               "--thrSDHCC %(thrSDHCC).2f " \
+               "--thrNumberCoords %(thrNumberCoords).2f " \
+               "--samplingRate %(samplingRate).2f " \
+               "--fiducialSize %(fiducialSize).2f " \
+               "--thrChainDistanceAng %(thrChainDistanceAng).2f " \
+               "--thrFiducialDistance %(thrFiducialDistance).2f " \
+               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f "
+
+        self.runJob('xmipp_tomo_detect_landmarks', args % params)
 
     # --------------------------- UTILS functions ----------------------------
     def getOutputSetOfLandmarkModels(self):
