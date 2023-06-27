@@ -86,7 +86,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
-        allcossId = []
+        allcosId = []
 
         for ts in self.inputSetOfTiltSeries.get():
             tsObjId = ts.getObjId()
@@ -189,6 +189,13 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
                            chainId=i,
                            xResid=0.0,
                            yResid=0.0)
+
+        self._store()
+
+    def closeOutputSetsStep(self):
+        if hasattr(self, "outputSetOfLandmarkModels"):
+            self.outputSetOfLandmarkModels.setStreamState(Set.STREAM_CLOSED)
+            self.outputSetOfLandmarkModels.write()
 
         self._store()
 
