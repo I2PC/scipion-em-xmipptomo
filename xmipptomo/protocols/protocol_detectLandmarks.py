@@ -28,13 +28,13 @@ import os
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
-from pyworkflow.object import Set, List, String, Boolean
+from pyworkflow.object import Set, Boolean
 from pyworkflow.protocol.constants import STEPS_PARALLEL
 from pwem.protocols import EMProtocol
 import tomo.objects as tomoObj
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
-import emtable
+
 
 OUTPUT_COORDS_FILENAME = "outputLandmarkCoordinates.xmd"
 
@@ -93,7 +93,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
             cisID = self._insertFunctionStep(self.convertInputStep,
                                              tsObjId,
                                              prerequisites=[])
-            dlsID = self._insertFunctionStep(self.convertInputStep,
+            dlsID = self._insertFunctionStep(self.detectLandmarksStep,
                                              tsObjId,
                                              prerequisites=[cisID])
             cosID = self._insertFunctionStep(self.createOutputStep,
@@ -149,20 +149,15 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         }
 
         args = "-i %(i)s " \
-               "--tlt %(tlt)s " \
-               "--inputCoord %(inputCoord)s " \
                "-o %(o)s " \
-               "--thrSDHCC %(thrSDHCC).2f " \
-               "--thrNumberCoords %(thrNumberCoords).2f " \
+               "--thrSD %(thrSD).2f " \
                "--samplingRate %(samplingRate).2f " \
                "--fiducialSize %(fiducialSize).2f " \
-               "--thrChainDistanceAng %(thrChainDistanceAng).2f " \
-               "--thrFiducialDistance %(thrFiducialDistance).2f " \
-               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f "
+               "--targetLMsize %(targetLMsize).4f "
 
         self.runJob('xmipp_tomo_detect_landmarks', args % params)
 
-    def generateOutputStep(self, tsObjId):
+    def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
@@ -180,7 +175,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
                                    applyTSTransformation=Boolean(False))
         lm.setTiltSeries(ts)
 
-        lmList = self.parseLandmarkCoordinatesFile(vcmFilePath=os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME))
+        lmList = utils.parseLandmarkCoordinatesFile(os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME))
 
         for i, lmInfo in enumerate(lmList):
             lm.addLandmark(xCoor=lmInfo[0],
