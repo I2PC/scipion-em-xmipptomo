@@ -43,7 +43,8 @@ TARGET_SAMPLING_RATE = 6.25
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     """
-    Wrapper protocol to Xmipp image peak high contrast applied to any volume
+    Wrapper protocol to Xmipp xmipp_deep_misalignment_detection for misalignment detection
+    in tomographic reconstructions based on artifacted landmarks
     """
 
     _label = 'detect misalignment from fiducials'
