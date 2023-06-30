@@ -54,6 +54,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                         "weakMisalignedTomograms": SetOfTomograms,
                         "alignedTomograms": SetOfTomograms,
                         "outputSubtomos": SetOfSubTomograms}
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alignedTomograms = None

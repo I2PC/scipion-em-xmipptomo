@@ -32,7 +32,7 @@ from pyworkflow.object import Set
 from pyworkflow import BETA
 from tomo import constants
 from tomo.protocols import ProtTomoBase
-import tomo.objects as tomoObj
+from tomo.objects import Coordinate3D, SetOfCoordinates3D
 from xmipptomo import utils
 
 
@@ -43,6 +43,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
 
     _label = 'peak high contrast'
     _devStatus = BETA
+    _possibleOutputs = {"outputSetOfCoordinates3D": SetOfCoordinates3D}
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -160,7 +161,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'mahalanobisDistanceThr': self.mahalanobisDistanceThr.get(),
         }
 
-        argsPeakHighContrast = "--vol %(inputVol)s " \
+        argsPeakHighContrast = "--vol %(inputVol)s " \tomoObj
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
@@ -194,7 +195,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             print("WARNING: no coordinates picked in tomogram " + volFileName)
 
         for element in coordList:
-            newCoord3D = tomoObj.Coordinate3D()
+            newCoord3D = Coordinate3D()
             newCoord3D.setVolume(vol)
             newCoord3D.setX(element[0], constants.BOTTOM_LEFT_CORNER)
             newCoord3D.setY(element[1], constants.BOTTOM_LEFT_CORNER)
