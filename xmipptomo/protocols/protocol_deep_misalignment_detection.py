@@ -30,7 +30,7 @@ from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.object import Set
 from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
-from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram
+from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram, SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from tomo import constants
 from xmipp3 import XmippProtocol
@@ -50,7 +50,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     _label = 'detect misalignment from fiducials'
     _devStatus = BETA
     _conda_env = 'xmipp_DLTK_v1.0'
-
+    _possibleOutputs = {"strongMisalignedTomograms": SetOfTomograms,
+                        "weakMisalignedTomograms": SetOfTomograms,
+                        "alignedTomograms": SetOfTomograms,
+                        "outputSubtomos": SetOfSubTomograms}
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.alignedTomograms = None
@@ -106,7 +109,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                       default=0.45,
                       condition='misaliThrBool==True',
                       label='Misalignment threshold',
-                      help='Threshold value to settle if a tomogram presents weak or strong misalignment.')
+                      help='Threshold value to settle if a tomogram presents weak or strong misalignment. Value '
+                           'ranged between (0, 1).')
 
         # Advanced parameters
         form.addParam('modelPick',
