@@ -33,6 +33,7 @@ from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanPara
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram
 from tomo.protocols import ProtTomoBase
 from tomo import constants
+from xmipp3 import XmippProtocol
 from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
@@ -40,7 +41,7 @@ BOX_SIZE = 32
 TARGET_SAMPLING_RATE = 6.25
 
 
-class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
+class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     """
     Wrapper protocol to Xmipp image peak high contrast applied to any volume
     """
@@ -202,7 +203,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase):
         if self.misalignmentCriteria.get() == 1:
             argsMisaliPrediction += "--misalignmentCriteriaVotes "
 
-        self.runJob('xmipp_deep_misalignment_detection', argsMisaliPrediction % paramsMisaliPrediction)
+        self.runJob('xmipp_deep_misalignment_detection',
+                    argsMisaliPrediction % paramsMisaliPrediction,
+                    env=self.getCondaEnv())
 
     def createOutputStep(self, key, coordFilePath):
         tomo = self.tomoDict[key]
