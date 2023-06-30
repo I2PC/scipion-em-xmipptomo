@@ -422,11 +422,37 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
 
     # --------------------------- INFO functions ----------------------------
     def _summary(self):
-        summary = []
+        summary = ["Misalignment analysis:"]
+
+        if self.alignedTomograms:
+            summary.append("Aligned tomograms: %d"
+                           % (self.getOutputSetOfAlignedTomograms().getSize()))
+
+        if self.weakMisalignedTomograms:
+            summary.append("Weak misaligned tomograms: %d"
+                           % (self.getOutputSetOfWeakMisalignedTomograms().getSize()))
+
+        if self.strongMisalignedTomograms:
+            summary.append("Strong misaligned tomograms: %d"
+                           % (self.getOutputSetOfStrongMisalignedTomograms().getSize()))
+
+        summary.append("From %d subtomos analyzed."
+                       % self.outputSubtomos.getSize())
 
         return summary
 
     def _methods(self):
-        methods = []
+        size = 0
+        if self.alignedTomograms:
+            size += self.getOutputSetOfAlignedTomograms().getSize()
+
+        if self.weakMisalignedTomograms:
+            size += self.getOutputSetOfWeakMisalignedTomograms().getSize()
+
+        if self.strongMisalignedTomograms:
+            size += self.getOutputSetOfStrongMisalignedTomograms().getSize()
+
+        methods = ["%d tomograms have been analyzed using the deep_misalignment_detection xmipp method."
+                   % size]
 
         return methods

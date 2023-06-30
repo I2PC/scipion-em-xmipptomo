@@ -161,7 +161,7 @@ class XmippProtPeakHighContrast(EMProtocol, ProtTomoBase):
             'mahalanobisDistanceThr': self.mahalanobisDistanceThr.get(),
         }
 
-        argsPeakHighContrast = "--vol %(inputVol)s " \tomoObj
+        argsPeakHighContrast = "--vol %(inputVol)s " \
                                "-o %(output)s " \
                                "--boxSize %(boxSize)d " \
                                "--fiducialSize %(fiducialSize)f " \
