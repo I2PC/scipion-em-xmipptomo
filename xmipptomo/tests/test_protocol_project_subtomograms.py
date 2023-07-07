@@ -23,12 +23,17 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
+# General imports
 import os
 
+# Scipion em imports
 from pyworkflow.tests import setupTestProject
 
+# External plugin imports
 from tomo.protocols import ProtImportSubTomograms
 
+# Plugin imports
 from xmipptomo.utils import removeTmpElements
 from xmipptomo.protocols.protocol_extract_subtomos import OUTPUTATTRIBUTE as EXTRACT_SUBTOMOS_OUTPUTATTRIBUTE
 from xmipptomo.protocols.protocol_project_subtomograms import OUTPUTATTRIBUTE as PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE
@@ -86,7 +91,9 @@ class TestXmippProtProjectSubtomograms(TestXmippProtExtractSubtomosProts):
         protXmippProjectSubtomograms = self.newProtocol(
             XmippProtProjectSubtomograms,
             inputSubtomograms=self.subtomograms,
-            tiltRangeNSamples=40
+            tiltRangeNSamples=40,
+            numberOfMpi=1,
+            numberOfThreads=5
         )
         self.launchProtocol(protXmippProjectSubtomograms)
         self.assertIsNotNone(getattr(protXmippProjectSubtomograms, PROJECT_SUBTOMOGRAMS_OUTPUTATTRIBUTE, None), "Projections were not properly generated.")
