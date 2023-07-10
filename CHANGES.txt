@@ -1,4 +1,6 @@
 V3.23.03.6:
+ - Subtomo projections: new advance option to ignore alignments
+V3.23.03.6:
  - Map back fix: works with "other tomograms"
 
 V3.23.03.5:

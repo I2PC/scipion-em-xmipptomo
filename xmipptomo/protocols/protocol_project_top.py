@@ -29,10 +29,10 @@ import enum
 import numpy as np
 from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
-from pwem.objects import Particle, Volume, Transform, String, SetOfVolumes, SetOfParticles
+from pwem.objects import Particle, Transform, String, SetOfVolumes, SetOfParticles
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow import BETA
-from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam
+from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam, Form, LEVEL_ADVANCED
 from tomo.objects import SetOfSubTomograms
 
 class SubtomoProjectOutput(enum.Enum):
@@ -50,7 +50,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
     _dirChoices = ['X', 'Y', 'Z']
 
     # --------------------------- DEFINE param functions ------------------------
-    def _defineParams(self, form):
+    def _defineParams(self, form:Form):
         form.addSection(label='General parameters')
         form.addParam('input', PointerParam, pointerClass=[SetOfSubTomograms, SetOfVolumes],
                       label='Input Volumes', help='This protocol can *not* work with .em files *if* the input is a set'
@@ -66,6 +66,10 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         form.addParam('cropParam', IntParam, default=10, label='Slices', condition="rangeParam == 1",
                       help='Crop this amount of voxels in each side of the selected direction.')
 
+        form.addBooleanParam('ignoreOrientations', label="Ignore orientations",
+                             help="Activate to ignore particle orientation information.",
+                             default=False, expertLevel=LEVEL_ADVANCED)
+
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
 
@@ -77,8 +81,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         input = self.input.get()
         x, y, z = input.getDim()
 
-        print("Dimensions (x,y,z) are: %s, %s, %s." % (x,y,z))
-
+        self.info("Dimensions (x,y,z) are: %s, %s, %s." % (x,y,z))
 
         dir = self.dirParam.get()
         partialProjection = self.rangeParam.get() == 1
@@ -99,7 +102,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
             if fn.endswith('.mrc'):
                 fn += ':mrc'
 
-            if subtomo.hasTransform():
+            if subtomo.hasTransform() and not self.ignoreOrientations:
 
                 ih().rotateVolume(fn, tmpOrientedSubtomoFn, subtomo.getTransform())
                 fn = tmpOrientedSubtomoFn
