@@ -448,6 +448,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             outputSetOfAlignedLandmarkModels = self._createSetOfLandmarkModels("_ali")
 
             outputSetOfAlignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfAlignedLandmarkModels.setSetOfTiltSeries(self.getOutputSetOfTiltSeries())
 
             outputSetOfAlignedLandmarkModels.setStreamState(Set.STREAM_OPEN)
 
@@ -463,6 +464,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         else:
             outputSetOfMisalignedLandmarkModels = self._createSetOfLandmarkModels("_misali")
+            outputSetOfMisalignedLandmarkModels.setSetOfTiltSeries(self.getOutputSetOfMisalignedTiltSeries())
 
             outputSetOfMisalignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
 
