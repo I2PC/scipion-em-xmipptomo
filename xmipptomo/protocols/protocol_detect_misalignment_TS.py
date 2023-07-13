@@ -90,22 +90,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
 
-        form.addParam('thrNumberCoords',
-                      params.IntParam,
-                      advanced=True,
-                      default=10,
-                      label='Number of coordinates threshold',
-                      help='Minimum number of coordinates attracted to a center of mass to consider it as a high '
-                           'contrast feature.')
-
-        form.addParam('thrChainDistanceAng',
-                      params.FloatParam,
-                      advanced=True,
-                      default=10,
-                      label='Landmark distance threshold',
-                      help='Threshold maximum distance in angstroms of a detected landmark to consider it belongs to '
-                           'a chain.')
-
         form.addParam('thrFiducialDistance',
                       params.FloatParam,
                       advanced=True,
@@ -122,6 +106,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Percentile of the residual radius in a image between the distribution of the residuals'
                            'from the aligned detected chain. This parameter is used to detect local alignment of a '
                            'tilt-image in the series.')
+
+        # Advanced parameters
+        form.addParam('targetLMsize',
+                      params.FloatParam,
+                      default=8,
+                      label='Target fiducial size (px)',
+                      help='Target fiducial size in pixels to calculate the downsampling when detecting landmarks'
+                           'on the tilt series.',
+                      expertLevel=params.LEVEL_ADVANCED)
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
@@ -225,12 +218,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'tlt': angleFilePath,
                 'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
                 'thrSDHCC': self.thrSDHCC.get(),
-                'thrNumberCoords': self.thrNumberCoords.get(),
                 'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
-                'thrChainDistanceAng': self.thrChainDistanceAng.get(),
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
                 'avgResidPercentile_LocalAlignment': self.avgResidPercentile_LocalAlignment.get(),
+                'targetLMsize': self.targetLMsize.get()
             }
 
             argsDetectMisali = "-i %(i)s " \
@@ -238,12 +230,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "--inputCoord %(inputCoord)s " \
                                "-o %(o)s " \
                                "--thrSDHCC %(thrSDHCC).2f " \
-                               "--thrNumberCoords %(thrNumberCoords).2f " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--thrChainDistanceAng %(thrChainDistanceAng).2f " \
                                "--thrFiducialDistance %(thrFiducialDistance).2f " \
-                               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f "
+                               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f " \
+                               "--targetLMsize %(targetLMsize).2f"
 
             self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
