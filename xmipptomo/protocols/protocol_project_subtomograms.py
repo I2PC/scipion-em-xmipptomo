@@ -25,15 +25,19 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
+# General imports
 import os
 
+# Scipion em imports
 from pwem.protocols import EMProtocol
 from pwem.objects import SetOfParticles
-
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
+# External plugin imports
 from tomo.protocols import ProtTomoBase
+from tomo.objects import SubTomogram
 from xmipp3.convert import readSetOfParticles
 
 # Protocol output variable name
@@ -54,8 +58,22 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     TYPE_N_SAMPLES = 0
     TYPE_STEP = 1
 
+    # --------------------------- Class constructor --------------------------------------------
+    def __init__(self, **args):
+        # Calling parent class constructor
+        super().__init__(**args)
+
+        # Defining execution mode. Steps will take place in parallel now
+        # Full tutorial on how to parallelize protocols can be read here:
+        # https://scipion-em.github.io/docs/release-3.0.0/docs/developer/parallelization.html
+        self.stepsExecutionMode = params.STEPS_PARALLEL
+
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
+        # Defining parallel arguments
+        form.addParallelSection(threads=4)
+
+        # Generating form
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes",
                       label='Set of subtomograms', help="Set of subtomograms whose projections will be generated.")
@@ -80,17 +98,20 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         # Writing config file
-        self._insertFunctionStep('generateConfigFile')
+        generateConfigFile = self._insertFunctionStep(self.generateConfigFile)
 
+        # Defining list of function ids to be waited by the createOutput function
+        deps = [generateConfigFile]
         # Generating projections for each subtomogram
-        self._insertFunctionStep('generateSubtomogramProjections')
-        
+        for subtomogram in self.inputSubtomograms.get():
+            deps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), prerequisites=[generateConfigFile]))
+
         # Conditionally removing temporary files
         if self.cleanTmps.get():
-            self._insertFunctionStep('removeTempFiles')
+            deps.append(self._insertFunctionStep(self.removeTempFiles, prerequisites=deps))
         
         # Create output
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.createOutputStep, prerequisites=deps)
 
     # --------------------------- STEPS functions --------------------------------------------
     def generateConfigFile(self):
@@ -122,16 +143,15 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         confFile.write(content)
         confFile.close()
 
-    def generateSubtomogramProjections(self):
+    def generateSubtomogramProjections(self, subtomogram):
         """
-        This function generates the projection for all input subtomograms.
+        This function generates the projection for a given input subtomogram.
         """
-        for subtomogram in self.inputSubtomograms.get():
-            params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
-            params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
-            params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
-            params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
-            self.runJob("xmipp_phantom_project", params, cwd='/home')
+        params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
+        params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
+        params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
+        params += ' --params {}'.format(self.getXmippParamPath())               # Path to Xmipp phantom param file
+        self.runJob("xmipp_phantom_project", params, cwd='/home')
 
     def removeTempFiles(self):
         """
@@ -177,6 +197,10 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Checking if the step is greater than 0
         if self.tiltTypeGeneration.get() == self.TYPE_STEP and (not self.tiltRangeStep.get() == None) and self.tiltRangeStep.get() <= 0:
             errors.append('The step must be greater than 0.')
+        
+        # Checking if MPI is selected (only threads are allowed)
+        if self.numberOfMpi > 1:
+            errors.append('MPI cannot be selected, because Scipion is going to drop support for it. Select threads instead.')
 
         return errors
 
@@ -210,7 +234,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             and current directory is /home/username/documents
             this will return '/test/import_file.mrc'
         """
-        return self.scapePath(subtomogram.getFileName())
+        return self.scapePath(subtomogram.getFileName() if isinstance(subtomogram, SubTomogram) else subtomogram)
 
     def getSubtomogramAbsolutePath(self, subtomogram):
         """

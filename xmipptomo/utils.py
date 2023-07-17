@@ -30,11 +30,20 @@ This module contains utils functions for xmipp tomo protocols
 import shutil
 import math
 import csv
+import os.path
+
 import os
 import emtable
 
+from pwem import ALIGN_PROJ
+from pwem.emlib import lib
+import pwem.emlib.metadata as md
+from pwem.objects import Transform
+
 import pyworkflow as pw
 from tomo.constants import BOTTOM_LEFT_CORNER
+from tomo.objects import MATRIX_CONVERSION
+from xmipp3.convert import alignmentToRow
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
@@ -182,3 +191,75 @@ def removeTmpElements(tmpElements):
                 shutil.rmtree(item)
             else:
                 os.remove(item)
+
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=0):
+    """ This method takes a xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
+    every coordinate. This method also transform the coordinates into the Scipion convention. This method allows
+    different xmd formats containing coordinates information:
+        format=0: plain coordinates, xmd files only contains (x, y, z) values.
+        format=1: coordinates with alignment information, xmd files contains also shifts and angle values."""
+
+    coorList = []
+
+    with open(coordFilePath) as f:
+        inputLines = f.readlines()
+
+    if xmdFormat == 0:
+        for line in inputLines[7:]:
+            vector = line.split()
+
+            coorList.append([float(vector[0]),
+                             float(vector[1]),
+                             float(vector[2])])
+
+    if xmdFormat == 1:
+        for line in inputLines[15:]:
+            vector = line.split()
+
+            coorList.append([float(vector[-3]),
+                             float(vector[-2]),
+                             float(vector[-1])])
+
+    return coorList
+
+
+def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
+    """
+        Write the xmd file containing the set of coordinates corresponding to the given tomogram at the specified
+        location
+    """
+    mdCoor = lib.MetaData()
+
+    tsid = tomo.getTsId()
+
+    coordDict = []
+    lines = []
+
+    fnCoor_directory = os.path.dirname(fnCoor)
+    if not os.path.exists(fnCoor_directory):
+        os.makedirs(fnCoor_directory)
+
+    for item in setOfCoordinates.iterCoordinates(volume=tomo):
+        coord = item
+        transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
+
+        if coord.getTomoId() == tsid:
+            nRow = md.Row()
+            nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
+            coord.setVolume(tomo)
+
+            nRow.setValue(lib.MDL_XCOOR, int(coord.getX(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_YCOOR, int(coord.getY(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(BOTTOM_LEFT_CORNER)))
+
+            alignmentToRow(transform, nRow, ALIGN_PROJ)
+            nRow.addToMd(mdCoor)
+
+            newCoord = item.clone()
+            newCoord.setVolume(coord.getVolume())
+            coordDict.append(newCoord)
+            lines.append(coordDict)
+
+    mdCoor.write(fnCoor)
+
+    return fnCoor
