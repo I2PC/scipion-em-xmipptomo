@@ -272,7 +272,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                        fileName=lmFileName,
                                        modelName=None,
                                        size=self.fiducialSize.get() * 10,
-                                       applyTSTransformation=Boolean(False))
+                                       applyTSTransformation=Boolean(True))
             lm.setTiltSeries(newTs)
 
             vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, VMC_FILE_NAME))
