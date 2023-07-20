@@ -98,14 +98,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
                            'coordinate projection and the detected fiducial.')
 
-        form.addParam('avgResidPercentile_LocalAlignment',
-                      params.FloatParam,
-                      advanced=True,
-                      default=0.99,
-                      label='Percentile residual radius',
-                      help='Percentile of the residual radius in a image between the distribution of the residuals'
-                           'from the aligned detected chain. This parameter is used to detect local alignment of a '
-                           'tilt-image in the series.')
+        # form.addParam('avgResidPercentile_LocalAlignment',
+        #               params.FloatParam,
+        #               advanced=True,
+        #               default=0.99,
+        #               label='Percentile residual radius',
+        #               help='Percentile of the residual radius in a image between the distribution of the residuals'
+        #                    'from the aligned detected chain. This parameter is used to detect local alignment of a '
+        #                    'tilt-image in the series.')
 
         # Advanced parameters
         form.addParam('targetLMsize',
@@ -221,9 +221,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
-                'avgResidPercentile_LocalAlignment': self.avgResidPercentile_LocalAlignment.get(),
                 'targetLMsize': self.targetLMsize.get()
             }
+
+            # 'avgResidPercentile_LocalAlignment': self.avgResidPercentile_LocalAlignment.get(),
 
             argsDetectMisali = "-i %(i)s " \
                                "--tlt %(tlt)s " \
@@ -233,8 +234,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
                                "--thrFiducialDistance %(thrFiducialDistance).2f " \
-                               "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f " \
                                "--targetLMsize %(targetLMsize).2f"
+
+            # "--avgResidPercentile_LocalAlignment %(avgResidPercentile_LocalAlignment).4f " \
 
             self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
 
