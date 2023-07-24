@@ -40,6 +40,8 @@ from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
 from pyworkflow.object import Set
 from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+from pwem import ALIGN_PROJ
+from xmipp3.convert import alignmentToRow
 
 OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
@@ -47,15 +49,17 @@ OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
 from pwem.objects import Transform
 
 
-def calculateRotationAngleFromTM(ti):
+def calculateRotationAngleAndShiftsFromTM(ti):
     """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
 
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
     rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
+    Sx = tm[0][2]
+    Sy = tm[1][2]
 
-    return rotationAngle
+    return rotationAngle, Sx, Sy
 
 
 def readXmdStatisticsFile(fnmd):
@@ -76,10 +80,19 @@ def readXmdStatisticsFile(fnmd):
 
     return x_pos, y_pos, z_pos, avg, std
 
+def tiltSeriesParticleToXmd(tsParticle):
+    mdtsp = lib.MetaData()
+    for ti in tsParticle:
+        tm = ti.getTransformationMatrix()
+        fn = ti.parseFileName()
+        nRow = md.Row()
+        nRow.setValue(lib.MDL_IMAGE, fn)
+        alignmentToRow(tm, nRow, ALIGN_PROJ)
+        nRow.addToMd(mdtsp)
 
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
-     its tomo tomoId). If no tomoId is input the the xmd output file will contain all the coordinates belonging to the
+     its tomo tomoId). If no tomoId is input the xmd output file will contain all the coordinates belonging to the
      set. """
 
     xmdHeader = "# XMIPP_STAR_1 *\n" \
@@ -145,32 +158,44 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
     """
         Returns a metadata with the tilt series information, TsID, filename and tilt angle.
     """
-    mdts = lib.MetaData()
 
+    mdts = lib.MetaData()
     tsid = ts.getTsId()
 
     for index, item in enumerate(ts):
 
-        #transform = item.getTransform()
-        #if transform is None:
-        #    tm = convertMatrix(np.eye(4))
-        #else:
-        #    tm = transform.getMatrix(convention=MATRIX_CONVERSION.XMIPP)
-        #Maq = Transform(matrix=tm)
+        transform = item.getTransform()
+        if transform is None:
+            rot = 0
+            Sx = 0
+            Sy = 0
+        else:
+            rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(item)
 
         tiIndex = item.getLocation()[0]
         fn = str(tiIndex) + "@" + item.getFileName()
         nRow = md.Row()
         nRow.setValue(lib.MDL_IMAGE, fn)
+
+        if item.hasCTF():
+            defU = item.getCTF().getDefocusU()
+            defV = item.getCTF().getDefocusV()
+            defAng = item.getCTF().getDefocusAngle()
+            nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
+            nRow.setValue(lib.MDL_CTF_DEFOCUSU, defV)
+            nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+
         if ts.hasOddEven():
             fnOdd  = item.getOdd()
             fnEven = item.getEven()
             nRow.setValue(lib.MDL_HALF1, fnOdd)
             nRow.setValue(lib.MDL_HALF2, fnEven)
         nRow.setValue(lib.MDL_TSID, tsid)
-        nRow.setValue(lib.MDL_ANGLE_TILT, item.getTiltAngle())
-        # nRow.setValue(lib.MDL_ANGLE_ROT, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
-        # alignmentToRow(Maq, nRow, ALIGN_PROJ)
+        tilt = item.getTiltAngle()
+        nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
+        nRow.setValue(lib.MDL_ANGLE_ROT, rot)
+        nRow.setValue(lib.MDL_SHIFT_X, Sx)
+        nRow.setValue(lib.MDL_SHIFT_Y, Sy)
         nRow.addToMd(mdts)
 
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
