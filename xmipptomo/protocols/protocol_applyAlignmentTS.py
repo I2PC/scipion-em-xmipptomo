@@ -1,6 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:     Federico P. de Isidro Gomez (fp.deisidro@cnb.csic.es) [1]
+# * Authors:     Federico P. de Isidro Gomez (fp.deisidro@cnb.csi.es) [1]
 # *
 # * [1] Centro Nacional de Biotecnologia, CSIC, Spain
 # *
@@ -65,7 +65,7 @@ class XmippProtApplyTransformationMatrixTS(EMProtocol, ProtTomoBase):
         path.makePath(extraPrefix)
         outputTsFileName = os.path.join(extraPrefix, "%s.mrc" % tsId)
 
-        avgRotAngle = utils.calculateRotationAngleFromTM(ts)
+        avgRotAngle, _, _ = utils.calculateRotationAngleAndShiftsFromTM(ts)
         swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
         ts.applyTransform(outputTsFileName, swapXY=swap)
