@@ -94,6 +94,12 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                       label='Box size',
                       help='The particle stack are extracted as squares. The box size defines the edge of the square',
                       important=True)
+                      
+        #TODO: This flag can be automitized
+        #form.addParam('defocusDir', BooleanParam,
+        #              label='Defocus increase with z positive?', default=True,
+        #              help='This flag must be put if the defocus increases or decreases along the z-axis. This is requires'
+        #                   'to set the local CTF.')
 
         form.addParam('invertContrast', BooleanParam,
                       label='Invert Contrast', default=True,
@@ -213,7 +219,8 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         warningStr = ''
         mdts = lib.MetaData()
         for idxTS, idxCTF in zip(sorted_Idx_doseValueInTS, sorted_doseValueInCTF):
-            if doseValueInTS[idxTS] != doseValueInTSCTF[idxCTF]:
+            dose = doseValueInTS[idxTS]
+            if dose != doseValueInTSCTF[idxCTF]:
                 warningStr += '%s \n' % tsId
                 break
             else:
@@ -245,6 +252,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                 nRow.setValue(lib.MDL_ANGLE_ROT, rot)
                 nRow.setValue(lib.MDL_SHIFT_X, Sx)
                 nRow.setValue(lib.MDL_SHIFT_Y, Sy)
+                nRow.setValue(lib.MDL_DOSE, dose)
                 nRow.addToMd(mdts)
 
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsId)
@@ -282,6 +290,8 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         params += ' --coordinates %s' % fnCoords
         params += ' --boxsize %i' % self.boxSize.get()
         params += ' --sampling %f' % ts.getFirstItem().getSamplingRate()
+        #if self.defocusDir.get():
+        #    params += ' --defocusPositive '
         if self.setCTFinfo:
             params += ' --setCTF '
         if self.invertContrast.get():
@@ -304,6 +314,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         ts = self.tiltseries.get()
         firstItem = ts.getFirstItem()
         acquisitonInfo = firstItem.getAcquisition()
+        print(acquisitonInfo)
         # TODO: Check the sampling if the tomograms are different than the picked ones
         # TODO: Check the sampling rate if a downsampling option is implemented
         outputSet = None
@@ -313,7 +324,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         bs = self.boxSize.get()
         self.outputParticleStackSet.setDim(ImageDim(bs, bs, bs))
         self.outputParticleStackSet.setAnglesCount(ts.getAnglesCount())
-        if firstItem.getAcquisition():
+        if acquisitonInfo:
             acquisition = TomoAcquisition()
             acquisition.setAngleMin(acquisitonInfo.getAngleMin())
             acquisition.setAngleMax(acquisitonInfo.getAngleMax())
@@ -336,9 +347,12 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         if self.asSPAparticles:
             fn = self._getExtraPath('allparticles.xmd')
             outputSet = self._createSetOfParticles()
+            outputSet.setAcquisition(acquisitonInfo)
             self.createMdWithall2DTiltParticles(fn)
+            #TODO set dose per particle
             readSetOfParticles(fn, outputSet)
             outputSet.setSamplingRate(self.tiltseries.get().getSamplingRate())
+            outputSet.write()
 
             self._defineOutputs(outputParticles=outputSet)
             self._defineSourceRelation(self.coords, outputSet)
@@ -366,6 +380,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     rot = row.getValue(lib.MDL_ANGLE_ROT)
                     Sx = row.getValue(lib.MDL_SHIFT_X)
                     Sy = row.getValue(lib.MDL_SHIFT_Y)
+                    dose = row.getValue(lib.MDL_DOSE)
 
                     rowglobal.setValue(md.MDL_IMAGE, fnImg[0] + '@' + os.path.join(basemdpath, fnImg[1]))
                     rowglobal.setValue(md.MDL_TSID, ts_orig)
@@ -377,6 +392,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     rowglobal.setValue(lib.MDL_ANGLE_PSI, psi)
                     rowglobal.setValue(lib.MDL_SHIFT_X, Sx)
                     rowglobal.setValue(lib.MDL_SHIFT_Y, Sy)
+                    rowglobal.setValue(lib.MDL_DOSE, dose)
                     rowglobal.addToMd(mdAllParticles)
         mdAllParticles.write(fn)
 
