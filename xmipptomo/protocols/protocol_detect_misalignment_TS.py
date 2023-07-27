@@ -37,7 +37,7 @@ import xmipptomo.utils as utils
 import emtable
 
 METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
-VMC_FILE_NAME = "vCM.xmd"
+VRESMOD_FILE_NAME = "vResMod.xmd"
 
 
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
@@ -64,7 +64,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         form.addParam('inputSetOfTiltSeries',
                       params.PointerParam,
-                      pointerClass='SetOfTiltSeries',
+                      pointerClass='SetOfTiltSeries, SetOfLandmarkModels',
                       important=True,
                       label='Input set of tilt-series')
 
@@ -119,9 +119,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             cisID = self._insertFunctionStep(self.convertInputStep,
                                              tsObjId,
                                              prerequisites=[])
-            dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
+            crvID = self._insertFunctionStep(self.calculateResidualVectors,
                                              tsObjId,
                                              prerequisites=[cisID])
+            dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
+                                             tsObjId,
+                                             prerequisites=[crvID])
             gosID = self._insertFunctionStep(self.generateOutputStep,
                                              tsObjId,
                                              prerequisites=[dmsID])
@@ -191,7 +194,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
 
-    def detectMisalignmentStep(self, tsObjId):
+    def calculateResidualVectors(self, tsObjId):
         if self.check:
             ts = self.inputSetOfTiltSeries.get()[tsObjId]
             tsId = ts.getTsId()
@@ -203,29 +206,57 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
 
-            paramsDetectMisali = {
+            paramsLandmarkResiduals = {
                 'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
-                'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
                 'tlt': angleFilePath,
-                'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
-                'thrSDHCC': self.thrSDHCC.get(),
+                'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
+                'o': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
                 'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
+                'thrSDHCC': self.thrSDHCC.get(),
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
                 'targetLMsize': self.targetLMsize.get()
             }
 
+            argsLandmarkResiduals = "-i %(i)s " \
+                                    "--tlt %(tlt)s " \
+                                    "--inputCoord %(inputCoord)s " \
+                                    "-o %(o)s " \
+                                    "--samplingRate %(samplingRate).2f " \
+                                    "--fiducialSize %(fiducialSize).2f " \
+                                    "--thrSDHCC %(thrSDHCC).2f " \
+                                    "--thrFiducialDistance %(thrFiducialDistance).2f " \
+                                    "--targetLMsize %(targetLMsize).2f"
+
+            self.runJob('xmipp_tomo_calculate_landmark_residuals', argsLandmarkResiduals % paramsLandmarkResiduals)
+
+    def detectMisalignmentStep(self, tsObjId):
+        if self.check:
+            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            tsId = ts.getTsId()
+
+            extraPrefix = self._getExtraPath(tsId)
+            tmpPrefix = self._getTmpPath(tsId)
+
+            firstItem = ts.getFirstItem()
+
+            paramsDetectMisali = {
+                'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
+                'inputResInfo': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
+                'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
+                'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+                'fiducialSize': self.fiducialSize.get() * 10,
+                'thrFiducialDistance': self.thrFiducialDistance.get(),
+            }
+
             argsDetectMisali = "-i %(i)s " \
-                               "--tlt %(tlt)s " \
-                               "--inputCoord %(inputCoord)s " \
+                               "--inputResInfo %(inputResInfo)s " \
                                "-o %(o)s " \
-                               "--thrSDHCC %(thrSDHCC).2f " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--thrFiducialDistance %(thrFiducialDistance).2f " \
-                               "--targetLMsize %(targetLMsize).2f"
+                               "--thrFiducialDistance %(thrFiducialDistance).2f "
 
-            self.runJob('xmipp_tomo_detect_misalignment_trajectory', argsDetectMisali % paramsDetectMisali)
+            self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
     def generateOutputStep(self, tsObjId):
         if self.check:
@@ -264,7 +295,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                        applyTSTransformation=Boolean(True))
             lm.setTiltSeries(newTs)
 
-            vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, VMC_FILE_NAME))
+            vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, VRESMOD_FILE_NAME))
 
             for lmInfo in vcmInfoList:
                 lm.addLandmark(xCoor=lmInfo[0],
