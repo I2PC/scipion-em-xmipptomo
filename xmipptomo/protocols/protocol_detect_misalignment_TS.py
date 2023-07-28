@@ -62,7 +62,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection('Input')
 
-        form.addParam('inputSetOfTiltSeries',
+        form.addParam('inputSet',
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries, SetOfLandmarkModels',
                       important=True,
@@ -114,25 +114,57 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         allcossId = []
 
-        for ts in self.inputSetOfTiltSeries.get():
-            tsObjId = ts.getObjId()
-            cisID = self._insertFunctionStep(self.convertInputStep,
-                                             tsObjId,
-                                             prerequisites=[])
-            crvID = self._insertFunctionStep(self.calculateResidualVectors,
-                                             tsObjId,
-                                             prerequisites=[cisID])
-            dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
-                                             tsObjId,
-                                             prerequisites=[crvID])
-            gosID = self._insertFunctionStep(self.generateOutputStep,
-                                             tsObjId,
-                                             prerequisites=[dmsID])
+        if isinstance(self.inputSet.get(), tomoObj.SetOfTiltSeries):
+            self.inputSetOfTiltSeries = self.inputSet
 
-            allcossId.append(gosID)
+            for ts in self.inputSetOfTiltSeries.get():
+                tsObjId = ts.getObjId()
+                cisID = self._insertFunctionStep(self.convertInputStep,
+                                                 tsObjId,
+                                                 prerequisites=[])
 
-        self._insertFunctionStep(self.closeOutputSetsStep,
-                                 prerequisites=allcossId)
+                crvID = self._insertFunctionStep(self.calculateResidualVectors,
+                                                 tsObjId,
+                                                 prerequisites=[cisID])
+
+                dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
+                                                 tsObjId,
+                                                 prerequisites=[crvID])
+
+                gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                 tsObjId,
+                                                 prerequisites=[dmsID])
+
+                allcossId.append(gosID)
+
+            self._insertFunctionStep(self.closeOutputSetsStep,
+                                     prerequisites=allcossId)
+
+        else:  # SetOfLandmarkModels
+            self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries(pointer=True)
+
+            for ts in self.inputSetOfTiltSeries.get():
+                tsObjId = ts.getObjId()
+                cisID = self._insertFunctionStep(self.convertInputStep,
+                                                 tsObjId,
+                                                 prerequisites=[])
+
+                grfID = self._insertFunctionStep(self.generateResidualFileFromLandmarkModel,
+                                                 tsObjId,
+                                                 prerequisites=[cisID])
+
+                dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
+                                                 tsObjId,
+                                                 prerequisites=[grfID])
+
+                gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                 tsObjId,
+                                                 prerequisites=[dmsID])
+
+                allcossId.append(gosID)
+
+            self._insertFunctionStep(self.closeOutputSetsStep,
+                                     prerequisites=allcossId)
 
     # --------------------------- STEPS functions ----------------------------
 
@@ -193,6 +225,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
+
+
+    def generateResidualFileFromLandmarkModel(self):
+        pass
 
     def calculateResidualVectors(self, tsObjId):
         if self.check:
