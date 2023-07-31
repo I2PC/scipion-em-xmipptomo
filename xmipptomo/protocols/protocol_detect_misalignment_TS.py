@@ -26,7 +26,8 @@
 
 import os
 
-from pwem.emlib import MetaData, lib
+from pwem.emlib import lib
+import pwem.emlib.metadata as md
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -127,6 +128,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 tsObjId = ts.getObjId()
                 cisID = self._insertFunctionStep(self.convertInputStep,
                                                  tsObjId,
+                                                 True,
                                                  prerequisites=[])
 
                 crvID = self._insertFunctionStep(self.calculateResidualVectors,
@@ -152,9 +154,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             for ts in self.inputSetOfTiltSeries:
                 tsObjId = ts.getObjId()
+
+                cisID = self._insertFunctionStep(self.convertInputStep,
+                                                 tsObjId,
+                                                 False,
+                                                 prerequisites=[])
+
                 grfID = self._insertFunctionStep(self.generateResidualFileFromLandmarkModel,
                                                  tsObjId,
-                                                 prerequisites=[])
+                                                 prerequisites=[cisID])
 
                 dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
                                                  tsObjId,
@@ -171,7 +179,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions ----------------------------
 
-    def convertInputStep(self, tsObjId):
+    def convertInputStep(self, tsObjId, modeTs):
         ts = self.inputSetOfTiltSeries[tsObjId]
         tsId = ts.getTsId()
 
@@ -197,37 +205,38 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
             ts.applyTransform(outputTsFileName)
 
-        """Generate angle file"""
-        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-        utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
+        if modeTs:
+            """Generate angle file"""
+            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+            utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
-        """Generate 3D coordinates metadata"""
-        sots_soc = self.inputSetOfCoordinates.get().getSetOfTiltSeries()
-        ts_soc = sots_soc.getTiltSeriesFromTsId(tsId)
+            """Generate 3D coordinates metadata"""
+            sots_soc = self.inputSetOfCoordinates.get().getSetOfTiltSeries()
+            ts_soc = sots_soc.getTiltSeriesFromTsId(tsId)
 
-        xDim, yDim, _ = ts_soc.getFirstItem().getDimensions()
+            xDim, yDim, _ = ts_soc.getFirstItem().getDimensions()
 
-        if firstItem.hasTransform():
-            if swap:
-                xHalf = yDim / 2
-                yHalf = xDim / 2
+            if firstItem.hasTransform():
+                if swap:
+                    xHalf = yDim / 2
+                    yHalf = xDim / 2
+                else:
+                    xHalf = xDim / 2
+                    yHalf = yDim / 2
             else:
-                xHalf = xDim / 2
-                yHalf = yDim / 2
-        else:
-            xHalf = firstItem.getDimensions()[0] / 2
-            yHalf = firstItem.getDimensions()[1] / 2
+                xHalf = firstItem.getDimensions()[0] / 2
+                yHalf = firstItem.getDimensions()[1] / 2
 
-        self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
-                                                                     os.path.join(extraPrefix,
-                                                                                  METADATA_INPUT_COORDINATES),
-                                                                     ts.getSamplingRate(),
-                                                                     xHalf,
-                                                                     yHalf,
-                                                                     tsId)
+            self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
+                                                                         os.path.join(extraPrefix,
+                                                                                      METADATA_INPUT_COORDINATES),
+                                                                         ts.getSamplingRate(),
+                                                                         xHalf,
+                                                                         yHalf,
+                                                                         tsId)
 
-        if not self.check:
-            print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
+            if not self.check:
+                print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
 
     def generateResidualFileFromLandmarkModel(self, tsObjId):
         ts = self.inputSetOfTiltSeries[tsObjId]
@@ -237,24 +246,27 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         lm = self.inputSetOfLandmarkModels.getLandmarkModelFromTsId(tsId)
 
-        lmInfoTable = lm.retrieveInfoTable
+        lmInfoTable = lm.retrieveInfoTable()
         resModFilePath = os.path.join(extraPrefix, VRESMOD_FILE_NAME)
 
-        md = MetaData()
+        mdlm = lib.MetaData()
 
-        for index, infoLine in enumerate(lmInfoTable):
-            nRow = MetaData().Row()
+        print(lmInfoTable)
 
-            nRow.setValue(lib.MDL_XCOOR, infoLine[0])
-            nRow.setValue(lib.MDL_YCOOR, infoLine[1])
-            nRow.setValue(lib.MDL_ZCOOR, infoLine[2])
-            nRow.setValue(lib.MDL_FRAME_ID, infoLine[3])
-            nRow.setValue(lib.MDL_SHIFT_X, infoLine[4])
-            nRow.setValue(lib.MDL_SHIFT_Y, infoLine[5])
+        for infoLine in lmInfoTable:
+            nRow = md.Row()
 
-            nRow.addToMd(md)
+            nRow.setValue(lib.MDL_XCOOR, int(infoLine[0]))
+            nRow.setValue(lib.MDL_YCOOR, int(infoLine[1]))
+            nRow.setValue(lib.MDL_ZCOOR, int(infoLine[2]))
+            nRow.setValue(lib.MDL_FRAME_ID, int(infoLine[3])-1)
+            nRow.setValue(lib.MDL_SHIFT_X, float(infoLine[4]))
+            nRow.setValue(lib.MDL_SHIFT_Y, float(infoLine[5]))
 
-        md.write(resModFilePath)
+            nRow.addToMd(mdlm)
+
+        print(resModFilePath)
+        mdlm.write(resModFilePath)
 
     def calculateResidualVectors(self, tsObjId):
         if self.check:
