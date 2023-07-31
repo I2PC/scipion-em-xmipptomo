@@ -25,6 +25,8 @@
 # **************************************************************************
 
 import os
+
+from pwem.emlib import MetaData, lib
 from pyworkflow import BETA
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
@@ -226,6 +228,33 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
+
+    def generateResidualFileFromLandmarkModel(self, tsObjId):
+        ts = self.inputSetOfTiltSeries[tsObjId]
+        tsId = ts.getTsId()
+
+        extraPrefix = self._getExtraPath(tsId)
+
+        lm = self.inputSetOfLandmarkModels.getLandmarkModelFromTsId(tsId)
+
+        lmInfoTable = lm.retrieveInfoTable
+        resModFilePath = os.path.join(extraPrefix, VRESMOD_FILE_NAME)
+
+        md = MetaData()
+
+        for index, infoLine in enumerate(lmInfoTable):
+            nRow = MetaData().Row()
+
+            nRow.setValue(lib.MDL_XCOOR, infoLine[0])
+            nRow.setValue(lib.MDL_YCOOR, infoLine[1])
+            nRow.setValue(lib.MDL_ZCOOR, infoLine[2])
+            nRow.setValue(lib.MDL_FRAME_ID, infoLine[3])
+            nRow.setValue(lib.MDL_SHIFT_X, infoLine[4])
+            nRow.setValue(lib.MDL_SHIFT_Y, infoLine[5])
+
+            nRow.addToMd(md)
+
+        md.write(resModFilePath)
 
     def calculateResidualVectors(self, tsObjId):
         if self.check:
