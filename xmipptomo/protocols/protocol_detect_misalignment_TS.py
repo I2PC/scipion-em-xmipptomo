@@ -58,6 +58,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         # Global variable to check if coordinates have been input for a specific tilt-series
         self.check = True
 
+        self.inputSetOfTiltSeries = None
+        self.inputSetOfLandmarkModels = None
+
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         form.addSection('Input')
@@ -82,6 +85,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       label='Fiducial size (nm)',
                       help='Fiducial size in nanometers (nm).')
 
+        # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
                       advanced=True,
@@ -115,9 +119,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         allcossId = []
 
         if isinstance(self.inputSet.get(), tomoObj.SetOfTiltSeries):
-            self.inputSetOfTiltSeries = self.inputSet
+            self.inputSetOfTiltSeries = self.inputSet.get()
 
-            for ts in self.inputSetOfTiltSeries.get():
+            for ts in self.inputSetOfTiltSeries:
                 tsObjId = ts.getObjId()
                 cisID = self._insertFunctionStep(self.convertInputStep,
                                                  tsObjId,
@@ -141,17 +145,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                      prerequisites=allcossId)
 
         else:  # SetOfLandmarkModels
+            self.inputSetOfLandmarkModels = self.inputSet.get()
             self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries(pointer=True)
 
-            for ts in self.inputSetOfTiltSeries.get():
+            for ts in self.inputSetOfTiltSeries:
                 tsObjId = ts.getObjId()
-                cisID = self._insertFunctionStep(self.convertInputStep,
-                                                 tsObjId,
-                                                 prerequisites=[])
-
                 grfID = self._insertFunctionStep(self.generateResidualFileFromLandmarkModel,
                                                  tsObjId,
-                                                 prerequisites=[cisID])
+                                                 prerequisites=[])
 
                 dmsID = self._insertFunctionStep(self.detectMisalignmentStep,
                                                  tsObjId,
@@ -169,7 +170,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     # --------------------------- STEPS functions ----------------------------
 
     def convertInputStep(self, tsObjId):
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
+        ts = self.inputSetOfTiltSeries[tsObjId]
         tsId = ts.getTsId()
 
         extraPrefix = self._getExtraPath(tsId)
@@ -226,13 +227,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         if not self.check:
             print("No input coordinates for ts %s. Skipping this tilt-series for analysis." % tsId)
 
-
-    def generateResidualFileFromLandmarkModel(self):
-        pass
-
     def calculateResidualVectors(self, tsObjId):
         if self.check:
-            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            ts = self.inputSetOfTiltSeries[tsObjId]
             tsId = ts.getTsId()
 
             extraPrefix = self._getExtraPath(tsId)
@@ -247,7 +244,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'tlt': angleFilePath,
                 'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
                 'o': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
-                'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+                'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrSDHCC': self.thrSDHCC.get(),
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
@@ -268,7 +265,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     def detectMisalignmentStep(self, tsObjId):
         if self.check:
-            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            ts = self.inputSetOfTiltSeries[tsObjId]
             tsId = ts.getTsId()
 
             extraPrefix = self._getExtraPath(tsId)
@@ -280,7 +277,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
                 'inputResInfo': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
                 'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
-                'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
+                'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
             }
@@ -296,7 +293,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
     def generateOutputStep(self, tsObjId):
         if self.check:
-            ts = self.inputSetOfTiltSeries.get()[tsObjId]
+            ts = self.inputSetOfTiltSeries[tsObjId]
             tsId = ts.getTsId()
 
             extraPrefix = self._getExtraPath(tsId)
@@ -456,13 +453,13 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         else:
             outputSetOfTiltSeries = self._createSetOfTiltSeries(suffix="_ali")
 
-            outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
-            outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+            outputSetOfTiltSeries.copyInfo(self.inputSetOfTiltSeries)
+            outputSetOfTiltSeries.setDim(self.inputSetOfTiltSeries.getDim())
 
             outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
 
             self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfTiltSeries)
+            self._defineSourceRelation(self.inputSet, outputSetOfTiltSeries)
 
         return self.outputSetOfTiltSeries
 
@@ -476,13 +473,13 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         else:
             outputSetOfMisalignedTiltSeries = self._createSetOfTiltSeries(suffix="_misali")
 
-            outputSetOfMisalignedTiltSeries.copyInfo(self.inputSetOfTiltSeries.get())
-            outputSetOfMisalignedTiltSeries.setDim(self.inputSetOfTiltSeries.get().getDim())
+            outputSetOfMisalignedTiltSeries.copyInfo(self.inputSetOfTiltSeries)
+            outputSetOfMisalignedTiltSeries.setDim(self.inputSetOfTiltSeries.getDim())
 
             outputSetOfMisalignedTiltSeries.setStreamState(Set.STREAM_OPEN)
 
             self._defineOutputs(outputSetOfMisalignedTiltSeries=outputSetOfMisalignedTiltSeries)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfMisalignedTiltSeries)
+            self._defineSourceRelation(self.inputSet, outputSetOfMisalignedTiltSeries)
 
         return self.outputSetOfMisalignedTiltSeries
 
@@ -494,13 +491,13 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         else:
             outputSetOfAlignedLandmarkModels = self._createSetOfLandmarkModels("_ali")
 
-            outputSetOfAlignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfAlignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries)
             outputSetOfAlignedLandmarkModels.setSetOfTiltSeries(self.getOutputSetOfTiltSeries())
 
             outputSetOfAlignedLandmarkModels.setStreamState(Set.STREAM_OPEN)
 
             self._defineOutputs(outputSetOfAlignedLandmarkModels=outputSetOfAlignedLandmarkModels)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfAlignedLandmarkModels)
+            self._defineSourceRelation(self.inputSet, outputSetOfAlignedLandmarkModels)
 
         return self.outputSetOfAlignedLandmarkModels
 
@@ -513,12 +510,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             outputSetOfMisalignedLandmarkModels = self._createSetOfLandmarkModels("_misali")
             outputSetOfMisalignedLandmarkModels.setSetOfTiltSeries(self.getOutputSetOfMisalignedTiltSeries())
 
-            outputSetOfMisalignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
+            outputSetOfMisalignedLandmarkModels.copyInfo(self.inputSetOfTiltSeries)
 
             outputSetOfMisalignedLandmarkModels.setStreamState(Set.STREAM_OPEN)
 
             self._defineOutputs(outputSetOfMisalignedLandmarkModels=outputSetOfMisalignedLandmarkModels)
-            self._defineSourceRelation(self.inputSetOfTiltSeries, outputSetOfMisalignedLandmarkModels)
+            self._defineSourceRelation(self.inputSet, outputSetOfMisalignedLandmarkModels)
 
         return self.outputSetOfMisalignedLandmarkModels
 
@@ -550,7 +547,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             #     summary.extend(self.convertResidualStatisticInString(ts.getTsId()))
         else:
             summary.append("From the %d analyzed tilt series, %d presents misalignment:" %
-                           (self.inputSetOfTiltSeries.get().getSize(),
+                           (self.inputSet.get().getSize(),
                             self.outputSetOfMisalignedTiltSeries.getSize()))
 
             # for ts in self.outputSetOfMisalignedTiltSeries:
