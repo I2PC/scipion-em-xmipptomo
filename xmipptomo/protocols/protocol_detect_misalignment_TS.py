@@ -251,8 +251,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         mdlm = lib.MetaData()
 
-        print(lmInfoTable)
-
         for infoLine in lmInfoTable:
             nRow = md.Row()
 
