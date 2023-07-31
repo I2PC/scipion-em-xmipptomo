@@ -36,8 +36,6 @@ import os
 import emtable
 
 from pwem import ALIGN_PROJ
-from pwem.emlib import lib
-import pwem.emlib.metadata as md
 from pwem.objects import Transform
 
 import pyworkflow as pw
