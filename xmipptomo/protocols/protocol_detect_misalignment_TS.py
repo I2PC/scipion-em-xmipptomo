@@ -579,9 +579,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     def _validate(self):
         errors = []
 
-        if isinstance(self.inputSet.get(), tomoObj.SetOfLandmarkModels) and not self.inputSet.get().hasResidualInfo():
-            errors.append("Input set of landmark models has no residual information. Impossible to study misalignment.")
-            errors.append("Typically only landmark models obtained after alignment has residual information.")
+        if isinstance(self.inputSet.get(), tomoObj.SetOfLandmarkModels):
+            if not self.inputSet.get().hasResidualInfo():
+                errors.append("Input set of landmark models has no residual information. "
+                              "Impossible to study misalignment.")
+                errors.append("Typically only landmark models obtained after alignment has residual information.")
 
         return errors
 
