@@ -254,9 +254,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         for infoLine in lmInfoTable:
             nRow = md.Row()
 
-            nRow.setValue(lib.MDL_XCOOR, int(infoLine[0]))
-            nRow.setValue(lib.MDL_YCOOR, int(infoLine[1]))
-            nRow.setValue(lib.MDL_ZCOOR, int(infoLine[2]))
+            nRow.setValue(lib.MDL_X, float(infoLine[0]))
+            nRow.setValue(lib.MDL_Y, float(infoLine[1]))
+            nRow.setValue(lib.MDL_Z, float(infoLine[2])-1)
             nRow.setValue(lib.MDL_FRAME_ID, int(infoLine[3])-1)
             nRow.setValue(lib.MDL_SHIFT_X, float(infoLine[4]))
             nRow.setValue(lib.MDL_SHIFT_Y, float(infoLine[5]))
