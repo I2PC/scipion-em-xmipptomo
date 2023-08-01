@@ -254,6 +254,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         for infoLine in lmInfoTable:
             nRow = md.Row()
 
+            # Remove residuals with module zero (Landmark model saves 0.0 as default when no residual information
+            # is saved for that coordinate.
+            if self.is_float_zero(float(infoLine[4])) and self.is_float_zero(float(infoLine[5])):
+                continue
+
             nRow.setValue(lib.MDL_X, float(infoLine[0]))
             nRow.setValue(lib.MDL_Y, float(infoLine[1]))
             nRow.setValue(lib.MDL_Z, float(infoLine[2])-1)
@@ -428,6 +433,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- UTILS functions ----------------------------
+    @staticmethod
+    def is_float_zero(value, tolerance=1e-9):
+        return abs(value) < tolerance
+
     def generateAlignmentReportDictionary(self, enableInfoList, tsId):
         self.alignmentReport.clear()
         self.alignmentReport = List([])
