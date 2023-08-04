@@ -716,7 +716,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return self._getExtraPath('nn')
 
     def _stripTomoFilename(self, tomopath: str):
-        # TODO: in a future, update to not explode with .mrc.gz and other dual extensions
         return tomopath.split("/")[-1].split(".")[0]
     
     def _getCoordConsensusPath(self, *args):
