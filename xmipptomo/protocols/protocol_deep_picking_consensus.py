@@ -722,16 +722,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return self._getExtraPath('coordconsensus', *args)
 
     def _getPosCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_consensus_pos.xmd")
+        return self._getCoordConsensusPath(tomo_name+"_cons_pos.xmd")
     
     def _getNegCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_consensus_neg.xmd")
+        return self._getCoordConsensusPath(tomo_name+"_cons_neg.xmd")
     
     def _getDoubtCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_consensus_doubt.xmd")
+        return self._getCoordConsensusPath(tomo_name+"_cons_doubt.xmd")
     
     def _getConsCoordsFilename(self, tomo_name:str):
-        return self._getCoordConsensusPath(tomo_name+"_consensus_all.xmd")
+        return self._getCoordConsensusPath(tomo_name+"_cons_all.xmd")
     
     def _getAllCoordsFilename(self, tomo_name: str):
         return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
