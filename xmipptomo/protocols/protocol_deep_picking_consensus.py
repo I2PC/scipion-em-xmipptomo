@@ -82,7 +82,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     MODEL_TRAIN_PRETRAIN = 1
     MODEL_TRAIN_PREVRUN = 2
     FORM_MODEL_TRAIN_TYPELIST_LABELS = ["From scratch", "Existing model", "Previous run"]
-    FORM_MODEL_TRAIN_TYPELIST = [MODEL_TRAIN_NEW, MODEL_TRAIN_PRETRAIN, MODEL_TRAIN_PREVRUN]
+    # FORM_MODEL_TRAIN_TYPELIST = [MODEL_TRAIN_NEW, MODEL_TRAIN_PRETRAIN, MODEL_TRAIN_PREVRUN]
+    FORM_MODEL_TRAIN_TYPELIST = [MODEL_TRAIN_NEW, MODEL_TRAIN_PRETRAIN]
+
 
     # Form options: additional data
     ADD_DATA_TRAIN_NEW = 0
@@ -90,6 +92,22 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     ADD_DATA_TRAIN_CUST = 2
     ADD_DATA_TRAIN_TYPELIST_LABELS = ["None","Precompiled","Custom"]
     ADD_DATA_TRAIN_TYPELIST = [ADD_DATA_TRAIN_NEW, ADD_DATA_TRAIN_PRECOMP, ADD_DATA_TRAIN_CUST]
+
+    # Form options: Coordinates consensus representant election
+    COORD_CONS_FIRST = 0
+    COORD_CONS_CENTROID = 1
+    FORM_COORD_CONS_TYPELIST_LABELS = ["First found","Calculate centroid"]
+    FORM_COORD_CONS_TYPELIST = [COORD_CONS_FIRST, COORD_CONS_CENTROID]
+
+    #biggest, smallest, mean, first
+
+    # Form options: Values consensus
+    VALUE_CONS_FIRST = 0
+    VALUE_CONS_BIG = 1
+    VALUE_CONS_SMALL = 2
+    VALUE_CONS_MEAN = 3
+    FORM_VALUE_CONS_TYPELIST_LABELS = ["First found", "Biggest", "Smallest", "Mean value"]
+    FORM_VALUE_CONS_TYPELIST = [VALUE_CONS_FIRST, VALUE_CONS_BIG, VALUE_CONS_SMALL, VALUE_CONS_MEAN]
 
 
     # Form options: work with ST or Coords
@@ -102,41 +120,46 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _defineParams(self, form : params.Form):
         ## Multiprocessing params
-        form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
-                        label="Use GPU for the model (default: Yes)",
-                        help="If yes, the protocol will try to use a GPU for "
-                             "model training and execution. Note that this "
-                             "will greatly decrease execution time."
-                        )
-        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-                        label="GPU ID",
-                        help="Your system may have several GPUs installed, "
-                             " choose the one you'd like to use(default: 0)."
-                        )
-        form.addParallelSection(threads=1, mpi=1)
+        # form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
+        #                 label="Use GPU for the model (default: Yes)",
+        #                 help="If yes, the protocol will try to use a GPU for "
+        #                      "model training and execution. Note that this "
+        #                      "will greatly decrease execution time."
+        #                 )
+        # form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+        #                 label="GPU ID",
+        #                 help="Your system may have several GPUs installed, "
+        #                      " choose the one you'd like to use(default: 0)."
+        #                 )
+        # form.addParallelSection(threads=1, mpi=1)
 
         form.addSection(label='Main')
 
         group_model = form.addGroup('Neural Network model')
 
         ## Neural Network parameters
+        # TODO: COSS - como hacer que una option solo salga si el protocolo ya ha sido previamente ejecutado
+        # seguro que hay algun self.soynuevo o algo asi super sketchy que han usado 2 personas en su vida
         group_model.addParam('modelInitialization', params.EnumParam,
             choices = self.FORM_MODEL_TRAIN_TYPELIST_LABELS,
             default = self.MODEL_TRAIN_NEW,
             label = 'Select a model',
+            # help = 'When set to *%s*, the network will start with a fresh and randomly '
+            # 'initialized model. The option *%s* will let you choose a previously trained '
+            # 'model. Lastly, *%s* will utilize the same model that was used in the '
+            # 'previous run of this protocol.'
             help = 'When set to *%s*, the network will start with a fresh and randomly '
             'initialized model. The option *%s* will let you choose a previously trained '
-            'model. Lastly, *%s* will utilize the same model that was used in the '
-            'previous run of this protocol within this project.'
+            'model.'
             % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
         ## Model choices
         # For previous runs
-        group_model.addParam('continueRun', params.PointerParam,
-            pointerClass = self.getClassName(),
-            condition = 'modelInitialization == %s'%self.MODEL_TRAIN_PREVRUN, allowsNull=True,
-            label = 'Select previous run',
-            help = 'Choose from a previous run to continue from.'
-        )
+        # group_model.addParam('continueRun', params.PointerParam,
+        #     pointerClass = self.getClassName(),
+        #     condition = 'modelInitialization == %s'%self.MODEL_TRAIN_PREVRUN, allowsNull=True,
+        #     label = 'Select previous run',
+        #     help = 'Choose from a previous run to continue from.'
+        # )
         # For NOT NEW models
         group_model.addParam('skipTraining', params.BooleanParam,
             default = False,
@@ -144,6 +167,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             label = 'Skip training step',
             help = ' When set to *Yes*, the volumes will be directly fed to the model, '
             ' If set to *No*, you must provide a training set of volumes.'
+        )
+        form.addParam('trainingBatch', params.IntParam, default='5',
+                        label = 'Training batch size',
+                        help = 'Amount of subtomograms in a training batch. '
+                        'If the provided subtomograms are not enough for the '
+                        'NN, this has to be increased. If the machine hangs due'
+                        ' to memory issues, this has to be reduced.'
         )
 
         group_input = form.addGroup('Input')
@@ -153,14 +183,40 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
+        group_input.addParam('classThreshold', params.FloatParam, default=0.5,
+                        label = 'Tolerance threshold',
+                        help='Choose a threshold in the range (0,1] to adjust '
+                        'the threshold used internally to determine if the '
+                        'input is classified as a _particle_ or as bad _noise_'
+                        '. When set to -1 all particles are considered _good_.'
+        )
 
         form.addSection(label='Preprocess')
-        form.addParam('consensusRadius', params.FloatParam, default=0.1,
+        form.addParam('coordConsensusRadius', params.FloatParam, default=0.1,
                         label="Same-element relative radius",
                         validators=[params.Positive],
                         help='Two sets of coordinates are determined to be of '
                         'the same particle if they are within this radius. The'
                         ' radius is given in [fraction of particle size] units.'
+        )
+
+        form.addParam('coordConsensusType', params.EnumParam, 
+                      choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
+                      default = self.COORD_CONS_FIRST,
+                      label = 'Representant choosing method',
+                      help = 'When assimilating all the pickings related to the'
+                      ' same ROI... *%s* will choose the number of the first '
+                      'element in the list, while *%s* will calculate a mean and '
+                      'later force the resize of all subtomograms to match it.' 
+                      % tuple(self.FORM_COORD_CONS_TYPELIST_LABELS)
+        )
+
+        form.addParam('valueConsensusType', params.EnumParam,
+                      
+                      choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
+                      default = self.VALUE_CONS_SMALL,
+                      label = 'Boxsize choosing method',
+                      help = '*%s* *%s* *%s* *%s*',
         )
 
         form.addParam('fracNoise', params.FloatParam, default=0.9,
@@ -170,22 +226,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       ' expressed in [0..1] - fraction of the total amount'
                       ' of coordinates found on input')
 
-        group_input.addParam('classThreshold', params.FloatParam, default=0.5,
-                        label = 'Tolerance threshold',
-                        help='Choose a threshold in the range [0,1] to adjust '
-                        'the threshold used internally to determine if the '
-                        'input is classified as a _particle_ or as bad _noise_'
-                        '. When set to -1 all particles are considered _good_.'
-        )
+        
 
         form.addSection(label='Training')
-        form.addParam('nEpochs', params.IntParam, default=12,
+        form.addParam('nEpochs', params.IntParam, default=6,
                         label = 'Cycles (total epochs)',
                         help = 'Number of process cycles that will be done '
                         'with the data in order to train the Neural Network.',
         )
 
-        form.addParam('learningrate', params.FloatParam, default = 0.01,
+        form.addParam('learningRate', params.FloatParam, default = 0.01,
                         label = 'Learning rate',
                         help = 'Hyperparameter that controls the difference '
                         'between a calculated weight and its next value. '
@@ -195,13 +245,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'minimas.'
         )
 
-        form.addParam('dynLearningrate', params.BooleanParam, default = True,
+        form.addParam('dynLearningRate', params.BooleanParam, default = True,
                         label = 'Dynamic learning rate',
                         help = 'The learning rate can be updated on runtime '
                         'depending on the evolution of the execution. '                    
         )
 
-        form.addParam('convergstop', params.BooleanParam, default = True,
+        form.addParam('convergStop', params.BooleanParam, default = True,
                         label = 'Stop on convergence',
                         help = 'When set to *Yes*, the protocol will stop '
                         'the training when no improvement is detected in '
@@ -211,27 +261,28 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         ' is not recommended for small datasets.'
         )
 
+        form.addParam('forceDataAugment', params.BooleanParam, default = False,
+                      label = "Force data augmentation",
+                      help = 'By default, the protocol will not try to '
+                      'perform data augmentation on datasets if at least two '
+                      'of the input pickers contain 900 structures detected.'
+                      )
 
-        #form.addSection(label='Previously labeled data')
-        form.addSection(label='Streaming')
-        form.addParam('doPreliminarPredict', params.BooleanParam, default=False,
-                        label = 'Predict before fully trained',
-                        help = 'This protocol might do predictions using '
-                        'the model before it is fully trained. These '
-                        'results are stored in a different output set.'
-        )
 
-        form.addParam('extractingBatch', params.IntParam, default='5',
-                        label = 'Extraction batch size',
-                        help = 'Amount of subtomograms in an extraction batch.'
-        )
+        # form.addSection(label='Streaming')
+        # form.addParam('doPreliminarPredict', params.BooleanParam, default=False,
+        #                 label = 'Predict before fully trained',
+        #                 help = 'This protocol might do predictions using '
+        #                 'the model before it is fully trained. These '
+        #                 'results are stored in a different output set.'
+        # )
 
-        form.addParam('trainingBatch', params.IntParam, default='5',
-                        label = 'Training batch size',
-                        help = 'Amount of subtomograms in a training batch. '
-                        'If the provided subtomograms are not enough for the '
-                        'NN, this has to be increased.'
-        )
+        # form.addParam('extractingBatch', params.IntParam, default='5',
+        #                 label = 'Extraction batch size',
+        #                 help = 'Amount of subtomograms in an extraction batch.'
+        # )
+
+        
 
     #--------------- INSERT steps functions ----------------
     
@@ -241,7 +292,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self._insertFunctionStep(self.prepareNNStep)
         if not bool(self.skipTraining):
             self._insertFunctionStep(self.processTrainStep)
-        self._insertFunctionStep(self.processOnlyScoreStep)
+        self._insertFunctionStep(self.processScoreStep)
         self._insertFunctionStep(self.postProcessStep)
         self._insertFunctionStep(self.createOutputStep)
 
@@ -458,8 +509,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
             args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
             args += ' --boxsize ' + str(self.consBoxSize)
-            args += ' --radius ' + str(float(self.consensusRadius.get()))
-            args += ' --number ' + str(REQUIRED_PICKERS)
+            args += ' --radius ' + str(float(self.coordConsensusRadius.get()))
+            args += ' --number ' + str(self.nr_pickers)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
     
