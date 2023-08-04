@@ -22,7 +22,7 @@
 # *  All comments concerning this program package may be sent to the
 # *  e-mail address 'coss@cnb.csic.es'
 # *
-# * Initial release: june 2023
+# * Initial release: september 2023
 # **************************************************************************
 
 """
