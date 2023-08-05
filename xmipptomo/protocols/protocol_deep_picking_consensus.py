@@ -486,6 +486,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --boxsize ' + str(self.consBoxSize)
             args += ' --radius ' + str(float(self.coordConsensusRadius.get()))
             args += ' --number ' + str(self.nr_pickers)
+            args += ' --constype ' + str(self.coordConsType)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
     
@@ -517,6 +518,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for noise picking')
         self.runJob(program, args)                   
   
+      # BLOCK 2 - Program - Launch Noise Picking algorithm for data
+
+    # BLOCK 2 - Prepare the material needed by the NN
     def prepareNNStep(self):
         """
         Block 2 - Neural Network TRAIN operations
@@ -582,8 +586,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.runJob(program, args)
 
         print('\nHanding over to Xmipp program for Train and Score')
-             
-          
+                  
     # BLOCK 2 - Program - Launch tomogram extraction step
     def tomogramExtract(self, tomoPath, coordsPath, outPath):
         """
@@ -605,7 +608,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         print('\nHanding over to Xmipp program for tomogram extraction')
         self.runJob(program, args)
-
 
     # BLOCK 2 - Program - Load model (if needed) and score 
     def processScoreStep(self):
