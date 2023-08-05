@@ -146,9 +146,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         ## Neural Network parameters
-        # TODO: COSS - como hacer que una option solo salga si el protocolo ya ha sido previamente ejecutado
-        # seguro que hay algun self.soynuevo o algo asi super sketchy que han usado 2 personas en su vida
-        # RESPUESTA: _validate
         group_model.addParam('modelInitialization', params.EnumParam,
             choices = self.FORM_MODEL_TRAIN_TYPELIST_LABELS,
             default = self.MODEL_TRAIN_NEW,
@@ -694,8 +691,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _validate(self):
         errors = []
         errors += self._validateParallelProcessing()
-        errors += self._validateCondaEnvironment()
-        errors += self._validateXmippBinaries()
+        errors += self._validateNumberOfPickers()
         return errors
 
     def _validateParallelProcessing(self):
@@ -711,12 +707,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
         return errors
 
-    def _validateCondaEnvironment(self):
+    def _validateNumberOfPickers(self):
+        nPickers = len(self.inputSets)
         errors = []
-        return errors
-
-    def _validateXmippBinaries(self):
-        errors = []
+        if nPickers < 2:
+            errors.append("More than one picker must be provided to do any kind of consensus.")
         return errors
     
         #--------------- FILENAMES functions -------------------
