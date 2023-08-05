@@ -312,93 +312,95 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         set labels for good, dubious and bad subtomos
         """
 
+        # GET THE INFORMATION FROM THE FORM AND STORE IN SELF -----------------
         # The form has a parameter called inputSets that carries
         # the 3D coordinates from the input pickers
         self.inputSetsOf3DCoordinates = [item.get() for item in self.inputSets]
 
         # Calculate the total amount of ROIs to save resources
-        # The SetOfCoordinates3D is a EMSet -> Set
-        totalROIs = sum(map(len, self.inputSetsOf3DCoordinates))
+        # The SetOfCoordinates3D is a EMSet -> Set so len() can be applied
+        self.totalROIs : int = sum(map(len, self.inputSetsOf3DCoordinates))
 
-        # Ahora tengo: sets de coordenadas que vienen de distintos pickers
-        # Toca: juntar todo
-
-        # Combined table
-        colnames = ['pick_id','x', 'y', 'z', 'tomo_id']
-        self.untreated = pd.DataFrame(index=range(totalROIs),columns=colnames)
-
-        # Pickers table
-        colnames_md = ['boxsize', 'samplingrate']
-        self.nr_pickers = len(self.inputSetsOf3DCoordinates)
-        self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
+        # Get the number of input pickers given in the form
+        self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
 
         # Get fraction for noise picking
         self.noiseFrac = float(self.fracNoise)
 
+        # Get the method of doing the value consensus
+        self.valueConsType : int = self.valueConsensusType
+
+        # Get the method of coordinate consensus
+        self.coordConsType : int = self.coordConsensusType
+
+        # GENERATE THE NEEDED TABLES TO START ---------------------------------
+        # Combined table of untreated data
+        colnames = ['pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate']
+        self.untreated = pd.DataFrame(index=range(self.totalROIs),columns=colnames)
+
+        # Pickers data table
+        colnames_md = ['boxsize', 'samplingrate']
+        self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
+
+        # START ENTERING THE DATA INTO THE RAW DATA TABLE ---------------------
+        # Index for total ROIs inside the next loop
+        globalIndex = 0
         # For each of the sets selected as input in the GUI...
         pickerCoordinates : SetOfCoordinates3D
-        # Index for total ROIs
-        indizea = 0
         for pick_id, pickerCoordinates in enumerate(self.inputSetsOf3DCoordinates):
-            # Assign incrementing ID
-            id = pick_id
             # Picker parameters
             bsize = int(pickerCoordinates.getBoxSize())
             srate = pickerCoordinates.getSamplingRate()
+
             # Assign the corresponding line
             self.pickerMD.loc[pick_id, 'boxsize'] = bsize
             self.pickerMD.loc[pick_id, 'samplingrate'] = srate
-            # Get the coordinates
-            coords = pickerCoordinates.iterCoordinates()
 
             # For each individual coordinate in this particular set...
             coordinate : Coordinate3D
-            for coordinate in coords:
+            for coordinate in pickerCoordinates.iterCoordinates():
                 asoc_vol : Tomogram = coordinate.getVolume()
                 tomo_id = asoc_vol.getFileName()
                 c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
                 c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
                 c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
-                self.untreated.loc[indizea, 'pick_id'] = id
-                self.untreated.loc[indizea, 'x'] = c_x
-                self.untreated.loc[indizea, 'y'] = c_y
-                self.untreated.loc[indizea, 'z'] = c_z
-                self.untreated.loc[indizea, 'tomo_id'] = tomo_id
-                indizea += 1
-
-        # Join the DFs to get all of the required information in one single DF
-        self.untreated = self.untreated.join(self.pickerMD, on='pick_id')
+                self.untreated.loc[globalIndex, 'pick_id'] = pick_id
+                self.untreated.loc[globalIndex, 'x'] = c_x
+                self.untreated.loc[globalIndex, 'y'] = c_y
+                self.untreated.loc[globalIndex, 'z'] = c_z
+                self.untreated.loc[globalIndex, 'tomo_id'] = tomo_id
+                self.untreated.loc[globalIndex, 'boxsize'] = bsize
+                self.untreated.loc[globalIndex, 'samplingrate'] = srate
+                globalIndex += 1
         
-        # Content of the self.untreated DF
+        # Content of the self.untreated DF now
         # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
         # Get different tomogram names
-        self.allTomoIds = self.untreated['tomo_id'].unique()
-        #self.coordinatesByTomogram = []
-        self.coordinatesByTomogramFileNames = []
+        self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
+        # self.coordinatesByTomogramFileNames = []
 
         # Generate a separate folder for each tomogram's coordinates
         pwutils.makePath(self._getPickedPerTomoPath())
 
         # Generate per tomogram dataframes and write to XMD
-        for name in self.allTomoIds:
+        for name in self.uniqueTomoIDs:
             print("Unique tomogram found: " + name)
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
-            #self.coordinatesByTomogram.append(singleTomoDf)
             savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
             self.writeCoords(savedfile, singleTomoDf)
-            self.coordinatesByTomogramFileNames.append(savedfile)
+            # self.coordinatesByTomogramFileNames.append(savedfile)
 
         # Print sizes before doing the consensus
-        print(str(self.nr_pickers) + " pickers with a total of "+ str(totalROIs)+ " coordinates from "
-              + str(len(self.allTomoIds)) + " individual tomograms.")
+        print(str(self.nr_pickers) + " pickers with a total of "+ str(self.totalROIs)+ " coordinates from "
+              + str(len(self.uniqueTomoIDs)) + " unique tomograms.")
         print("\nPICKER SUMMARY")
         print(self.pickerMD)
         print("")
     
         # Do the box size consensus
-        self.boxSizeConsensusStep()
-        self.samplingRateConsensusStep()
+        self.boxSizeConsensusStep(self.valueConsType)
+        self.samplingRateConsensusStep(self.valueConsType)
 
         # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings
         # End block
@@ -430,11 +432,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         outMD.write(outpath)
     
     # BLOCK 1 - Protocol - select box size
-    def boxSizeConsensusStep(self, method="biggest"):
+    def BSSRConsensusStep(self, method):
         """
-        Block 1 AUX - Perform consensus in the box size
+        Block 1 AUX - Perform consensus in the box size and samplingrate
         
-        Consensuates the box size from the different inputs according to
+        Consensuates the BSSR from the different inputs according to
         a selected method.
 
         Methods:
@@ -446,50 +448,21 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Fetch the different box sizes from pickers
         assert self.pickerMD is not None
-        values = self.pickerMD['boxsize']
 
-        result = self.valueConsensus(values, method)
+        if method ==  self.VALUE_CONS_BIG:
+            result = self.pickerMD.iloc[self.pickerMD['boxsize'].argmax()]
+        elif method == self.VALUE_CONS_SMALL:
+            result = self.pickerMD.iloc[self.pickerMD['boxsize'].argmin()]
+        elif method == self.VALUE_CONS_MEAN:
+            raise NotImplemented
+        elif method == self.VALUE_CONS_FIRST:
+            result = self.pickerMD[0]
 
-        print("Determined box size: " + str(result))
+        print("Determined box size: " + str(result['boxsize']))
+        print("Determined sampling rate (A/px): " + str(result['samplingrate']))
         
-        self.consBoxSize = Integer(result)
-
-   # BLOCK 1 - Protocol - choose sampling rate consensus
-    def samplingRateConsensusStep(self, method="smallest"):
-        """
-        Block 1 AUX - Perform consensus in the sampling rate (angstroms/px)
-        
-        Consensuates the sampling rate from the different inputs according to
-        a selected method.
-
-        Methods:
-          - biggest: max value amongst the pickers
-          - smallest: min value amongst the pickers
-          - mean: average value amongst the pickers
-          - first: first in the list
-        """
-
-        # Fetch the different box sizes from pickers
-        assert self.pickerMD is not None
-        values = self.pickerMD['samplingrate']
-        result = self.valueConsensus(values, method)
-        print("Determined sampling rate (A/px): " + str(result))
-        self.consSampRate = Float(result)
-    
-    # BLOCK 1 - Protocol - Auxiliar value consensus function
-    def valueConsensus(self, inputSet: pd.Series, method="biggest"):
-        values = inputSet
-
-        if method == "biggest":
-            result = values.max()
-        elif method == "smallest":
-            result = values.min()
-        elif method == "mean":
-            result = values.mean()
-        elif method == "first":
-            result = values[0]
-
-        return result
+        self.consBoxSize = Integer(result['boxsize'])
+        self.consSampRate = Float(result['samplingrate'])  
 
     # BLOCK 2 - Program - consensuate coordinates
     def coordConsensusStep(self):
@@ -504,7 +477,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         pwutils.makePath(self._getCoordConsensusPath())
 
         program = "xmipp_coordinates_consensus_tomo"
-        for tomo_id in self.allTomoIds:
+        for tomo_id in self.uniqueTomoIDs:
             tomoname = self._stripTomoFilename(tomo_id)
             args = ''
             args += '--input ' + self._getAllCoordsFilename(tomoname)
@@ -573,7 +546,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Tengo: carpetas
         # Necesito: extraer
-        for tomoPath in self.allTomoIds:
+        for tomoPath in self.uniqueTomoIDs:
             tomoName = self._stripTomoFilename(tomoPath)
             if not trainSkip:
                 self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
