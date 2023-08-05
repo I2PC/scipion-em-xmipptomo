@@ -48,9 +48,6 @@ from pwem import emlib
 from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
 
-# How many pickers need to se something to choose it as positive picking
-REQUIRED_PICKERS = 2
-
 class XmippProtPickingConsensusTomo(ProtTomoPicking):
     """ 
         This protocol receives a set of coordinates representing 3D particles
