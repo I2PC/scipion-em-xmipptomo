@@ -137,9 +137,27 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         group_model = form.addGroup('Neural Network model')
 
+        group_model.addParam('votingMode', params.BooleanParam,
+            default = False,
+            label = 'Voting instead of DNN',
+            help = 'Activating this will ignore all NN parameters and only perform '
+            'a consensus based on regular voting after doing the coordinates fusion.'
+        )
+
+        group_model.addParam('votingThreshold', params.FloatParam,
+            default = 0.5,
+            label = "Required consensus threshold",
+            help = 'Sets the required consensus threshold (0,1] ratio needed for '
+            'a result to be considered good in simple voting mode. Bear in mind '
+            'the amount of input pickers when choosing this value. For instance, '
+            'a 0.7 value will not be achievable with two input pickers as the volumes '
+            'will appear either in 0.5 or in 1.0 of the total pickers.'
+        )
+
         ## Neural Network parameters
         # TODO: COSS - como hacer que una option solo salga si el protocolo ya ha sido previamente ejecutado
         # seguro que hay algun self.soynuevo o algo asi super sketchy que han usado 2 personas en su vida
+        # RESPUESTA: _validate
         group_model.addParam('modelInitialization', params.EnumParam,
             choices = self.FORM_MODEL_TRAIN_TYPELIST_LABELS,
             default = self.MODEL_TRAIN_NEW,
