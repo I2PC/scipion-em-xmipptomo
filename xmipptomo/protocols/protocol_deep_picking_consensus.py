@@ -399,15 +399,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print("")
     
         # Do the box size consensus
-        self.boxSizeConsensusStep(self.valueConsType)
-        self.samplingRateConsensusStep(self.valueConsType)
+        self.BSSRConsensusStep(self.valueConsType)
 
-        # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings
+        # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings, asi como consenso en tamannos
         # End block
         # END STEP
 
     # BLOCK 1 - Protocol - write coords from DF (raw, not consensuated)
-    def writeCoords(self, outpath, df):
+    def writeCoords(self, outpath: str, df: pd.DataFrame):
         """
         Block 1 AUX - Write coordinates into Xmipp Metadata format
         path: folder to save the data
