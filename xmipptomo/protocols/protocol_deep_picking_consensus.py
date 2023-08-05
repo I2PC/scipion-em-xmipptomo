@@ -486,6 +486,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
             args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
             args += ' --boxsize ' + str(self.consBoxSize)
+            args += ' --samplingrate ' + str(self.consSampRate)
             args += ' --radius ' + str(self.coordConsRadius)
             args += ' --number ' + str(self.nr_pickers)
             args += ' --constype ' + str(self.coordConsType)
