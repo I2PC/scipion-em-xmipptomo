@@ -35,7 +35,7 @@ from tomo.protocols import ProtTomoPicking
 from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomogram
 
 # Needed for the GUI definition and pyworkflow objects
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, LEVEL_ADVANCED
 from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
 import pyworkflow.utils as pwutils
@@ -139,6 +139,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         group_model.addParam('votingMode', params.BooleanParam,
             default = False,
+            expertLevel=LEVEL_ADVANCED,
             label = 'Voting instead of DNN',
             help = 'Activating this will ignore all NN parameters and only perform '
             'a consensus based on regular voting after doing the coordinates fusion.'
@@ -147,6 +148,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         group_model.addParam('votingThreshold', params.FloatParam,
             default = 0.5,
             label = "Required consensus threshold",
+            condition = 'votingMode = True',
             help = 'Sets the required consensus threshold (0,1] ratio needed for '
             'a result to be considered good in simple voting mode. Bear in mind '
             'the amount of input pickers when choosing this value. For instance, '
