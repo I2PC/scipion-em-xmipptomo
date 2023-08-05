@@ -333,6 +333,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the method of coordinate consensus
         self.coordConsType : int = self.coordConsensusType
 
+        self.coordConsRadius : float = float(self.coordConsensusRadius.get())
+
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
         colnames = ['pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate']
@@ -484,7 +486,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
             args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
             args += ' --boxsize ' + str(self.consBoxSize)
-            args += ' --radius ' + str(float(self.coordConsensusRadius.get()))
+            args += ' --radius ' + str(self.coordConsRadius)
             args += ' --number ' + str(self.nr_pickers)
             args += ' --constype ' + str(self.coordConsType)
             print('\nHanding over to Xmipp program for coordinate consensus')
