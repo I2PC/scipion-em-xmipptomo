@@ -333,7 +333,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the method of coordinate consensus
         self.coordConsType : int = self.coordConsensusType
 
+        # Get the relative radius for coordinate consensus
         self.coordConsRadius : float = float(self.coordConsensusRadius.get())
+
+        # Get the choice for training skip
+        self.trainSkip = bool(self.skipTraining)
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
@@ -521,8 +525,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for noise picking')
         self.runJob(program, args)                   
   
-      # BLOCK 2 - Program - Launch Noise Picking algorithm for data
-
     # BLOCK 2 - Prepare the material needed by the NN
     def prepareNNStep(self):
         """
@@ -536,17 +538,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
         # This protocol executes on the Xmipp program side
 
-        # Check if train is needed
-        trainSkip = bool(self.skipTraining)
-
         # Generate directory structure
         folders = [self._getDoubtSubtomogramPath()]
 
         # Only generate if training is needed
-        if not trainSkip:
+        if not self.trainSkip:
             folders.append(self._getPosSubtomogramPath())
             folders.append(self._getNegSubtomogramPath())
 
+        # Tell Scipion3 to generate the folders
         for folder in folders:
             pwutils.makePath(folder)
 
@@ -554,10 +554,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Necesito: extraer
         for tomoPath in self.uniqueTomoIDs:
             tomoName = self._stripTomoFilename(tomoPath)
-            if not trainSkip:
+            if not self.trainSkip:
+                # Extract the known good examples
                 self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
+                # Generate the bad examples for later extraction
                 self.noisePick(tomoPath, self._getAllCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName))
+                # Actually extract the bad examples
                 self.tomogramExtract(tomoPath, self._getNegCoordsFilename(tomoName), self._getNegSubtomogramPath())
+            # In any case, we want to extract the doubt subtomograms
             self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
         # Tengo: todo extraido
         # Fin de paso - next: train if needed   
