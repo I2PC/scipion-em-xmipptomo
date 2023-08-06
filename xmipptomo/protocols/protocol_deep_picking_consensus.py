@@ -340,6 +340,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.trainSkip = bool(self.skipTraining)
         # Get the noise distance relative radius
         self.noiseRadius = float(self.noiseThreshold.get())
+        # Get the training type
+        self.trainType = int(self.modelInitialization.get())
+        # Get the number of epochs
+        self.nEpochs = int(self.nEpochs.get())
+        # Get learningrate
+        self.learningRate = float(self.learningRate.get())
+        # Get dyn learning rate bool
+        self.dynLearningRate = bool(self.dynLearningRate.get())
+        # Get stop on convergency
+        self.convergeStop = bool(self.convergStop.get()) 
+        # Get data augmentation choice
+        self.augment = bool(self.forceDataAugment.get())
+
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
@@ -583,6 +596,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' -t ' + self.numberOfThreads
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
+        args += ' --ttype ' + str(self.trainType)
         args += ' --netpath ' + self._getNnPath()
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
