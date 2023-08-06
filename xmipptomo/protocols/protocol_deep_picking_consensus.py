@@ -517,7 +517,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         dims = ih.getDimensions(tomoPath)
         args = ''
         args += ' --input ' + coordsPath # Ruta al _allpickedcoordinates
-        args += ' --radius 0.8'
+        args += ' --radius ' + str(self.noiseRadius)
         args += ' --boxsize ' + str(self.consBoxSize)
         args += ' --samplingrate ' + str(self.consSampRate)
         args += ' --size ' + ' '.join(map(str, dims[0:3]))
