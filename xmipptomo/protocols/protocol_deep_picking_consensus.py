@@ -615,6 +615,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' -l ' + str(self.learningRate)
         args += ' -r ' + str(self.regStrength)
         args += ' --ensemble 1'
+        if not self.convergeStop:
+            args += ' -s'
         self.runJob(program, args)
 
         print('\nHanding over to Xmipp program for Train and Score')
