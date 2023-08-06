@@ -244,7 +244,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'with the data in order to train the Neural Network.',
         )
 
-        form.addParam('learningRate', params.FloatParam, default = 0.01,
+        form.addParam('regStrength', params.FloatParam, default = 0.00001,
+                      label = 'L2 regularisation strength',
+                      help = 'Hyperparameter that controls the extra term '
+                      'added to the cost function to evade overfitting in '
+                      'the trained model'
+                      )
+
+        form.addParam('learningRate', params.FloatParam, default = 0.0005,
                         label = 'Learning rate',
                         help = 'Hyperparameter that controls the difference '
                         'between a calculated weight and its next value. '
@@ -344,6 +351,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.trainType = int(self.modelInitialization.get())
         # Get the number of epochs
         self.nEpochs = int(self.nEpochs.get())
+        # Get L1L2 reg rate
+        self.regStrength = float(self.regStrength.get())
         # Get learningrate
         self.learningRate = float(self.learningRate.get())
         # Get dyn learning rate bool
@@ -602,9 +611,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --conssamprate ' + str(self.consSampRate)
         args += ' --truevolpath ' + self._getPosSubtomogramPath()
         args += ' --falsevolpath ' + self._getNegSubtomogramPath()
-        args += ' -e 5'
-        args += ' -l 0.001'
-        args += ' -r 0.0001'
+        args += ' -e ' + str(self.nEpochs)
+        args += ' -l ' + str(self.learningRate)
+        args += ' -r ' + str(self.regStrength)
         args += ' --ensemble 1'
         self.runJob(program, args)
 
