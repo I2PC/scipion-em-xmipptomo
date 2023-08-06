@@ -229,8 +229,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       ' expressed in [0..1] - fraction of the total amount'
                       ' of coordinates found on input')
 
+        form.addParam('noiseThreshold', params.FloatParam, default=0.8,
+                      label='Noise picking evasion radius',
+                      help='Controls the radius (0..1] relative to the box '
+                      'size that the noise picking algorithm will use. This '
+                      'means that noise must be at radius*boxsize distance '
+                      'to be tagged as bad noise and used as such.'
+        )
         
-
         form.addSection(label='Training')
         form.addParam('nEpochs', params.IntParam, default=6,
                         label = 'Cycles (total epochs)',
@@ -320,24 +326,20 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Calculate the total amount of ROIs to save resources
         # The SetOfCoordinates3D is a EMSet -> Set so len() can be applied
         self.totalROIs : int = sum(map(len, self.inputSetsOf3DCoordinates))
-
         # Get the number of input pickers given in the form
         self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
-
         # Get fraction for noise picking
         self.noiseFrac = float(self.fracNoise)
-
         # Get the method of doing the value consensus
         self.valueConsType : int = self.valueConsensusType
-
         # Get the method of coordinate consensus
         self.coordConsType : int = self.coordConsensusType
-
         # Get the relative radius for coordinate consensus
         self.coordConsRadius : float = float(self.coordConsensusRadius.get())
-
         # Get the choice for training skip
         self.trainSkip = bool(self.skipTraining)
+        # Get the noise distance relative radius
+        self.noiseRadius = float(self.noiseThreshold.get())
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
