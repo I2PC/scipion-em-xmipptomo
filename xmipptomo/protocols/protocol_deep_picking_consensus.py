@@ -238,20 +238,26 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
         
         form.addSection(label='Training')
-        form.addParam('nEpochs', params.IntParam, default=6,
+        form.addParam('numberEpochs', params.IntParam, default=6,
                         label = 'Cycles (total epochs)',
                         help = 'Number of process cycles that will be done '
                         'with the data in order to train the Neural Network.',
         )
 
-        form.addParam('regStrength', params.FloatParam, default = 0.00001,
+        form.addParam('validationFraction', params.FloatParam, default=0.15,
+                      label='Validation fraction',
+                      help='Fraction of the labeled set that will be used as '
+                      'the validation data for the NN training.',
+        )
+
+        form.addParam('regulStrength', params.FloatParam, default = 0.00001,
                       label = 'L2 regularisation strength',
                       help = 'Hyperparameter that controls the extra term '
                       'added to the cost function to evade overfitting in '
                       'the trained model'
                       )
 
-        form.addParam('learningRate', params.FloatParam, default = 0.0005,
+        form.addParam('learningRatef', params.FloatParam, default = 0.0005,
                         label = 'Learning rate',
                         help = 'Hyperparameter that controls the difference '
                         'between a calculated weight and its next value. '
@@ -261,7 +267,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'minimas.'
         )
 
-        form.addParam('dynLearningRate', params.BooleanParam, default = True,
+        form.addParam('choiceDynLearningRate', params.BooleanParam, default = True,
                         label = 'Dynamic learning rate',
                         help = 'The learning rate can be updated on runtime '
                         'depending on the evolution of the execution. '                    
@@ -350,17 +356,21 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the training type
         self.trainType = int(self.modelInitialization.get())
         # Get the number of epochs
-        self.nEpochs = int(self.nEpochs.get())
+        self.nEpochs = int(self.numberEpochs.get())
         # Get L1L2 reg rate
-        self.regStrength = float(self.regStrength.get())
+        self.regStrength = float(self.regulStrength.get())
         # Get learningrate
-        self.learningRate = float(self.learningRate.get())
+        self.learningRate = float(self.learningRatef.get())
         # Get dyn learning rate bool
-        self.dynLearningRate = bool(self.dynLearningRate.get())
+        self.dynLearningRate = bool(self.choiceDynLearningRate.get())
         # Get stop on convergency
         self.convergeStop = bool(self.convergStop.get()) 
         # Get data augmentation choice
         self.augment = bool(self.forceDataAugment.get())
+        # Get batch size
+        self.batchSize = int(self.trainingBatch.get())
+        # Get validation fraction
+        self.valFrac = float(self.validationFraction.get())
 
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
