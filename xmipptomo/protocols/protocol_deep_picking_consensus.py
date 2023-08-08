@@ -615,6 +615,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' -t ' + self.numberOfThreads
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
+        args += ' --batchsize ' + str(self.batchSize)
+        args += ' --valfrac ' + str(self.valFrac)
         args += ' --ttype ' + str(self.trainType)
         args += ' --netpath ' + self._getNnPath()
         args += ' --consboxsize ' + str(self.consBoxSize)
