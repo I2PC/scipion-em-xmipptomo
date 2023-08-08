@@ -59,6 +59,8 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     _possibleOutputs = {OUTPUTATTRIBUTE: SetOfSubTomograms}
     lines = []
     tomoFiles = []
+    listOfCoords = []
+    particleId = 1
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -123,6 +125,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         tsid = tomo.getTsId()
         coordDict = []
 
+
         for item in self.coords.get().iterCoordinates(volume=tomo):
             coord = item
             transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
@@ -135,6 +138,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)))
                 nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
                 nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)))
+                nRow.setValue(lib.MDL_PARTICLE_ID, self.particleId)
 
                 alignmentToRow(transform, nRow, ALIGN_PROJ)
                 nRow.addToMd(mdCoor)
@@ -143,6 +147,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 newCoord.setVolume(coord.getVolume())
                 coordDict.append(newCoord)
                 self.lines.append(coordDict)
+
+                self.listOfCoords.append(newCoord)
+                self.particleId = self.particleId + 1
 
         fnCoor = os.path.join(tomoPath, "%s.xmd" % tsid)
         mdCoor.write(fnCoor)
@@ -192,7 +199,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         params += ' --boxsize %i' % self.boxSize.get()
         if self.invertContrast.get():
             params += ' --invertContrast'
-        params += ' --subtomo'
         params += ' --threads %i' % 1
         if self.dowsamplingFactor.get() != 1:
             params += ' --downsample %f' % self.dowsamplingFactor.get()
@@ -215,7 +221,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
         newSamplingRate = precedents.getSamplingRate() * self.dowsamplingFactor.get()
 
-        self.outputSubTomogramsSet = self._createSetOfSubTomograms(self._getOutputSuffix(SetOfSubTomograms))
+        self.outputSubTomogramsSet = self._createSetOfSubTomograms()
         self.outputSubTomogramsSet.setSamplingRate(newSamplingRate)
         self.outputSubTomogramsSet.setCoordinates3D(self.coords)
         if firstItem.getAcquisition():
@@ -225,23 +231,42 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
             acquisition.setStep(acquisitonInfo.getStep())
             self.outputSubTomogramsSet.setAcquisition(acquisition)
 
-        counter = 0
+        for tomo in precedents:
+            tsId = tomo.getTsId()
+            self.writeSetOfSubtomograms(tsId, self.outputSubTomogramsSet, newSamplingRate)
 
-        for item in precedents.iterItems():
-            for ind, tomoFile in enumerate(self.tomoFiles):
-                if os.path.basename(tomoFile) == os.path.basename(item.getFileName()):
-                    coordSet = self.lines[ind]
-                    tsId = item.getTsId()
-                    outputSet, counter = self.readSetOfSubTomograms(tomoFile,
-                                                                    self.outputSubTomogramsSet,
-                                                                    coordSet,
-                                                                    1,
-                                                                    counter,
-                                                                    tsId,
-                                                                    newSamplingRate)
+        self._defineOutputs(**{OUTPUTATTRIBUTE: self.outputSubTomogramsSet})
+        self._defineSourceRelation(self.coords, self.outputSubTomogramsSet)
 
-        self._defineOutputs(**{OUTPUTATTRIBUTE: outputSet})
-        self._defineSourceRelation(self.coords, outputSet)
+
+    def writeSetOfSubtomograms(self, tsId, outputSubTomogramsSet, sampling, scaleFactor):
+        fnSubtomos = os.path.join(self._getExtraPath(tsId), tsId + '_extracted.xmd')
+
+        mdsubtomos = lib.MetaData(fnSubtomos)
+        import numpy as np
+
+        for row in md.iterRows(mdsubtomos):
+            subtomo = SubTomogram()
+            idx = row.getValue(md.MDL_PARTICLE_ID)
+            fn = row.getValue(md.MDL_IMAGE)
+            subtomo.setVolId(idx)
+            subtomo.setLocation(os.path.join(self._getExtraPath(tsId), fn))
+            subtomo.setSamplingRate(sampling)
+            coord = self.listOfCoords[idx-1]
+            subtomo.setCoordinate3D(coord)
+            trMatrix = coord.getMatrix()
+            transform = Transform()
+            if scaleFactor != 1:
+                shifts = np.array([trMatrix[0, 3], trMatrix[1, 3], trMatrix[2, 3]])
+                scaledShifts = scaleFactor * shifts
+                trMatrix[0, 3] = scaledShifts[0]
+                trMatrix[1, 3] = scaledShifts[1]
+                trMatrix[2, 3] = scaledShifts[2]
+            #transform.setMatrix(scaleTrMatrixShifts(trMatrix, factor))
+            transform.setMatrix(trMatrix)
+            subtomo.setTransform(transform, convention=const.TR_SCIPION)
+            outputSubTomogramsSet.append(subtomo)
+
 
     def readSetOfSubTomograms(self, tomoFile, outputSubTomogramsSet, coordSet, factor, counter, tsId, newSamplingRate):
         """
