@@ -57,8 +57,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     _label = 'extract subtomos'
     _devStatus = BETA
     _possibleOutputs = {OUTPUTATTRIBUTE: SetOfSubTomograms}
-    lines = []
-    tomoFiles = []
     listOfCoords = []
     particleId = 1
 
@@ -70,29 +68,29 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                       PointerParam,
                       pointerClass=SetOfCoordinates3D,
                       label='Coordinates',
-                      help='3D coordinates to use in the extraction process.'
-                           'The coordinate denotes the center of the subtomogram')
+                      help='3D coordinates to be used in the extraction process.'
+                           'The coordinate denotes the center of the subtomogram.')
 
         form.addParam('tomograms',
                       PointerParam,
                       pointerClass=SetOfTomograms,
                       allowsNull=True,
                       label='Tomograms (Optional)',
-                      help='The subtomograms will be extracted from this set.')
+                      help='The subtomograms will be extracted from this set. If this parameter is empty'
+                           'the subtomograms will be extracted from the set of tomograms used for picking the coordinates')
 
         form.addParam('boxSize',
                       IntParam,
-                      label='Box size',
+                      label='Box size (pixels)',
                       help='The subtomograms are extracted as a cube. The box size defines the edge of the cube. '
-                           'This is the final size of the boxsize if downsampling is applied. The wizard selects same '
-                           'box size as picking')
+                           'This is the boxsize measured on the original tomogram, it means without downsampling/binning. ')
 
         form.addParam('dowsamplingFactor',
                       FloatParam,
-                      label='Dowsampling factor',
+                      label='Downsampling factor',
                       default=1.0,
-                      help='The subtomograms are extracted as a cube. The box size defines the edge of the cube'
-                           'The wizard selects same box size as picking')
+                      help='This factor will reduce the size of the extracted subtomograms. The size of the output will be'
+                           'size = boxsize/downSamplingFactor. It must be greater than 1.')
 
         form.addParam('invertContrast',
                       BooleanParam,
@@ -146,8 +144,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 newCoord = item.clone()
                 newCoord.setVolume(coord.getVolume())
                 coordDict.append(newCoord)
-                self.lines.append(coordDict)
-
                 self.listOfCoords.append(newCoord)
                 self.particleId = self.particleId + 1
 
@@ -205,7 +201,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         params += ' -o %s ' % tomoPath
         self.runJob('xmipp_tomo_extract_subtomograms', params)
 
-        self.tomoFiles.append(tomoFn)
 
     def createOutputStep(self):
         """
@@ -215,11 +210,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         precedents = self.getTomograms()
         firstItem = precedents.getFirstItem()
         acquisitonInfo = firstItem.getAcquisition()
-        # TODO: Check the sampling if the tomograms are different than the picked ones
-        # TODO: Check the sampling rate if a downsampling option is implemented
-        outputSet = None
 
-        newSamplingRate = precedents.getSamplingRate() * self.dowsamplingFactor.get()
+        scaleFactor = self.dowsamplingFactor.get()
+        newSamplingRate = precedents.getSamplingRate() * scaleFactor
 
         self.outputSubTomogramsSet = self._createSetOfSubTomograms()
         self.outputSubTomogramsSet.setSamplingRate(newSamplingRate)
@@ -233,7 +226,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
         for tomo in precedents:
             tsId = tomo.getTsId()
-            self.writeSetOfSubtomograms(tsId, self.outputSubTomogramsSet, newSamplingRate)
+            self.writeSetOfSubtomograms(tsId, self.outputSubTomogramsSet, newSamplingRate, scaleFactor)
 
         self._defineOutputs(**{OUTPUTATTRIBUTE: self.outputSubTomogramsSet})
         self._defineSourceRelation(self.coords, self.outputSubTomogramsSet)
@@ -262,41 +255,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 trMatrix[0, 3] = scaledShifts[0]
                 trMatrix[1, 3] = scaledShifts[1]
                 trMatrix[2, 3] = scaledShifts[2]
-            #transform.setMatrix(scaleTrMatrixShifts(trMatrix, factor))
             transform.setMatrix(trMatrix)
             subtomo.setTransform(transform, convention=const.TR_SCIPION)
             outputSubTomogramsSet.append(subtomo)
-
-
-    def readSetOfSubTomograms(self, tomoFile, outputSubTomogramsSet, coordSet, factor, counter, tsId, newSamplingRate):
-        """
-            This function set the corresponing attributes to each subtomogram. Coordinates and transformation matrix
-            The output is the set of Subtomograms
-        """
-        self.info("Registering subtomograms for %s" % tomoFile)
-
-        outRegex = os.path.join(self._getExtraPath(tsId), pwutils.removeBaseExt(tomoFile) + '-*.mrc')
-
-        subtomoFileList = sorted(glob.glob(outRegex))
-
-        for idx, subtomoFile in enumerate(subtomoFileList):
-            self.debug("Registering subtomogram %s - %s" % (counter, subtomoFile))
-
-            subtomogram = SubTomogram()
-            subtomogram.cleanObjId()
-            subtomogram.setLocation(subtomoFile)
-            subtomogram.setCoordinate3D(coordSet[idx])
-            transformation = coordSet[idx]._eulerMatrix
-            shift_x, shift_y, shift_z = transformation.getShifts()
-            transformation.setShifts(factor * shift_x,
-                                     factor * shift_y,
-                                     factor * shift_z)
-            subtomogram.setSamplingRate(newSamplingRate)
-            subtomogram.setTransform(transformation)
-            subtomogram.setVolName(tsId)
-            outputSubTomogramsSet.append(subtomogram)
-            counter += 1
-        return outputSubTomogramsSet, counter
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
@@ -312,8 +273,12 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 errors.append("The coordinates has a different sampling rate than the selected tomograms."
                               "Tomograms and coordinates must be at the same scale. Please ensure a matching in the "
                               "sample rate")
+        if self.dowsamplingFactor.get()<1:
+            errors.append("Downsampling factor must be greater than 1.")
         return errors
 
     def _summary(self):
         summary = []
+        toms = self.coords.get().getPrecedents()
+        summary.append("A set of %d subtomograms was obtained." % (toms.getSize()))
         return summary
