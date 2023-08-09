@@ -78,7 +78,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     MODEL_TRAIN_NEW         = 0
     MODEL_TRAIN_PRETRAIN    = 1
     MODEL_TRAIN_PREVRUN     = 2
-    FORM_MODEL_TRAIN_TYPELIST_LABELS = ["From scratch", "Existing model", "Previous run"]
+    FORM_MODEL_TRAIN_TYPELIST_LABELS = ["From scratch", "Existing model"] #, "Previous run"]
     FORM_MODEL_TRAIN_TYPELIST        = [MODEL_TRAIN_NEW, MODEL_TRAIN_PRETRAIN]
 
     # Form options: additional data
@@ -117,7 +117,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help="Your system may have several GPUs installed, "
                              " choose the one you'd like to use(default: 0)."
                         )
-        form.addParallelSection(threads=8, mpi=1)
+        form.addParallelSection(threads=1, mpi=1)
 
         form.addSection(label='Main')
 
@@ -132,7 +132,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         group_model.addParam('votingThreshold', params.FloatParam,
-            default = 0.5,
+            default = 0.6,
             label = "Required consensus threshold",
             condition = 'votingMode == True',
             help = 'Sets the required consensus threshold (0,1] ratio needed for '
@@ -154,7 +154,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             help = 'When set to *%s*, the network will start with a fresh and randomly '
             'initialized model. The option *%s* will let you choose a previously trained '
             'model.'
-            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS[0], self.FORM_MODEL_TRAIN_TYPELIST_LABELS[1]))
+            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
             # % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
         ## Model choices
         # For previous runs
@@ -172,7 +172,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             help = ' When set to *Yes*, the volumes will be directly fed to the model, '
             ' If set to *No*, you must provide a training set of volumes.'
         )
-        form.addParam('trainingBatch', params.IntParam, default='5',
+        form.addParam('trainingBatch', params.IntParam, default='16',
                         label = 'Training batch size',
                         help = 'Amount of subtomograms in a training batch. '
                         'If the provided subtomograms are not enough for the '
@@ -187,7 +187,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
-        group_input.addParam('classThreshold', params.FloatParam, default=0.5,
+        group_input.addParam('classThreshold', params.FloatParam, default=0.6,
                         label = 'Tolerance threshold',
                         help='Choose a threshold in the range (0,1] to adjust '
                         'the threshold used internally to determine if the '
@@ -196,7 +196,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         form.addSection(label='Preprocess')
-        form.addParam('coordConsensusRadius', params.FloatParam, default=0.1,
+        form.addParam('coordConsensusRadius', params.FloatParam, default=0.2,
                         label="Same-element relative radius",
                         validators=[params.Positive],
                         help='Two sets of coordinates are determined to be of '
@@ -216,11 +216,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         form.addParam('valueConsensusType', params.EnumParam,
-                      
                       choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
                       default = self.VALUE_CONS_SMALL,
                       label = 'Boxsize choosing method',
-                      help = '*%s* *%s* *%s* *%s*',
+                      help = 'Choose which boxsize will be used if there is '
+                      'more than one: *%s*, *%s*, *%s* or *%s*.'
+                      % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
         )
 
         form.addParam('fracNoise', params.FloatParam, default=0.9,
@@ -230,7 +231,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       ' expressed in [0..1] - fraction of the total amount'
                       ' of coordinates found on input')
 
-        form.addParam('noiseThreshold', params.FloatParam, default=0.8,
+        form.addParam('noiseThreshold', params.FloatParam, default=0.5,
                       label='Noise picking evasion radius',
                       help='Controls the radius (0..1] relative to the box '
                       'size that the noise picking algorithm will use. This '
@@ -343,15 +344,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the number of input pickers given in the form
         self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
         # Get fraction for noise picking
-        self.noiseFrac = float(self.fracNoise)
+        self.noiseFrac = float(self.fracNoise.get())
         # Get the method of doing the value consensus
-        self.valueConsType : int = self.valueConsensusType
+        self.valueConsType = int(self.valueConsensusType.get())
         # Get the method of coordinate consensus
-        self.coordConsType : int = self.coordConsensusType
+        self.coordConsType = int(self.coordConsensusType.get())
         # Get the relative radius for coordinate consensus
         self.coordConsRadius : float = float(self.coordConsensusRadius.get())
         # Get the choice for training skip
-        self.trainSkip = bool(self.skipTraining)
+        self.trainSkip = bool(self.skipTraining.get())
         # Get the noise distance relative radius
         self.noiseRadius = float(self.noiseThreshold.get())
         # Get the training type
@@ -440,7 +441,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print("")
     
         # Do the box size consensus
-        self.BSSRConsensusStep(self.valueConsType)
+        self.BSSRConsensusStep()
 
         # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings, asi como consenso en tamannos
         # End block
@@ -472,7 +473,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         outMD.write(outpath)
     
     # BLOCK 1 - Protocol - select box size
-    def BSSRConsensusStep(self, method):
+    def BSSRConsensusStep(self):
         """
         Block 1 AUX - Perform consensus in the box size and samplingrate
         
@@ -489,15 +490,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Fetch the different box sizes from pickers
         assert self.pickerMD is not None
 
-        if method ==  self.VALUE_CONS_BIG:
-            result = self.pickerMD.iloc[self.pickerMD['boxsize'].argmax()]
-        elif method == self.VALUE_CONS_SMALL:
-            result = self.pickerMD.iloc[self.pickerMD['boxsize'].argmin()]
-        elif method == self.VALUE_CONS_MEAN:
+        if self.valueConsType ==  self.VALUE_CONS_BIG:
+            # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmax()]
+            index = self.pickerMD.idxmax()['boxsize']
+        elif self.valueConsType == self.VALUE_CONS_SMALL:
+            # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
+            index = self.pickerMD.idxmin()['boxsize']
+        elif self.valueConsType == self.VALUE_CONS_MEAN:
             raise NotImplemented
-        elif method == self.VALUE_CONS_FIRST:
-            result = self.pickerMD[0]
-
+        elif self.valueConsType == self.VALUE_CONS_FIRST:
+            index = 0
+        result = self.pickerMD.loc[index]
+        
         print("Determined box size: " + str(result['boxsize']))
         print("Determined sampling rate (A/px): " + str(result['samplingrate']))
         
