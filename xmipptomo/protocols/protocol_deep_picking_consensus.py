@@ -68,7 +68,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     _label      = 'deep consensus picking 3D'
     _devStatus  = BETA
     #_conda_env = 'xmipp_DLTK_v0.3'
-    _conda_env  = 'scipion3'
+    _conda_env  = 'mikelondix'
     _stepsCheckSecs  = 5 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
@@ -617,7 +617,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         program = "xmipp_deep_picking_consensus_tomo"
         args = ''
-        args += ' -t ' + self.numberOfThreads
+        args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
         args += ' --batchsize ' + str(self.batchSize)
