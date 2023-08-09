@@ -106,18 +106,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _defineParams(self, form : params.Form):
         ## Multiprocessing params
-        # form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
-        #                 label="Use GPU for the model (default: Yes)",
-        #                 help="If yes, the protocol will try to use a GPU for "
-        #                      "model training and execution. Note that this "
-        #                      "will greatly decrease execution time."
-        #                 )
-        # form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-        #                 label="GPU ID",
-        #                 help="Your system may have several GPUs installed, "
-        #                      " choose the one you'd like to use(default: 0)."
-        #                 )
-        # form.addParallelSection(threads=1, mpi=1)
+        form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
+                        label="Use GPU for the model (default: Yes)",
+                        help="If yes, the protocol will try to use a GPU for "
+                             "model training and execution. Note that this "
+                             "will greatly decrease execution time."
+                        )
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                        label="GPU ID",
+                        help="Your system may have several GPUs installed, "
+                             " choose the one you'd like to use(default: 0)."
+                        )
+        form.addParallelSection(threads=8, mpi=1)
 
         form.addSection(label='Main')
 
@@ -134,7 +134,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         group_model.addParam('votingThreshold', params.FloatParam,
             default = 0.5,
             label = "Required consensus threshold",
-            condition = 'votingMode = True',
+            condition = 'votingMode == True',
             help = 'Sets the required consensus threshold (0,1] ratio needed for '
             'a result to be considered good in simple voting mode. Bear in mind '
             'the amount of input pickers when choosing this value. For instance, '
@@ -154,7 +154,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             help = 'When set to *%s*, the network will start with a fresh and randomly '
             'initialized model. The option *%s* will let you choose a previously trained '
             'model.'
-            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
+            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS[0], self.FORM_MODEL_TRAIN_TYPELIST_LABELS[1]))
+            # % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
         ## Model choices
         # For previous runs
         # group_model.addParam('continueRun', params.PointerParam,
