@@ -1,19 +1,25 @@
-# Action for SonarCloud Scan
+# This workflow automates SonarCloud Scan
+# Workflow name
 name: SonarCloud Scan
+# Specify when the Action should be triggered:
 on:
+  # When a push is produced in the 'devel' or 'master' branch
   push:
-    branches:
-      - master
+    branches: [devel, master]
+  # When a pull request is opened against the 'devel' or 'master' branch
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [devel, master]
 jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # Check out the repository in the pull request
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      # Run SonarCloud Scan
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
