@@ -68,7 +68,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     _label      = 'deep consensus picking 3D'
     _devStatus  = BETA
     #_conda_env = 'xmipp_DLTK_v0.3'
-    _conda_env  = 'mikelondix'
+    _conda_env  = 'xmipp_DLTK_v1.0'
     _stepsCheckSecs  = 5 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
@@ -314,7 +314,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.coordConsensusStep)
         self._insertFunctionStep(self.prepareNNStep)
-        if not bool(self.skipTraining):
+        if not bool(self.skipTraining.get()):
             self._insertFunctionStep(self.processTrainStep)
         self._insertFunctionStep(self.processScoreStep)
         self._insertFunctionStep(self.postProcessStep)
@@ -350,7 +350,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the method of coordinate consensus
         self.coordConsType = int(self.coordConsensusType.get())
         # Get the relative radius for coordinate consensus
-        self.coordConsRadius : float = float(self.coordConsensusRadius.get())
+        self.coordConsRadius = float(self.coordConsensusRadius.get())
         # Get the choice for training skip
         self.trainSkip = bool(self.skipTraining.get())
         # Get the noise distance relative radius
