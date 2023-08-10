@@ -35,34 +35,43 @@ class TiltParticle(TiltImage, data.CTFModel):
     def __init__(self, **kwargs):
         TiltImage.__init__(self, **kwargs)
         self._boxSize = Integer()
-        self._coordX = Float()
-        self._coordY = Float()
-        self._ctfCorrected = None
-        #TODO: use transform of tilt image
+        # 2D coordinates on the tilt image
+        self._coord2DX = Float()
+        self._coord2DY = Float()
+        # 3D coordinates on the tomogram
+        self._coord3DX = Float()
+        self._coord3DY = Float()
+        self._coord3DZ = Float()
 
-    def setCoordX(self, xvalue):
-        self._coordX = xvalue
+    def setCoord3DX(self, xvalue):
+        self._coord3DX = xvalue
 
-    def getCoordX(self):
-        return self._coordX
+    def getCoord3DX(self):
+        return self._coord3DX
 
-    def setCoordY(self, yvalue):
-        self._coordY = yvalue
+    def setCoord3DY(self, xvalue):
+        self._coord3DY = xvalue
 
-    def getCoordY(self):
-        return self._coordY
+    def getCoord3DY(self):
+        return self._coord3DY
 
-    def setTransformationMatrix(self, tm):
-        self._transfMatrix = tm
+    def setCoord3DZ(self, xvalue):
+        self._coord3DZ = xvalue
 
-    def getTransformationMatrix(self):
-        return self._transfMatrix
+    def getCoord3DZ(self):
+        return self._coord3DZ
 
-    def setctfCorrected(self, isCorrected):
-        self._ctfCorrected = isCorrected
+    def setCoord2DX(self, xvalue):
+        self._coord2DX = xvalue
 
-    def getctfCorrected(self):
-        return self._ctfCorrected
+    def getCoord2DX(self):
+        return self._coord2DX
+
+    def setCoord2DY(self, yvalue):
+        self._coord2DY = yvalue
+
+    def getCoord2DY(self):
+        return self._coord2DY
 
 
 class TiltSeriesParticle(data.SetOfImages, SubTomogram):
@@ -70,7 +79,6 @@ class TiltSeriesParticle(data.SetOfImages, SubTomogram):
 
     def __init__(self, **kwargs):
         data.SetOfImages.__init__(self, **kwargs)
-        self._ctfCorrected = Boolean(False)
 
 
 class SetOfTiltSeriesParticle(data.SetOfImages):
@@ -84,7 +92,6 @@ class SetOfTiltSeriesParticle(data.SetOfImages):
         self._mapperPath.setStore(False)
         self._acquisition = TomoAcquisition()
         self._anglesCount = Integer()
-        self._hasAlignment = Boolean(False)
         self._ctfCorrected = Boolean(False)
 
     def setAnglesCount(self, value):
@@ -92,12 +99,6 @@ class SetOfTiltSeriesParticle(data.SetOfImages):
 
     def getAnglesCount(self):
         self._anglesCount.get()
-
-    def setHasAlignment(self, booleanvalue):
-        self._hasAlignment.set(booleanvalue)
-
-    def hasAlignment(self):
-        self._hasAlignment.get()
 
     def setCtfCorrected(self, booleanvalue):
         self._ctfCorrected.set(booleanvalue)
