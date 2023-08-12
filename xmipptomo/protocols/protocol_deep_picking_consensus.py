@@ -619,7 +619,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         folder = self._getNnPath()
         pwutils.makePath(folder)
 
-        program = "xmipp_deep_picking_consensus_tomo"
+        program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         args = ' '
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
