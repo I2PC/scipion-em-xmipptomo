@@ -30,8 +30,11 @@ Deep Consensus picking protocol suited for Cryo-ET
 """
 import os, time
 
+from xmipp3 import XmippProtocol
+from pwem.protocols import EMProtocol
+
 # Tomo-specific
-from tomo.protocols import ProtTomoPicking
+from tomo.protocols import ProtTomoPicking, ProtTomoBase
 from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomogram
 
 # Needed for the GUI definition and pyworkflow objects
@@ -40,13 +43,12 @@ from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
 import pyworkflow.utils as pwutils
 
-
 import pandas as pd
-import numpy as np
 
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
+
 
 class XmippProtPickingConsensusTomo(ProtTomoPicking):
     """ 
@@ -67,8 +69,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     # Identification parameters
     _label      = 'deep consensus picking 3D'
     _devStatus  = BETA
-    #_conda_env = 'xmipp_DLTK_v0.3'
-    _conda_env  = 'xmipp_DLTK_v1.0'
+    _conda_env = 'xmipp_DLTK_v1.0'
     _stepsCheckSecs  = 5 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
@@ -103,6 +104,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     FORM_VALUE_CONS_TYPELIST        = [VALUE_CONS_FIRST, VALUE_CONS_BIG, VALUE_CONS_SMALL, VALUE_CONS_MEAN]
 
     #--------------- DEFINE param functions ---------------
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _defineParams(self, form : params.Form):
         ## Multiprocessing params
@@ -616,7 +620,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         pwutils.makePath(folder)
 
         program = "xmipp_deep_picking_consensus_tomo"
-        args = ''
+        args = ' '
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
@@ -634,9 +638,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --ensemble 1'
         if not self.convergeStop:
             args += ' -s'
+        print('\nHanding over to Xmipp program for Train')
         self.runJob(program, args)
-
-        print('\nHanding over to Xmipp program for Train and Score')
                   
     # BLOCK 2 - Program - Launch tomogram extraction step
     def tomogramExtract(self, tomoPath, coordsPath, outPath):
@@ -670,7 +673,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         generate the score tables.
         """
         # This protocol executes on the Xmipp program side
-        print('\nHanding over to Xmipp program for Train and Score')
+        print('\nHanding over to Xmipp program for Score')
 
     # BLOCK 3 - filter tables according to thresholds
     def postProcessStep(self):
@@ -779,10 +782,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     
         
-class XmippProtDeepConsSubSet3D():
-    """
-        This protocol allows a user to create subsets from the GUI for the
-        Deep Consensus 3D protocol to use.
-    """
-    def __init__(self, **args):
-        raise NotImplementedError
+# class XmippProtDeepConsSubSet3D():
+#     """
+#         This protocol allows a user to create subsets from the GUI for the
+#         Deep Consensus 3D protocol to use.
+#     """
+#     def __init__(self, **args):
+#         raise NotImplementedError
