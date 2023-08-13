@@ -176,7 +176,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             help = ' When set to *Yes*, the volumes will be directly fed to the model, '
             ' If set to *No*, you must provide a training set of volumes.'
         )
-        form.addParam('trainingBatch', params.IntParam, default='16',
+        group_model.addParam('trainingBatch', params.IntParam, default='16',
                         label = 'Training batch size',
                         help = 'Amount of subtomograms in a training batch. '
                         'If the provided subtomograms are not enough for the '
@@ -200,15 +200,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         form.addSection(label='Preprocess')
-        form.addParam('coordConsensusRadius', params.FloatParam, default=0.2,
+
+        group_coords = form.addGroup('Coordinate consensus')
+        group_coords.addParam('coordConsensusRadius', params.FloatParam, default=0.2,
                         label="Same-element relative radius",
                         validators=[params.Positive],
                         help='Two sets of coordinates are determined to be of '
                         'the same particle if they are within this radius. The'
                         ' radius is given in [fraction of particle size] units.'
         )
-
-        form.addParam('coordConsensusType', params.EnumParam, 
+        group_coords.addParam('coordConsensusType', params.EnumParam, 
                       choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
                       default = self.COORD_CONS_FIRST,
                       label = 'Representant choosing method',
@@ -219,7 +220,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       % tuple(self.FORM_COORD_CONS_TYPELIST_LABELS)
         )
 
-        form.addParam('valueConsensusType', params.EnumParam,
+        group_bssr = form.addGroup('Box size and Sampling Rate consensus')
+
+        group_bssr.addParam('valueConsensusType', params.EnumParam,
                       choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
                       default = self.VALUE_CONS_SMALL,
                       label = 'Boxsize choosing method',
@@ -228,14 +231,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
         )
 
-        form.addParam('fracNoise', params.FloatParam, default=0.9,
+        group_noise = form.addGroup('Noise picking algorithm')
+        group_noise.addParam('fracNoise', params.FloatParam, default=0.9,
                       label="Amount of noise picked for negative input",
                       help='Controls how much noise is picked and given '
                       'to the NN as negative input during training. It is'
                       ' expressed in [0..1] - fraction of the total amount'
                       ' of coordinates found on input')
 
-        form.addParam('noiseThreshold', params.FloatParam, default=0.5,
+        group_noise.addParam('noiseThreshold', params.FloatParam, default=0.5,
                       label='Noise picking evasion radius',
                       help='Controls the radius (0..1] relative to the box '
                       'size that the noise picking algorithm will use. This '
