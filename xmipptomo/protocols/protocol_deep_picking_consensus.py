@@ -528,7 +528,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         for tomo_id in self.uniqueTomoIDs:
             tomoname = self._stripTomoFilename(tomo_id)
             args = ''
-            args += '--input ' + self._getAllCoordsFilename(tomoname)
+            args += ' --input ' + self._getAllCoordsFilename(tomoname)
             args += ' --outputAll ' + self._getConsCoordsFilename(tomoname)
             args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
             args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
@@ -620,7 +620,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         pwutils.makePath(folder)
 
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
-        args = ' '
+        # program = "xmipp_deep_picking_consensus_tomo"
+        args = ''
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
