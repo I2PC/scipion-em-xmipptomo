@@ -191,11 +191,11 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         errors = []
 
         # Checking if number of samples is greater or equal than 1
-        if self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES and (not self.tiltRangeNSamples.get() == None) and self.tiltRangeNSamples.get() < 1:
+        if self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES and (self.tiltRangeNSamples.get() != None) and self.tiltRangeNSamples.get() < 1:
             errors.append('The number of samples cannot be less than 1.')
         
         # Checking if the step is greater than 0
-        if self.tiltTypeGeneration.get() == self.TYPE_STEP and (not self.tiltRangeStep.get() == None) and self.tiltRangeStep.get() <= 0:
+        if self.tiltTypeGeneration.get() == self.TYPE_STEP and (self.tiltRangeStep.get() != None) and self.tiltRangeStep.get() <= 0:
             errors.append('The step must be greater than 0.')
         
         # Checking if MPI is selected (only threads are allowed)
