@@ -77,6 +77,8 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         form.addSection(label='Input subtomograms')
         form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes",
                       label='Set of subtomograms', help="Set of subtomograms whose projections will be generated.")
+        form.addParam('hasCtfCorrected', params.BooleanParam, default='True', label='Is CTF corrected?: ',
+                        help='Set this option to True if the input set of subtomograms has no CTF or the CTF has been corrected.')
         form.addParam('cleanTmps', params.BooleanParam, default='True', label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
                         help='Clean temporary files after finishing the execution.\nThis is useful to reduce unnecessary disk usage.')
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
@@ -118,8 +120,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         This function writes the config file for Xmipp Phantom.
         """
-        confFile = open(self.getXmippParamPath(), "w")
-
         # Generating file content
         content = '# XMIPP_STAR_1 *\n'
         content += '# Projection Parameters\n'
@@ -140,6 +140,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         content += '# Noise\n'
 
         # Writing content to file and closing
+        confFile = open(self.getXmippParamPath(), "w")
         confFile.write(content)
         confFile.close()
 
