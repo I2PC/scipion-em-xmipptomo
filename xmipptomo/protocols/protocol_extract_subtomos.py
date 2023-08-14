@@ -57,8 +57,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
     _label = 'extract subtomos'
     _devStatus = BETA
     _possibleOutputs = {OUTPUTATTRIBUTE: SetOfSubTomograms}
-    listOfCoords = []
-    particleId = 1
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -121,8 +119,6 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         mdCoor = lib.MetaData()
 
         tsid = tomo.getTsId()
-        coordDict = []
-
 
         for item in self.coords.get().iterCoordinates(volume=tomo):
             coord = item
@@ -130,27 +126,23 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
             if coord.getTomoId() == tsid:
                 nRow = md.Row()
-                nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
                 coord.setVolume(tomo)
-
                 nRow.setValue(lib.MDL_XCOOR, int(coord.getX(const.BOTTOM_LEFT_CORNER)))
                 nRow.setValue(lib.MDL_YCOOR, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
                 nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)))
-                nRow.setValue(lib.MDL_PARTICLE_ID, self.particleId)
+                nRow.setValue(lib.MDL_PARTICLE_ID, int(coord.getObjId()))
 
                 alignmentToRow(transform, nRow, ALIGN_PROJ)
                 nRow.addToMd(mdCoor)
 
                 newCoord = item.clone()
                 newCoord.setVolume(coord.getVolume())
-                coordDict.append(newCoord)
-                self.listOfCoords.append(newCoord)
-                self.particleId = self.particleId + 1
 
         fnCoor = os.path.join(tomoPath, "%s.xmd" % tsid)
         mdCoor.write(fnCoor)
 
         return fnCoor
+
 
     def getTomograms(self):
         """
@@ -238,15 +230,17 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         mdsubtomos = lib.MetaData(fnSubtomos)
         import numpy as np
 
+        coords = self.coords.get()
+
         for row in md.iterRows(mdsubtomos):
             subtomo = SubTomogram()
             idx = row.getValue(md.MDL_PARTICLE_ID)
             fn = row.getValue(md.MDL_IMAGE)
-            subtomo.setVolId(idx)
             subtomo.setLocation(os.path.join(self._getExtraPath(tsId), fn))
             subtomo.setSamplingRate(sampling)
-            coord = self.listOfCoords[idx-1]
+            coord = coords[idx]
             subtomo.setCoordinate3D(coord)
+            subtomo.setVolName(tsId)
             trMatrix = coord.getMatrix()
             transform = Transform()
             if scaleFactor != 1:
