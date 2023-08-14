@@ -317,7 +317,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         except TypeError:
             errorMessage = " ".join(["No subtomograms were received. Check the output of the previous protocol.",
                                      "If you are using the integrated test, run the extract subtomos's test first."])
-            raise Exception(errorMessage)
+            raise TypeError(errorMessage)
 
     def getXmippParamPath(self):
         """
