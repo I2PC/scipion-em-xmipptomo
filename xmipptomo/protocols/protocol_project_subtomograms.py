@@ -205,18 +205,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
 
         return errors
 
-    def _summary(self):
-        """
-        This method usually returns a summary of the text provided by '_methods'.
-        """
-        return []
-
-    def _methods(self):
-        """
-        This method returns a text intended to be copied and pasted in the paper section 'materials & methods'.
-        """
-        return []
-
     # --------------------------- UTILS functions --------------------------------------------
     def scapePath(self, path):
         """
