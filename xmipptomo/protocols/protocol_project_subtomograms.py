@@ -37,7 +37,7 @@ from pyworkflow.protocol import params
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SubTomogram
+from tomo.objects import SubTomogram, SetOfSubTomograms
 from xmipp3.convert import readSetOfParticles
 
 # Protocol output variable name
@@ -175,8 +175,12 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         dimensions = self.getSubtomogramDimensions().split(' ')
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
 
+        # Getting input element list according to data type
+        inputList = inputSubtomograms.iterSubtomos() if isinstance(inputSubtomograms, SetOfSubTomograms) else inputSubtomograms
+        inputList = [subtomogram if isinstance(subtomogram, SubTomogram) else subtomogram.getFileName() for subtomogram in inputList]
+
         # Adding projections of each subtomogram as a particle each
-        for subtomogram in inputSubtomograms.iterItems():
+        for subtomogram in inputList:
             readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
 
         # Defining the ouput with summary and source relation
