@@ -31,7 +31,7 @@ import os
 
 # Scipion em imports
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles
+from pwem.objects import SetOfParticles, CTFModel
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
@@ -182,7 +182,14 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Adding projections of each subtomogram as a particle each
         for subtomogram in inputList:
             readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
-
+        
+        # Setting CTF for every output particle
+        if self.hasCtfCorrected:
+            for particle in outputSetOfParticles.iterItems():
+                ctfModel = CTFModel(defocusU=0.0, defocusV=0.0, defocusAngle=0.0, phaseShift=0.0)
+                ctfModel._defocusRatio.set(1.0)
+                particle.setCTF(ctfModel)
+        
         # Defining the ouput with summary and source relation
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
         self._defineOutputs(outputSetOfParticles=outputSetOfParticles)
