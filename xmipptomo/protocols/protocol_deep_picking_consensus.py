@@ -740,7 +740,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _validate(self):
         errors = []
         errors += self._validateParallelProcessing()
-        errors += self._validateNumberOfPickers()
         return errors
 
     def _validateParallelProcessing(self):
@@ -751,13 +750,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             errors.append("A GPU is needed for this protocol to run.")
         if nMPI != 1:
             errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
-        return errors
-
-    def _validateNumberOfPickers(self):
-        nPickers = len(self.inputSets)
-        errors = []
-        if nPickers < 2:
-            errors.append("More than one picker must be provided to do any kind of consensus.")
         return errors
     
         #--------------- FILENAMES functions -------------------
