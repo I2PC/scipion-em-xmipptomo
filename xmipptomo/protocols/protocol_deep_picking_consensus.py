@@ -628,15 +628,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args = ''
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
-        args += ' --mode training'
+        args += ' --mode scoring'
         args += ' --batchsize ' + str(self.batchSize)
-        args += ' --valfrac ' + str(self.valFrac)
-        args += ' --ttype ' + str(self.trainType)
         args += ' --netpath ' + self._getNnPath()
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
         args += ' --truevolpath ' + self._getPosSubtomogramPath()
-        args += ' --falsevolpath ' + self._getNegSubtomogramPath()
+        args += ' --inputvolpath ' + self._getDoubtSubtomogramPath()
+        args += ' --outputpath ' + self._getOutputPath()
         args += ' -e ' + str(self.nEpochs)
         args += ' -l ' + str(self.learningRate)
         args += ' -r ' + str(self.regStrength)
@@ -677,8 +676,26 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         subtomograms and score them against the model. Then
         generate the score tables.
         """
-        # This protocol executes on the Xmipp program side
+        folder = self._getNnPath()
+        pwutils.makePath(folder)
+
+        program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
+        # program = "xmipp_deep_picking_consensus_tomo"
+        args = ''
+        args += ' -t ' + str(self.numberOfThreads)
+        args += ' -g ' + ','.join(map(str, self.getGpuList()))
+        args += ' --mode training'
+        args += ' --batchsize ' + str(self.batchSize)
+        args += ' --valfrac ' + str(self.valFrac)
+        args += ' --ttype ' + str(self.trainType)
+        args += ' --netpath ' + self._getNnPath()
+        args += ' --netname ' + "dpc_nn.h5"
+        args += ' --consboxsize ' + str(self.consBoxSize)
+        args += ' --conssamprate ' + str(self.consSampRate)
+        args += ' --truevolpath ' + self._getPosSubtomogramPath()
+
         print('\nHanding over to Xmipp program for Score')
+        self.runJob(program, args)
 
     # BLOCK 3 - filter tables according to thresholds
     def postProcessStep(self):
@@ -698,14 +715,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         Leave everything in a format suitable for later processing
         in the CryoET workflows.
         """
-        #
-        tomograms : SetOfTomograms = None
+        # Get SetOfTomograms
+        tomos = [Tomogram(id) for id in self.uniqueTomoIDs]
+        tomograms : SetOfTomograms = SetOfTomograms(tomos)
         outputPath = self._getExtraPath("CBOX_3D")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
-        coordinates :SetOfCoordinates3D = self._createSetOfCoordinates3D()
+        coordinates : SetOfCoordinates3D = self._createSetOfCoordinates3D()
         coordinates.setName("")
-        coordinates.setSamplingRate()
+        coordinates.setSamplingRate(self.consSampRate)
+        coordinates.setBoxSize(self.consBoxSize)
 
 
         # TODO: Xmipp metadata para salida (no guai para next protocols)
@@ -727,12 +746,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _validateParallelProcessing(self):
         nGpus = len(self.getGpuList())
         nMPI = self.numberOfMpi.get()
-        nThreads = self.numberOfThreads.get()
         errors = []
         if nGpus < 1:
             errors.append("A GPU is needed for this protocol to run.")
-        if nThreads != 1:
-            errors.append("Multithreading not yet supported. Set Threads parameter to 1.")
         if nMPI != 1:
             errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
         return errors
@@ -747,7 +763,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         #--------------- FILENAMES functions -------------------
 
     def _getNnPath(self, *args):
-        return self._getExtraPath('nn')
+        return self._getExtraPath('nn', *args)
+
+    def _getNnResultFilename(self, *args):
+        return self._getNnPath("nn_res")
 
     def _stripTomoFilename(self, tomopath: str):
         return tomopath.split("/")[-1].split(".")[0]
