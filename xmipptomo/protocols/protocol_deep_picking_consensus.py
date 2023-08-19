@@ -622,20 +622,23 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
         folder = self._getNnPath()
         pwutils.makePath(folder)
+        folder = self._getOutputPath()
+        pwutils.makePath(folder)
 
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
-        args += ' --mode scoring'
+        args += ' --mode training'
         args += ' --batchsize ' + str(self.batchSize)
         args += ' --netpath ' + self._getNnPath()
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
+        args += ' --ttype ' + str(self.trainType)
+        args += ' --valfrac ' + str(self.valFrac)
         args += ' --truevolpath ' + self._getPosSubtomogramPath()
-        args += ' --inputvolpath ' + self._getDoubtSubtomogramPath()
-        args += ' --outputpath ' + self._getOutputPath()
+        args += ' --falsevolpath ' + self._getNegSubtomogramPath()
         args += ' -e ' + str(self.nEpochs)
         args += ' -l ' + str(self.learningRate)
         args += ' -r ' + str(self.regStrength)
@@ -678,21 +681,22 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
         folder = self._getNnPath()
         pwutils.makePath(folder)
+        folder = self._getOutputPath()
+        pwutils.makePath(folder)
 
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
         args += ' -t ' + str(self.numberOfThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
-        args += ' --mode training'
+        args += ' --mode scoring'
         args += ' --batchsize ' + str(self.batchSize)
-        args += ' --valfrac ' + str(self.valFrac)
-        args += ' --ttype ' + str(self.trainType)
         args += ' --netpath ' + self._getNnPath()
         args += ' --netname ' + "dpc_nn.h5"
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
-        args += ' --truevolpath ' + self._getPosSubtomogramPath()
+        args += ' --inputvolpath ' + self._getDoubtSubtomogramPath()
+        args += ' --outputpath ' + self._getOutputPath()
 
         print('\nHanding over to Xmipp program for Score')
         self.runJob(program, args)
@@ -716,8 +720,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         in the CryoET workflows.
         """
         # Get SetOfTomograms
-        tomos = [Tomogram(id) for id in self.uniqueTomoIDs]
-        tomograms : SetOfTomograms = SetOfTomograms(tomos)
+        # tomos = [Tomogram(id) for id in self.uniqueTomoIDs]
+        # tomograms : SetOfTomograms = SetOfTomograms(tomos)
         outputPath = self._getExtraPath("CBOX_3D")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
@@ -731,7 +735,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # A ve tambien te digo mejor parametro extendido
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coordinates})
-        self._defineSourceRelation(tomograms, coordinates)
+        # self._defineSourceRelation(tomograms, coordinates)
 
     #--------------- INFO functions -------------------------
 
@@ -753,6 +757,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return errors
     
         #--------------- FILENAMES functions -------------------
+
+    def _getOutputPath(self, *args):
+        return self._getExtraPath('out', *args)
 
     def _getNnPath(self, *args):
         return self._getExtraPath('nn', *args)
