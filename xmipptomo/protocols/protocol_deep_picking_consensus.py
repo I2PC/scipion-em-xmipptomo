@@ -191,6 +191,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
+        group_input.addParam('positiveInputSets', params.MultiPointerParam,
+                        pointerClass = SetOfCoordinates3D, allowsNull=True,
+                        label = 'Positive references',
+                        help = 'Select pickings that are presumed to be true e.g. hand-picked coordinates.'  
+        )
         group_input.addParam('classThreshold', params.FloatParam, default=0.6,
                         label = 'Tolerance threshold',
                         help='Choose a threshold in the range (0,1] to adjust '
@@ -299,22 +304,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                       'perform data augmentation on datasets if at least two '
                       'of the input pickers contain 900 structures detected.'
                       )
-
-
-        # form.addSection(label='Streaming')
-        # form.addParam('doPreliminarPredict', params.BooleanParam, default=False,
-        #                 label = 'Predict before fully trained',
-        #                 help = 'This protocol might do predictions using '
-        #                 'the model before it is fully trained. These '
-        #                 'results are stored in a different output set.'
-        # )
-
-        # form.addParam('extractingBatch', params.IntParam, default='5',
-        #                 label = 'Extraction batch size',
-        #                 help = 'Amount of subtomograms in an extraction batch.'
-        # )
-
         
+        form.addSection(label='Output')
+        form.addParam('outputOnlyCons', params.BooleanParam, default = True,
+                      label = "Output only consolidated coords",
+                      help = 'When set to True, the protocol will output the '
+                      'only the consensus coordinates + score. When False, '
+                      'it will output all of the inputs with their score, '
+                      'even though it will contain duplicities.'
+                      )
 
     #--------------- INSERT steps functions ----------------
     
