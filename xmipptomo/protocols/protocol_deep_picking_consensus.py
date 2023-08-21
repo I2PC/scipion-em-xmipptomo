@@ -44,6 +44,7 @@ from pyworkflow.object import Integer, Float
 import pyworkflow.utils as pwutils
 
 import pandas as pd
+import numpy as np
 
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
@@ -319,6 +320,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.coordConsensusStep)
+        if self.havePositive:
+            self._insertFunctionStep(self.addPositiveInputsStep)
         self._insertFunctionStep(self.prepareNNStep)
         if not bool(self.skipTraining.get()):
             self._insertFunctionStep(self.processTrainStep)
@@ -581,6 +584,36 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --constype ' + str(self.coordConsType)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
+
+    
+    def addPositiveInputsStep(self):
+        """
+        """
+        # Sacar interseccion y diferencia entre normales y positivos de all y positive
+        # Para cada uno de la interseccion
+        #   abrir fichero xmd, append los positivos (sin mirar coordenadas? de momento si)
+        intersect = intersectLists(self.uniqueTomoIDsPos, self.uniqueTomoIDs)
+        posAlone = subtractLists(self.uniqueTomoIDsPos, self.uniqueTomoIDs)
+
+        # Open each file that already exists from coordconsstep
+        for sharedTomo in intersect:
+            md = emlib.MetaData(self._getPosCoordsFilename(sharedTomo))
+            # For each ground truth coordinate identified for that tomo...
+            for row in self.untreatedPos[self.untreatedPos['tomo_id'] == sharedTomo]:
+                x = row['x']
+                y = row['y']
+                z = row['z']
+                row_id = md.addObject()
+                md.setValue(emlib.MDL_XCOOR, int(x), row_id)
+                md.setValue(emlib.MDL_YCOOR, int(y), row_id)
+                md.setValue(emlib.MDL_ZCOOR, int(z), row_id)
+                md.setValue(emlib.MDL_COUNT, int(1) , row_id)
+            # Commit changes to XMD file
+            md.write(self._getPosCoordsFilename(sharedTomo))
+
+        # What to do if you enter a tomogram that does not exist
+        for elem in posAlone:
+            print("Ignoring orphan tomogram %s" % elem)
     
     # BLOCK 2 - Program - Launch Noise Picking algorithm for data
     def noisePick(self, tomoPath, coordsPath, outPath):
@@ -844,7 +877,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _getPickedPerTomoPathPos(self, *args):
         return self._getPickedPerTomoPath('pos', *args)
     
-    
+def intersectLists(l1: list, l2: list ) -> list:
+        out = [val for val in l1 if val in l2]
+        return out
+
+def subtractLists(l1: list, l2: list) -> list:
+    """
+    Returns l1 - l2
+    """
+    out = [val for val in l1 if val not in l2]
+    return out
         
 # class XmippProtDeepConsSubSet3D():
 #     """
