@@ -190,7 +190,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         pointerClass = SetOfCoordinates3D, allowsNull=False,
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
-        )
+        )       
         group_input.addParam('positiveInputSets', params.MultiPointerParam,
                         pointerClass = SetOfCoordinates3D, allowsNull=True,
                         label = 'Positive references',
@@ -342,13 +342,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # GET THE INFORMATION FROM THE FORM AND STORE IN SELF -----------------
         # The form has a parameter called inputSets that carries
         # the 3D coordinates from the input pickers
-        self.inputSetsOf3DCoordinates = [item.get() for item in self.inputSets]
+        self.inputSetsOf3DCoordinates : list = [item.get() for item in self.inputSets]
 
         # Calculate the total amount of ROIs to save resources
         # The SetOfCoordinates3D is a EMSet -> Set so len() can be applied
         self.totalROIs : int = sum(map(len, self.inputSetsOf3DCoordinates))
         # Get the number of input pickers given in the form
         self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
+        # Only for when positive examples are provided
+        self.inputSetsOf3DCoordinatesPositive : list = [item.get() for item in self.positiveInputSets]
+        self.totalROIsPositive : int = sum(map(len,self.inputSetsOf3DCoordinatesPositive))
+        self.havePositive : bool = len(self.inputSetsOf3DCoordinatesPositive) > 0
+        self.nr_pickersPos : int = len(self.inputSetsOf3DCoordinatesPositive)
         # Get fraction for noise picking
         self.noiseFrac = float(self.fracNoise.get())
         # Get the method of doing the value consensus
@@ -424,9 +429,45 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Content of the self.untreated DF now
         # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
+        # Combined table of POSITIVE data
+        if self.havePositive:
+            self.untreatedPos = pd.DataFrame(index=range(self.totalROIsPositive), columns=colnames)
+            self.pickerMDPos = pd.DataFrame(index=range(self.nr_pickersPos), columns=colnames_md)
+            pickerCoordinates : SetOfCoordinates3D
+            for pick_id, pickerCoordinates in enumerate(self.inputSetsOf3DCoordinatesPositive):
+                # Picker parameters
+                bsize = int(pickerCoordinates.getBoxSize())
+                srate = pickerCoordinates.getSamplingRate()
+
+                # Assign the corresponding line
+                self.pickerMDPos.loc[pick_id, 'boxsize'] = bsize
+                self.pickerMDPos.loc[pick_id, 'samplingrate'] = srate
+
+                # For each individual coordinate in this particular set...
+                coordinate : Coordinate3D
+                for coordinate in pickerCoordinates.iterCoordinates():
+                    asoc_vol : Tomogram = coordinate.getVolume()
+                    tomo_id = asoc_vol.getFileName()
+                    c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
+                    c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
+                    c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
+                    self.untreatedPos.loc[globalIndex, 'pick_id'] = pick_id
+                    self.untreatedPos.loc[globalIndex, 'x'] = c_x
+                    self.untreatedPos.loc[globalIndex, 'y'] = c_y
+                    self.untreatedPos.loc[globalIndex, 'z'] = c_z
+                    self.untreatedPos.loc[globalIndex, 'tomo_id'] = tomo_id
+                    self.untreatedPos.loc[globalIndex, 'boxsize'] = bsize
+                    self.untreatedPos.loc[globalIndex, 'samplingrate'] = srate
+            self.uniqueTomoIDsPos = self.untreatedPos['tomo_id'].unique()
+            pwutils.makePath(self._getPickedPerTomoPathPos())
+
+            for name in self.uniqueTomoIDsPos:
+                singleTomoDf : pd.DataFrame = self.untreatedPos[self.untreatedPos['tomo_id'] == name]
+                savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name) + "_pos")
+                self.writeCoords(savedfile, singleTomoDf)
+
         # Get different tomogram names
         self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
-        # self.coordinatesByTomogramFileNames = []
 
         # Generate a separate folder for each tomogram's coordinates
         pwutils.makePath(self._getPickedPerTomoPath())
@@ -437,7 +478,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
             self.writeCoords(savedfile, singleTomoDf)
-            # self.coordinatesByTomogramFileNames.append(savedfile)
 
         # Print sizes before doing the consensus
         print(str(self.nr_pickers) + " pickers with a total of "+ str(self.totalROIs)+ " coordinates from "
@@ -800,6 +840,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _getPickedPerTomoPath(self, *args):
         return self._getExtraPath('pickedpertomo', *args)
+    
+    def _getPickedPerTomoPathPos(self, *args):
+        return self._getPickedPerTomoPath('pos', *args)
     
     
         
