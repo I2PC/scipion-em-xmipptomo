@@ -488,7 +488,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Generate per tomogram dataframes and write to XMD
         for name in self.uniqueTomoIDs:
-            print("Unique tomogram found: " + name)
+            # print("Unique tomogram found: " + name)
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
             self.writeCoords(savedfile, singleTomoDf)
