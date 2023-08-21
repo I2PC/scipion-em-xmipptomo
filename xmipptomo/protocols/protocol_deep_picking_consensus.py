@@ -191,8 +191,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         pointerClass = SetOfCoordinates3D, allowsNull=False,
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
-        )       
+        )
+        group_input.addParam('doPositiveInput', params.BooleanParam, default=False,
+                             label = 'Manually insert positive inputs',
+                             help = 'This option enables the input of positive-labelled data '
+                             'into the NN training. For example, previously checked or hand '
+                             'picked coordinates.')    
         group_input.addParam('positiveInputSets', params.MultiPointerParam,
+                        condition = 'inputSets == True', 
                         pointerClass = SetOfCoordinates3D, allowsNull=True,
                         label = 'Positive references',
                         help = 'Select pickings that are presumed to be true e.g. hand-picked coordinates.'  
@@ -320,7 +326,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.coordConsensusStep)
-        if self.havePositive:
+        if bool(self.doPositiveInput.get()):
             self._insertFunctionStep(self.addPositiveInputsStep)
         self._insertFunctionStep(self.prepareNNStep)
         if not bool(self.skipTraining.get()):
