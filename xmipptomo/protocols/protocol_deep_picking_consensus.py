@@ -213,8 +213,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
         form.addSection(label='Preprocess')
-
         group_coords = form.addGroup('Coordinate consensus')
+        group_coords.addParam('neededNumberOfPickers', params.IntParam, default=2,
+                        label="Positive threshold",
+                        help='Amount of input pickers choosing a coordinate needed '
+                        'to deem a coordinate as a positive input during consensus.'
+        )
         group_coords.addParam('coordConsensusRadius', params.FloatParam, default=0.2,
                         label="Same-element relative radius",
                         validators=[params.Positive],
@@ -392,6 +396,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.batchSize = int(self.trainingBatch.get())
         # Get validation fraction
         self.valFrac = float(self.validationFraction.get())
+        # Get the needed nr of pickers for POS
+        self.nr_pickers_needed = int(self.neededNumberOfPickers.get())
 
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
@@ -585,7 +591,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --boxsize ' + str(self.consBoxSize)
             args += ' --samplingrate ' + str(self.consSampRate)
             args += ' --radius ' + str(self.coordConsRadius)
-            args += ' --number ' + str(self.nr_pickers)
+            args += ' --number ' + str(self.nr_pickers_needed)
             args += ' --constype ' + str(self.coordConsType)
             if self.havePositive:
                 args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
@@ -792,6 +798,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _validate(self):
         errors = []
         errors += self._validateParallelProcessing()
+        errors += self._validateNrOfPickersNeeded()
         return errors
 
     def _validateParallelProcessing(self):
@@ -804,7 +811,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
         return errors
     
-        #--------------- FILENAMES functions -------------------
+    def _validateNrOfPickersNeeded(self):
+        howManyInputs = len(self.inputSets)
+        howManySelected = int(self.neededNumberOfPickers.get())
+        errors = []
+        if howManySelected > howManyInputs:
+            errors.append("Check the required nr of pickers, it is superior than the amount of pickers given as input!")
+        return errors
+    
+    #--------------- FILENAMES functions -------------------
 
     def _getOutputPath(self, *args):
         return self._getExtraPath('out', *args)
