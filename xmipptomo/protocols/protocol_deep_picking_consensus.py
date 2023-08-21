@@ -196,9 +196,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                              label = 'Manually insert positive inputs',
                              help = 'This option enables the input of positive-labelled data '
                              'into the NN training. For example, previously checked or hand '
-                             'picked coordinates.')    
+                             'picked coordinates.'
+                             )    
         group_input.addParam('positiveInputSets', params.MultiPointerParam,
-                        condition = 'inputSets == True', 
+                        condition = 'doPositiveInput == True', 
                         pointerClass = SetOfCoordinates3D, allowsNull=True,
                         label = 'Positive references',
                         help = 'Select pickings that are presumed to be true e.g. hand-picked coordinates.'  
@@ -326,8 +327,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
         self._insertFunctionStep(self.coordConsensusStep)
-        if bool(self.doPositiveInput.get()):
-            self._insertFunctionStep(self.addPositiveInputsStep)
         self._insertFunctionStep(self.prepareNNStep)
         if not bool(self.skipTraining.get()):
             self._insertFunctionStep(self.processTrainStep)
@@ -438,6 +437,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Content of the self.untreated DF now
         # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
+        # Generate a separate folder for each tomogram's coordinates
+        pwutils.makePath(self._getPickedPerTomoPath())
+
+        globalIndex = 0
         # Combined table of POSITIVE data
         if self.havePositive:
             self.untreatedPos = pd.DataFrame(index=range(self.totalROIsPositive), columns=colnames)
@@ -467,19 +470,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                     self.untreatedPos.loc[globalIndex, 'tomo_id'] = tomo_id
                     self.untreatedPos.loc[globalIndex, 'boxsize'] = bsize
                     self.untreatedPos.loc[globalIndex, 'samplingrate'] = srate
+                    globalIndex += 1
             self.uniqueTomoIDsPos = self.untreatedPos['tomo_id'].unique()
-            pwutils.makePath(self._getPickedPerTomoPathPos())
-
             for name in self.uniqueTomoIDsPos:
                 singleTomoDf : pd.DataFrame = self.untreatedPos[self.untreatedPos['tomo_id'] == name]
-                savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name) + "_pos")
+                savedfile = self._getAllTruthCoordsFilename(self._stripTomoFilename(name))
                 self.writeCoords(savedfile, singleTomoDf)
 
         # Get different tomogram names
         self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
-
-        # Generate a separate folder for each tomogram's coordinates
-        pwutils.makePath(self._getPickedPerTomoPath())
 
         # Generate per tomogram dataframes and write to XMD
         for name in self.uniqueTomoIDs:
@@ -487,7 +486,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
             self.writeCoords(savedfile, singleTomoDf)
-
+        
         # Print sizes before doing the consensus
         print(str(self.nr_pickers) + " pickers with a total of "+ str(self.totalROIs)+ " coordinates from "
               + str(len(self.uniqueTomoIDs)) + " unique tomograms.")
@@ -590,36 +589,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --constype ' + str(self.coordConsType)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
-
-    
-    def addPositiveInputsStep(self):
-        """
-        """
-        # Sacar interseccion y diferencia entre normales y positivos de all y positive
-        # Para cada uno de la interseccion
-        #   abrir fichero xmd, append los positivos (sin mirar coordenadas? de momento si)
-        intersect = intersectLists(self.uniqueTomoIDsPos, self.uniqueTomoIDs)
-        posAlone = subtractLists(self.uniqueTomoIDsPos, self.uniqueTomoIDs)
-
-        # Open each file that already exists from coordconsstep
-        for sharedTomo in intersect:
-            md = emlib.MetaData(self._getPosCoordsFilename(sharedTomo))
-            # For each ground truth coordinate identified for that tomo...
-            for row in self.untreatedPos[self.untreatedPos['tomo_id'] == sharedTomo]:
-                x = row['x']
-                y = row['y']
-                z = row['z']
-                row_id = md.addObject()
-                md.setValue(emlib.MDL_XCOOR, int(x), row_id)
-                md.setValue(emlib.MDL_YCOOR, int(y), row_id)
-                md.setValue(emlib.MDL_ZCOOR, int(z), row_id)
-                md.setValue(emlib.MDL_COUNT, int(1) , row_id)
-            # Commit changes to XMD file
-            md.write(self._getPosCoordsFilename(sharedTomo))
-
-        # What to do if you enter a tomogram that does not exist
-        for elem in posAlone:
-            print("Ignoring orphan tomogram %s" % elem)
     
     # BLOCK 2 - Program - Launch Noise Picking algorithm for data
     def noisePick(self, tomoPath, coordsPath, outPath):
@@ -864,6 +833,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _getAllCoordsFilename(self, tomo_name: str):
         return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
+    
+    def _getAllTruthCoordsFilename(self, tomo_name: str):
+        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords_truth.xmd")
 
     def _getDatasetPath(self, *args):
         return self._getExtraPath('dataset', *args)
@@ -879,9 +851,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _getPickedPerTomoPath(self, *args):
         return self._getExtraPath('pickedpertomo', *args)
-    
-    def _getPickedPerTomoPathPos(self, *args):
-        return self._getPickedPerTomoPath('pos', *args)
     
 def intersectLists(l1: list, l2: list ) -> list:
         out = [val for val in l1 if val in l2]
