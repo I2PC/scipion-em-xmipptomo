@@ -651,6 +651,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --constype ' + str(self.coordConsType)
             if self.havePositive:
                 args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
+            if self.haveNegative:
+                args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
     
