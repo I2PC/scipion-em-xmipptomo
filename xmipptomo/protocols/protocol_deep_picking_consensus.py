@@ -635,6 +635,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Generate a separate folder for the coord consensus output
         pwutils.makePath(self._getCoordConsensusPath())
+        pwutils.makePath(self._getNegSubtomogramPath())
 
         program = "xmipp_coordinates_consensus_tomo"
         for tomo_id in self.uniqueTomoIDs:
@@ -653,6 +654,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
             if self.haveNegative:
                 args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
+                args += ' --outputNeg ' + self._getNegCoordsFilename(tomoname)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
     
