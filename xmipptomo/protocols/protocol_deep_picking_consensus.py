@@ -415,6 +415,22 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get the needed nr of pickers for POS
         self.nr_pickers_needed = int(self.neededNumberOfPickers.get())
 
+        # Generate all the folders
+        # extra/pickedpertomo
+        folders = [ self._getPickedPerTomoPath() ]
+        # extra/coordconsensus
+        folders.append(self._getCoordConsensusPath())
+        # extra/dataset
+        folders.append(self._getDatasetPath())
+        folders.append(self._getPosSubtomogramPath())
+        folders.append(self._getNegSubtomogramPath())
+        folders.append(self._getDoubtSubtomogramPath())
+        # nn
+        folders.append(self._getNnPath())
+        folders.append(self._getOutputPath())
+                
+        for f in folders:
+            pwutils.makePath(f)
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
@@ -467,10 +483,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
             savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
             self.writeCoords(savedfile, singleTomoDf)
-        
-
-        # Generate a separate folder for each tomogram's coordinates
-        pwutils.makePath(self._getPickedPerTomoPath())
+            
 
         globalIndex = 0
         # Combined table of POSITIVE data
@@ -631,11 +644,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         This step launches a call to the associated Xmipp program, triggering
         a 3D coordinates consensus.
-        """
-
-        # Generate a separate folder for the coord consensus output
-        pwutils.makePath(self._getCoordConsensusPath())
-        pwutils.makePath(self._getNegSubtomogramPath())
+        """        
 
         program = "xmipp_coordinates_consensus_tomo"
         for tomo_id in self.uniqueTomoIDs:
@@ -699,18 +708,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
         # This protocol executes on the Xmipp program side
 
-        # Generate directory structure
-        folders = [self._getDoubtSubtomogramPath()]
-
-        # Only generate if training is needed
-        if not self.trainSkip:
-            folders.append(self._getPosSubtomogramPath())
-            folders.append(self._getNegSubtomogramPath())
-
-        # Tell Scipion3 to generate the folders
-        for folder in folders:
-            pwutils.makePath(folder)
-
         # Tengo: carpetas
         # Necesito: extraer
         for tomoPath in self.uniqueTomoIDs:
@@ -734,11 +731,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         Launches the script responsible for training the NN.
         """
-        folder = self._getNnPath()
-        pwutils.makePath(folder)
-        folder = self._getOutputPath()
-        pwutils.makePath(folder)
-
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
@@ -793,11 +785,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         subtomograms and score them against the model. Then
         generate the score tables.
         """
-        folder = self._getNnPath()
-        pwutils.makePath(folder)
-        folder = self._getOutputPath()
-        pwutils.makePath(folder)
-
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
@@ -913,10 +900,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
     
     def _getAllTruthCoordsFilename(self, tomo_name: str):
-        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords_truth.xmd")
+        return self._getPickedPerTomoPath(tomo_name+"_truth.xmd")
     
     def _getAllLieCoordsFilename(self, tomo_name: str):
-        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords_lie.xmd")
+        return self._getPickedPerTomoPath(tomo_name+"_lie.xmd")
 
     def _getDatasetPath(self, *args):
         return self._getExtraPath('dataset', *args)
