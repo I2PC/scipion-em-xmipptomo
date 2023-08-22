@@ -414,6 +414,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.valFrac = float(self.validationFraction.get())
         # Get the needed nr of pickers for POS
         self.nr_pickers_needed = int(self.neededNumberOfPickers.get())
+        # Global track for assigned subtomogram extraction IDs
+        self.globalParticleId = 0
 
         # Generate all the folders
         # extra/pickedpertomo
@@ -664,8 +666,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             if self.haveNegative:
                 args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
                 args += ' --outputNeg ' + self._getNegCoordsFilename(tomoname)
+            args += ' --startingId ' + str(self.globalParticleId)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
+            # Recount how many to skip for next base subtomo ID
+            self.globalParticleId += howManyCoords(self._getConsCoordsFilename(tomoname))
     
     # BLOCK 2 - Program - Launch Noise Picking algorithm for data
     def noisePick(self, tomoPath, coordsPath, outPath):
@@ -796,7 +801,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --netname ' + "dpc_nn.h5"
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
-        args += ' --inputvolpath ' + self._getDoubtSubtomogramPath()
+        args += ' --inputvolpath ' + self._getConsCoordsFilename()
         args += ' --outputpath ' + self._getOutputPath()
 
         print('\nHanding over to Xmipp program for Score')
@@ -930,6 +935,13 @@ def subtractLists(l1: list, l2: list) -> list:
     """
     out = [val for val in l1 if val not in l2]
     return out
+
+def howManyCoords(tomoFileName : str ) -> int:
+    md = emlib.MetaData(tomoFileName)
+    length = 0
+    for _ in md:
+        length += 1
+    return length
         
 # class XmippProtDeepConsSubSet3D():
 #     """
