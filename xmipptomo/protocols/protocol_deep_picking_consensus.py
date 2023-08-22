@@ -204,6 +204,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         label = 'Positive references',
                         help = 'Select pickings that are presumed to be true e.g. hand-picked coordinates.'  
         )
+        group_input.addParam('doNegativeInput', params.BooleanParam, default=False,
+                             label = 'Manually insert negative inputs',
+                             help = 'This option enables the input of negative-labelled data '
+                             'into the NN training. For example, previously picked gold or noise.'
+                             )    
+        group_input.addParam('negativeInputSets', params.MultiPointerParam,
+                        condition = 'doNegativeInput == True', 
+                        pointerClass = SetOfCoordinates3D, allowsNull=True,
+                        label = 'Negative references',
+                        help = 'Select pickings that are presumed to be negative e.g. hand-picked noise.'  
+        )
         group_input.addParam('classThreshold', params.FloatParam, default=0.6,
                         label = 'Tolerance threshold',
                         help='Choose a threshold in the range (0,1] to adjust '
@@ -363,9 +374,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
         # Only for when positive examples are provided
         self.inputSetsOf3DCoordinatesPositive : list = [item.get() for item in self.positiveInputSets]
-        self.totalROIsPositive : int = sum(map(len,self.inputSetsOf3DCoordinatesPositive))
+        self.totalROIsPositive : int = sum(map(len, self.inputSetsOf3DCoordinatesPositive))
         self.havePositive : bool = len(self.inputSetsOf3DCoordinatesPositive) > 0
         self.nr_pickersPos : int = len(self.inputSetsOf3DCoordinatesPositive)
+        # Only for when negative examples are provided
+        self.inputSetsOf3DCoordinatesNegative : list = [item.get() for item in self.negativeInputSets]
+        self.totalROIsNegative : int = sum(map(len, self.inputSetsOf3DCoordinatesNegative))
+        self.haveNegative : bool = len(self.inputSetsOf3DCoordinatesNegative) > 0
+        self.nr_pickersNeg : int = len(self.inputSetsOf3DCoordinatesNegative)
         # Get fraction for noise picking
         self.noiseFrac = float(self.fracNoise.get())
         # Get the method of doing the value consensus
@@ -443,6 +459,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Content of the self.untreated DF now
         # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
+        # Get different tomogram names
+        self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
+
+        # Generate per tomogram dataframes and write to XMD
+        for name in self.uniqueTomoIDs:
+            singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
+            savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
+            self.writeCoords(savedfile, singleTomoDf)
+        
+
         # Generate a separate folder for each tomogram's coordinates
         pwutils.makePath(self._getPickedPerTomoPath())
 
@@ -483,19 +509,49 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 savedfile = self._getAllTruthCoordsFilename(self._stripTomoFilename(name))
                 self.writeCoords(savedfile, singleTomoDf)
 
-        # Get different tomogram names
-        self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
+        globalIndex = 0
+        # Combined table of NEGATIVE data
+        if self.haveNegative:
+            self.untreatedNeg = pd.DataFrame(index=range(self.totalROIsNegative), columns=colnames)
+            self.pickerMDNeg = pd.DataFrame(index=range(self.nr_pickersNeg), columns=colnames_md)
+            pickerCoordinates : SetOfCoordinates3D
+            for pick_id, pickerCoordinates in enumerate(self.inputSetsOf3DCoordinatesNegative):
+                # Picker parameters
+                bsize = int(pickerCoordinates.getBoxSize())
+                srate = pickerCoordinates.getSamplingRate()
 
-        # Generate per tomogram dataframes and write to XMD
-        for name in self.uniqueTomoIDs:
-            # print("Unique tomogram found: " + name)
-            singleTomoDf : pd.DataFrame = self.untreated[self.untreated['tomo_id'] == name]
-            savedfile = self._getAllCoordsFilename(self._stripTomoFilename(name))
-            self.writeCoords(savedfile, singleTomoDf)
+                # Assign the corresponding line
+                self.pickerMDNeg.loc[pick_id, 'boxsize'] = bsize
+                self.pickerMDNeg.loc[pick_id, 'samplingrate'] = srate
+
+                # For each individual coordinate in this particular set...
+                coordinate : Coordinate3D
+                for coordinate in pickerCoordinates.iterCoordinates():
+                    asoc_vol : Tomogram = coordinate.getVolume()
+                    tomo_id = asoc_vol.getFileName()
+                    c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
+                    c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
+                    c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
+                    self.untreatedNeg.loc[globalIndex, 'pick_id'] = pick_id
+                    self.untreatedNeg.loc[globalIndex, 'x'] = c_x
+                    self.untreatedNeg.loc[globalIndex, 'y'] = c_y
+                    self.untreatedNeg.loc[globalIndex, 'z'] = c_z
+                    self.untreatedNeg.loc[globalIndex, 'tomo_id'] = tomo_id
+                    self.untreatedNeg.loc[globalIndex, 'boxsize'] = bsize
+                    self.untreatedNeg.loc[globalIndex, 'samplingrate'] = srate
+                    globalIndex += 1
+            self.uniqueTomoIDsNeg = self.untreatedNeg['tomo_id'].unique()
+            for name in self.uniqueTomoIDsNeg:
+                singleTomoDf : pd.DataFrame = self.untreatedNeg[self.untreatedNeg['tomo_id'] == name]
+                savedfile = self._getAllLieCoordsFilename(self._stripTomoFilename(name))
+                self.writeCoords(savedfile, singleTomoDf)
         
         # Print sizes before doing the consensus
-        print(str(self.nr_pickers) + " pickers with a total of "+ str(self.totalROIs)+ " coordinates from "
-              + str(len(self.uniqueTomoIDs)) + " unique tomograms.")
+        summary = []
+        summary += " Total ROIs: %d." % self.totalROIs
+        summary += " Pos prelabeled ROIs: %d." % self.totalROIsPositive
+        summary += " Neg prelabeled ROIs: %d." % self.totalROIsNegative
+        print(summary)
         print("\nPICKER SUMMARY")
         print(self.pickerMD)
         print("")
@@ -776,7 +832,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Get SetOfTomograms
         # tomos = [Tomogram(id) for id in self.uniqueTomoIDs]
         # tomograms : SetOfTomograms = SetOfTomograms(tomos)
-        outputPath = self._getExtraPath("CBOX_3D")
+        # outputPath = self._getExtraPath("CBOX_3D")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         coordinates : SetOfCoordinates3D = self._createSetOfCoordinates3D()
@@ -789,7 +845,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # A ve tambien te digo mejor parametro extendido
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coordinates})
-        # self._defineSourceRelation(tomograms, coordinates)
+        # Para cada set de coordenadas de entrada, definesourcerelation con el set de coordenadas de salida
+        # self._defineSourceRelation(coordsIn, coordsOut)
 
     #--------------- INFO functions -------------------------
 
@@ -853,6 +910,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _getAllTruthCoordsFilename(self, tomo_name: str):
         return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords_truth.xmd")
+    
+    def _getAllLieCoordsFilename(self, tomo_name: str):
+        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords_lie.xmd")
 
     def _getDatasetPath(self, *args):
         return self._getExtraPath('dataset', *args)
