@@ -547,7 +547,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 self.writeCoords(savedfile, singleTomoDf)
         
         # Print sizes before doing the consensus
-        summary = []
+        summary = ""
         summary += " Total ROIs: %d." % self.totalROIs
         summary += " Pos prelabeled ROIs: %d." % self.totalROIsPositive
         summary += " Neg prelabeled ROIs: %d." % self.totalROIsNegative
