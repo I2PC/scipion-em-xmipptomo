@@ -769,7 +769,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
         
         # Persist to disk
-        outMd.write(self._getDoubtSubtomogramPath("combined.xmd"))
+        outMd.write(self._getCombinedDatasetFile())
 
         # Tengo: un solo XMD con:
         # [pickingId, tomoId, subtomoId, x, y, z, srate, bsize]
@@ -847,7 +847,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --netname ' + "dpc_nn.h5"
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
-        args += ' --inputvolpath ' + self._getConsCoordsFilename()
+        args += ' --inputvolpath ' + self._getCombinedDatasetFile()
         args += ' --outputpath ' + self._getOutputPath()
 
         print('\nHanding over to Xmipp program for Score')
@@ -967,6 +967,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _getDoubtSubtomogramPath(self, *args):
         return self._getDatasetPath('doubt', *args)
+
+    def _getCombinedDatasetFile(self, *args):
+        return self._getDoubtSubtomogramPath('combined.xmd', *args)
 
     def _getPickedPerTomoPath(self, *args):
         return self._getExtraPath('pickedpertomo', *args)
