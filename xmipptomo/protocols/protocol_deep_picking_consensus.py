@@ -848,7 +848,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
         args += ' --inputvolpath ' + self._getCombinedDatasetFile()
-        args += ' --outputpath ' + self._getOutputPath()
+        args += ' --outputpath ' + self._getOutputFile()
 
         print('\nHanding over to Xmipp program for Score')
         self.runJob(program, args)
@@ -922,6 +922,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _getOutputPath(self, *args):
         return self._getExtraPath('out', *args)
+    
+    def _getOutputFile(self, *args):
+        return self._getOutputPath('nn_output_scored.xmd', *args)
 
     def _getNnPath(self, *args):
         return self._getExtraPath('nn', *args)
