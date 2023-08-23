@@ -728,6 +728,51 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             # In any case, we want to extract the doubt subtomograms
             self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
         # Tengo: todo extraido
+        # Necesito: combinar todos en un solo XMD
+
+
+        print("Combining the metadata of the whole dataset...", flush=True)
+        
+        extractFns = folderContentEndingWith(self._getDoubtSubtomogramPath(), "_extracted.xmd")
+        # For every summary file of each tomogram...
+        doubtBasePath = self._getDoubtSubtomogramPath()
+        outMd = emlib.MetaData()
+
+        for tomoPath in self.uniqueTomoIDs:
+        # Estan las cosas en /extra/dataset/doubt/TOMONAME_cons_doubt_extracted.xmd
+            tomoName = self._stripTomoFilename(tomoPath)
+            fn = self._getDoubtSubtomogramPath(str(tomoName + "_cons_doubt_extracted.xmd"))
+
+            print(str("Filename for combination is: " + fn), flush=True)
+            inMd = emlib.MetaData(fn)
+            
+            for inRow in inMd:
+                # READ
+                x = int(inMd.getValue(emlib.MDL_XCOOR, inRow))
+                y = int(inMd.getValue(emlib.MDL_YCOOR, inRow))
+                z = int(inMd.getValue(emlib.MDL_ZCOOR, inRow))
+                partId = int(inMd.getValue(emlib.MDL_PARTICLE_ID, inRow))
+                subtomoFilename : str = inMd.getValue(emlib.MDL_IMAGE, inRow)
+                sr = float(self.consSampRate)
+                bs = int(self.consBoxSize)
+
+                # SET
+                row_id = outMd.addObject()
+                outMd.setValue(emlib.MDL_XCOOR, x, row_id)
+                outMd.setValue(emlib.MDL_YCOOR, y, row_id)
+                outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
+                outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
+                outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
+                outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
+                outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
+                correctedPath = str( doubtBasePath + "/" + subtomoFilename)
+                outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
+        
+        # Persist to disk
+        outMd.write(self._getDoubtSubtomogramPath("combined.xmd"))
+
+        # Tengo: un solo XMD con:
+        # [pickingId, tomoId, subtomoId, x, y, z, srate, bsize]
         # Fin de paso - next: train if needed   
             
     # BLOCK 2 - Program - Launch NN train (if needed)
@@ -943,6 +988,11 @@ def howManyCoords(tomoFileName : str ) -> int:
     for _ in md:
         length += 1
     return length
+
+def folderContentEndingWith(path: str, filter: str) -> list:
+    fns = os.listdir(path)
+    return [ path + "/" + fn for fn in fns if filter in fn ]
+
         
 # class XmippProtDeepConsSubSet3D():
 #     """
