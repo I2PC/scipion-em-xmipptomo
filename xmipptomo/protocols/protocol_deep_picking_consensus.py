@@ -673,7 +673,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             self.globalParticleId += howManyCoords(self._getConsCoordsFilename(tomoname))
     
     # BLOCK 2 - Program - Launch Noise Picking algorithm for data
-    def noisePick(self, tomoPath, coordsPath, outPath):
+    def noisePick(self, tomoPath, coordsPath, outPath, nrPositive):
         """
         Block 2 - Noise picker for training stages
 
@@ -695,6 +695,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --samplingrate ' + str(self.consSampRate)
         args += ' --size ' + ' '.join(map(str, dims[0:3]))
         args += ' --limit ' + str(self.noiseFrac)
+        args += ' --nrPositive ' + str(nrPositive)
         args += ' --threads ' + str(self.numberOfThreads)
         args += ' --output ' + outPath
         print('\nHanding over to Xmipp program for noise picking')
@@ -712,16 +713,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         model into a H5 file both intermediate and final.
         """
         # This protocol executes on the Xmipp program side
-
         # Tengo: carpetas
         # Necesito: extraer
         for tomoPath in self.uniqueTomoIDs:
             tomoName = self._stripTomoFilename(tomoPath)
             if not self.trainSkip:
+                howManyPositive = howManyCoords(self._getPosCoordsFilename(tomoName))
                 # Extract the known good examples
                 self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
                 # Generate the bad examples for later extraction
-                self.noisePick(tomoPath, self._getAllCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName))
+                self.noisePick(tomoPath, self._getAllCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName), howManyPositive)
                 # Actually extract the bad examples
                 self.tomogramExtract(tomoPath, self._getNegCoordsFilename(tomoName), self._getNegSubtomogramPath())
             # In any case, we want to extract the doubt subtomograms
