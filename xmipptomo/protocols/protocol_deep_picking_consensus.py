@@ -416,6 +416,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.nr_pickers_needed = int(self.neededNumberOfPickers.get())
         # Global track for assigned subtomogram extraction IDs
         self.globalParticleId = 0
+        # Threshold for output filtering
+        self.outScoreThreshold = float(self.classThreshold.get())
 
         # Generate all the folders
         # extra/pickedpertomo
@@ -461,7 +463,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             coordinate : Coordinate3D
             for coordinate in pickerCoordinates.iterCoordinates():
                 asoc_vol : Tomogram = coordinate.getVolume()
-                tomo_id = asoc_vol.getFileName()
+                tomo_name = asoc_vol.getFileName()
+                ts_id = asoc_vol.getTsId()
                 c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
                 c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
                 c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
@@ -469,9 +472,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 self.untreated.loc[globalIndex, 'x'] = c_x
                 self.untreated.loc[globalIndex, 'y'] = c_y
                 self.untreated.loc[globalIndex, 'z'] = c_z
-                self.untreated.loc[globalIndex, 'tomo_id'] = tomo_id
+                self.untreated.loc[globalIndex, 'tomo_id'] = tomo_name
                 self.untreated.loc[globalIndex, 'boxsize'] = bsize
                 self.untreated.loc[globalIndex, 'samplingrate'] = srate
+                self.untreated.loc[globalIndex, 'ts_id'] = ts_id
                 globalIndex += 1
         
         # Content of the self.untreated DF now
@@ -479,6 +483,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # Get different tomogram names
         self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
+        
+        # Generate the table that joins tomo_id and ts_id
+        interm : pd.DataFrame = self.untreated[['tomo_id', 'ts_id']]
+        self.uniqueTomoIDsWithTsId = interm.drop_duplicates()
 
         # Generate per tomogram dataframes and write to XMD
         for name in self.uniqueTomoIDs:
@@ -861,7 +869,54 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         Apply the desired filters and thresholds to the 
         results.
         """
-        pass
+
+        # Open the scored output XMD file
+        md = emlib.MetaData(self._getOutputFile())
+        md_filtered = emlib.MetaData()
+        
+        # Generate the dataframe
+        cols_out = ['subtomoname','identifier','boxsize','samplingrate','tomoname','x','y','z','score']
+        size_paco = 0
+
+        for _ in md:
+            size_paco +=1
+
+        self.scoredDf = pd.DataFrame(index=range(size_paco),columns=cols_out)
+
+        # Load the data into memory in the protocol realm
+        myIndex = 0
+        for row in md:
+            subtomoName = str(md.getValue(emlib.MDL_IMAGE, row))
+            partId = int(md.getValue(emlib.MDL_PARTICLE_ID, row))
+            bsize = int(md.getValue(emlib.MDL_PICKING_PARTICLE_SIZE, row))
+            srate = float(md.getValue(emlib.MDL_SAMPLINGRATE, row))
+            tomoName = md.getValue(emlib.MDL_TOMOGRAM_VOLUME, row)
+            c_x = int(md.getValue(emlib.MDL_XCOOR, row))
+            c_y = int(md.getValue(emlib.MDL_YCOOR, row))
+            c_z = int(md.getValue(emlib.MDL_ZCOOR, row))
+            score = float(md.getValue(emlib.MDL_ZSCORE, row))
+
+            self.scoredDf.loc[myIndex, 'subtomoname'] =  subtomoName
+            self.scoredDf.loc[myIndex, 'identifier'] =  partId
+            self.scoredDf.loc[myIndex, 'boxsize'] =  bsize
+            self.scoredDf.loc[myIndex, 'samplingrate'] =  srate
+            self.scoredDf.loc[myIndex, 'tomoname'] =  tomoName
+            self.scoredDf.loc[myIndex, 'x'] =  c_x
+            self.scoredDf.loc[myIndex, 'y'] =  c_y
+            self.scoredDf.loc[myIndex, 'z'] =  c_z
+            self.scoredDf.loc[myIndex, 'score'] =  score
+
+            # Add also to the filtered XMD if passes filter
+            if score >= self.outScoreThreshold:
+                where = md_filtered.addObject()
+                md_filtered.setRow(md.getRow(row), where)
+            
+            myIndex += 1
+        md_filtered.write(self._getOutputFilteredFile())
+    
+        # Apply the filter to the column of the zscore
+        self.scoredDf_filtered : pd.DataFrame= self.scoredDf[self.scoredDf['score'] >= self.outScoreThreshold]
+
     
     # BLOCK 3 - Prepare output for Scipion GUI
     def createOutputStep(self):
@@ -877,18 +932,59 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # outputPath = self._getExtraPath("CBOX_3D")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
-        coordinates : SetOfCoordinates3D = self._createSetOfCoordinates3D()
-        coordinates.setName("")
+        tomoDict = {}
+        # TODO: This is assuming that all pickers pick same tomograms. CACADEVACA
+        # TODO: Future: fill a dictionary with unique combinations of tsId-volume
+        setOfCoords : SetOfCoordinates3D
+        outTomos : SetOfTomograms
+        for setOfCoords in self.inputSetsOf3DCoordinates:
+            precedent : Tomogram
+            precedents = setOfCoords.getPrecedents()
+            listaguay = [elem.clone() for elem in precedents]
+            # TODO: No hacer esto con outTomos en el futuro, usarlos del tomodict
+            outTomos = precedents
+            for precedent in listaguay:
+                tsid = precedent.getTsId()
+                tomoDict[tsid] = precedent
+            
+
+        print("Mi diccionario es asin de grande:")
+        print(tomoDict.keys())
+
+        coordinates : SetOfCoordinates3D = self._createSetOfCoordinates3D(outTomos, suffix)
+        coordinates.setName("output coordinates - scored")
         coordinates.setSamplingRate(self.consSampRate)
         coordinates.setBoxSize(self.consBoxSize)
 
-
-        # TODO: Xmipp metadata para salida (no guai para next protocols)
-        # A ve tambien te digo mejor parametro extendido
+        # objIdCounter = 1
+        # label = emlib.label2Str(emlib.MDL_ZSCORE)
+        for ind in self.scoredDf_filtered.index:
+            c : Coordinate3D = Coordinate3D()
+            # ['subtomoname','identifier','boxsize','samplingrate','tomoname','x','y','z','score']
+            # c.setBoxSize(self.consBoxSize)
+            tsid = self._getTsIdFromName(self.scoredDf_filtered['tomoname'][ind])
+            # c.setTomoId(tsid)
+            t : Tomogram = tomoDict[tsid]
+            c.setVolume(t)
+            c.setX(self.scoredDf_filtered['x'][ind], tconst.BOTTOM_LEFT_CORNER)
+            c.setY(self.scoredDf_filtered['y'][ind], tconst.BOTTOM_LEFT_CORNER)
+            c.setZ(self.scoredDf_filtered['z'][ind], tconst.BOTTOM_LEFT_CORNER)
+            # c.setAttributeValue(label, self.scoredDf_filtered['score'][ind])
+            # TODO: volId y objId faltan maybe quizas esta un poco confuso eso
+            # c.setObjId(objIdCounter)
+            coordinates.append(c)
+            # objIdCounter += 1
+            # coordinates.write()  
+            # self._store()
+        
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coordinates})
-        # Para cada set de coordenadas de entrada, definesourcerelation con el set de coordenadas de salida
-        # self._defineSourceRelation(coordsIn, coordsOut)
+
+        inset : SetOfCoordinates3D
+        for inset in self.inputSets:
+            # inset.write()
+            self._defineSourceRelation(inset, coordinates)
+        
 
     #--------------- INFO functions -------------------------
 
@@ -925,6 +1021,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _getOutputFile(self, *args):
         return self._getOutputPath('nn_output_scored.xmd', *args)
+    
+    def _getOutputFilteredFile(self, *args):
+        return self._getOutputPath('nn_output_scored_filtered.xmd', *args)
 
     def _getNnPath(self, *args):
         return self._getExtraPath('nn', *args)
@@ -976,6 +1075,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def _getPickedPerTomoPath(self, *args):
         return self._getExtraPath('pickedpertomo', *args)
+    
+    def _getTsIdFromName(self, name: str) -> int:
+        
+        # Buscar en el dataframe el ts_id aquella linea donde name sea el tomo_id
+        query : pd.DataFrame = self.uniqueTomoIDsWithTsId[ self.uniqueTomoIDsWithTsId['tomo_id'] == name ]
+        res = query.iloc[0][1]
+        return res
     
 def intersectLists(l1: list, l2: list ) -> list:
         out = [val for val in l1 if val in l2]
