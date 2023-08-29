@@ -32,13 +32,14 @@ import os
 # Scipion em imports
 from pwem.protocols import EMProtocol
 from pwem.objects import SetOfParticles, CTFModel
+from pwem.emlib import MetaData, metadata, MDL_CTF_PHASE_SHIFT, MDL_CTF_DEFOCUSU, MDL_CTF_DEFOCUSV, MDL_CTF_DEFOCUS_ANGLE
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SubTomogram, SetOfSubTomograms
-from xmipp3.convert import readSetOfParticles
+from xmipp3.convert import readSetOfParticles, ctfModelToRow
 
 # Protocol output variable name
 OUTPUTATTRIBUTE = 'outputSetOfParticles'
@@ -175,20 +176,29 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         dimensions = self.getSubtomogramDimensions().split(' ')
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
 
-        # Getting input element list according to data type
-        inputList = inputSubtomograms.iterSubtomos() if isinstance(inputSubtomograms, SetOfSubTomograms) else inputSubtomograms
-        inputList = [subtomogram if isinstance(subtomogram, SubTomogram) else subtomogram.getFileName() for subtomogram in inputList]
+        # Getting input element list
+        inputList = [subtomogram.getFileName() for subtomogram in inputSubtomograms]
 
         # Adding projections of each subtomogram as a particle each
         for subtomogram in inputList:
+            # Setting CTF for every output particle
+            mdCtf = MetaData(self.getProjectionMetadataAbsolutePath(subtomogram))
+            for row in metadata.iterRows(mdCtf):
+                # If CTF does not exist or has been corrected, set some values to 0
+                if self.hasCtfCorrected:
+                    row.setValue(MDL_CTF_PHASE_SHIFT, 0.0)
+                    row.setValue(MDL_CTF_DEFOCUSU, 0.0)
+                    row.setValue(MDL_CTF_DEFOCUSV, 0.0)
+                    row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
+                
+                # Add metadata row to file
+                row.addToMd(mdCtf)
+            
+            # Write metadata file with modified info
+            mdCtf.write(self.getProjectionMetadataAbsolutePath(subtomogram))
+
+            # Add particles to set from metadata file
             readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
-        
-        # Setting CTF for every output particle
-        if self.hasCtfCorrected:
-            for particle in outputSetOfParticles.iterItems():
-                ctfModel = CTFModel(defocusU=0.0, defocusV=0.0, defocusAngle=0.0, phaseShift=0.0)
-                ctfModel._defocusRatio.set(1.0)
-                particle.setCTF(ctfModel)
         
         # Defining the ouput with summary and source relation
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
