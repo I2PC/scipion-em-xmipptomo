@@ -27,19 +27,21 @@
 # **************************************************************************
 
 # General imports
-import os
+import os, math
+from typing import Tuple
 
 # Scipion em imports
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles, CTFModel
-from pwem.emlib import MetaData, metadata, MDL_CTF_PHASE_SHIFT, MDL_CTF_DEFOCUSU, MDL_CTF_DEFOCUSV, MDL_CTF_DEFOCUS_ANGLE
+from pwem.objects import SetOfParticles, CTFModel, Float
+from pwem.emlib import MetaData, metadata, MDL_CTF_PHASE_SHIFT, MDL_CTF_DEFOCUSU
+from pwem.emlib import MDL_CTF_DEFOCUSV, MDL_CTF_DEFOCUS_ANGLE, MDL_ANGLE_TILT
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SubTomogram, SetOfSubTomograms
-from xmipp3.convert import readSetOfParticles, ctfModelToRow
+from tomo.objects import SubTomogram, Coordinate3D, TiltSeries
+from xmipp3.convert import readSetOfParticles
 
 # Protocol output variable name
 OUTPUTATTRIBUTE = 'outputSetOfParticles'
@@ -76,11 +78,15 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
 
         # Generating form
         form.addSection(label='Input subtomograms')
-        form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes",
+        form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes", important=True,
                       label='Set of subtomograms', help="Set of subtomograms whose projections will be generated.")
-        form.addParam('hasCtfCorrected', params.BooleanParam, default='True', label='Is CTF corrected?: ',
+        form.addParam('hasCtfCorrected', params.BooleanParam, default=True, label='Is CTF corrected?: ',
                         help='Set this option to True if the input set of subtomograms has no CTF or the CTF has been corrected.')
-        form.addParam('cleanTmps', params.BooleanParam, default='True', label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
+        form.addParam('inputCTF', params.PointerParam, pointerClass="SetOfCTFTomoSeries", condition='not hasCtfCorrected',
+                      label='CTF', help="Select the CTF corresponding to this set of subtomograms.")
+        form.addParam('defocusDir', params.BooleanParam, default=True, label='Defocus increase with z positive?: ', condition='not hasCtfCorrected',
+                        help='This flag must be put if the defocus increases or decreases along the z-axis. This is required to set the local CTF.')
+        form.addParam('cleanTmps', params.BooleanParam, default=True, label='Clean temporary files: ', expertLevel=params.LEVEL_ADVANCED,
                         help='Clean temporary files after finishing the execution.\nThis is useful to reduce unnecessary disk usage.')
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
                         choices=['Fourier', 'Real space', 'Shears'], label="Transform method: ", expertLevel=params.LEVEL_ADVANCED,
@@ -190,6 +196,14 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     row.setValue(MDL_CTF_DEFOCUSU, 0.0)
                     row.setValue(MDL_CTF_DEFOCUSV, 0.0)
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
+                else:
+                    row.setValue(MDL_CTF_PHASE_SHIFT, 0.0)
+                    # Calculate subtomogram coordinates on the Tilt Series
+                    defU, defV = self.getCorrectedDefocus(row.getValue(MDL_ANGLE_TILT), subtomogram.getCoordinate3D())
+                    row.setValue(MDL_CTF_DEFOCUSU, defU)
+                    row.setValue(MDL_CTF_DEFOCUSV, defV)
+                    # TODO: This only works if the TS is aligned
+                    row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
                 
                 # Add metadata row to file
                 row.addToMd(mdCtf)
@@ -227,15 +241,15 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         return errors
 
     # --------------------------- UTILS functions --------------------------------------------
-    def scapePath(self, path):
+    def scapePath(self, path: str) -> str:
         """
         This function returns the given path with all the spaces in folder names scaped to avoid errors.
         """
-        # os.path.baspath adds '\\' when finding a foldername with '\ ', so '\\\' needs to be replaced with ''
+        # os.path.abspath adds '\\' when finding a foldername with '\ ', so '\\\' needs to be replaced with ''
         # Then, '\' is inserted before every space again, to include now possible folders with spaces in the absolute path
         return path.replace('\\\ ', ' ').replace(' ', '\ ')
     
-    def getSubtomogramRelativePath(self, subtomogram):
+    def getSubtomogramRelativePath(self, subtomogram: SubTomogram) -> str:
         """
         This method returns a the subtomogram path relative to current directory.
         Path is scaped to support spaces.
@@ -246,7 +260,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         return self.scapePath(subtomogram.getFileName() if isinstance(subtomogram, SubTomogram) else subtomogram)
 
-    def getSubtomogramAbsolutePath(self, subtomogram):
+    def getSubtomogramAbsolutePath(self, subtomogram: SubTomogram) -> str:
         """
         This method returns a the absolute path for the subtomogram.
         Path is scaped to support spaces.
@@ -254,14 +268,14 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         return self.scapePath(os.path.abspath(self.getSubtomogramRelativePath(subtomogram)))
 
-    def getSubtomogramName(self, filename):
+    def getSubtomogramName(self, filename: str) -> str:
         """
         This method returns the full name of the given subtomogram files.
         Example: import_file.mrc
         """
         return os.path.basename(filename)
     
-    def getCleanSubtomogramName(self, filename):
+    def getCleanSubtomogramName(self, filename: str) -> str:
         """
         This method returns the full name of the given subtomogram file without the 'import_' prefix.
         Example:
@@ -270,32 +284,32 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         return self.getSubtomogramName(filename).replace('import_', '')
 
-    def getProjectionName(self, subtomogram):
+    def getProjectionName(self, subtomogram: SubTomogram) -> str:
         """
         This function returns the name of the projection file for a given input subtomogram.
         """
         name = os.path.splitext(self.getCleanSubtomogramName(self.getSubtomogramAbsolutePath(subtomogram)))[0]
         return '{}_image.mrc'.format(name)
     
-    def getProjectionMetadataName(self, subtomogram):
+    def getProjectionMetadataName(self, subtomogram: SubTomogram) -> str:
         """
         This function returns the filename of the metadata file for a given input subtomogram.
         """
         return self.getProjectionName(subtomogram).replace('.mrc', '.xmd')
 
-    def getProjectionAbsolutePath(self, subtomogram):
+    def getProjectionAbsolutePath(self, subtomogram: SubTomogram) -> str:
         """
         This function returns the full path of a given subtomogram.
         """
         return self.scapePath(os.path.abspath(self._getExtraPath(self.getProjectionName(subtomogram))))
     
-    def getProjectionMetadataAbsolutePath(self, subtomogram):
+    def getProjectionMetadataAbsolutePath(self, subtomogram: SubTomogram) -> str:
         """
         This function returns the full path of a given subtomogram's metadata file.
         """
         return self.getProjectionAbsolutePath(subtomogram).replace('.mrc', '.xmd')
 
-    def getStepValue(self):
+    def getStepValue(self) -> float:
         """
         This function translates the provided sample generation input to number of samples for Xmipp phantom.
         """
@@ -305,7 +319,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             # Converting step to number of samples
             return ((self.tiltRangeStart.get() % 360) - (self.tiltRangeEnd.get() % 360)) / self.tiltRangeStep.get()
     
-    def getMethodValue(self):
+    def getMethodValue(self) -> str:
         """
         This function returns the string value associated to the form value provided by the user regarding transform method.
         """
@@ -316,7 +330,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         else:
             return 'shears'
 
-    def getSubtomogramDimensions(self):
+    def getSubtomogramDimensions(self) -> str:
         """
         This function retuns the first two dimensions of the subtomograms.
         """
@@ -328,15 +342,68 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                                      "If you are using the integrated test, run the extract subtomos's test first."])
             raise TypeError(errorMessage)
 
-    def getXmippParamPath(self):
+    def getXmippParamPath(self) -> str:
         """
         This function returns the path for the config file for Xmipp Phantom.
         """
         return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), 'xmippPhantom.param')))
     
-    def getSummary(self, setOfParticles):
+    def getSummary(self, setOfParticles: SetOfParticles) -> str:
         """
         Returns the summary of a given set of particles.
         The summary consists of a text including the number of particles in the set.
         """
         return "Number of projections generated: {}".format(setOfParticles.getSize())
+
+    def getCorrectedDefocus(self, tiltAngle: Float, coordinates: Coordinate3D) -> Tuple[Float, Float]:
+        """
+        This function returns the corrected defocusU and defocusV given a tilt angle and
+        the coordinates of a subtomogram.
+        """
+        # Converting tilt angle to radians (received in degrees)
+        radiansTiltAngle = math.radians(tiltAngle)
+        
+        # Calculating defocus direction
+        defocusDir = -1 if self.defocusDir.get() else 1
+
+        for ctf in self.inputCTF.get():
+            # From the input set of CTFs, get the Tilt Series of each CTF
+            ts = ctf.getTiltSeries()
+
+            # If the Tilt Series id matches the id of the tomogram where the
+            # subtomogram containing the given coordinates comes from, correct
+            # the defocus of the closest CTF to tilt angle from current Tilt Series
+            if (ts.getTsId() == coordinates.getTomoId()):
+                # Obtaining closest CTF to tilt angle from current Tilt Series
+                closestCTF = self.getClosestCTF(ts, tiltAngle)
+
+                # Obtain CTF's defocus
+                defocusU, defocusV = closestCTF.getDefocusU(), closestCTF.getDefocusV()
+                
+                # Obtain and return corrected defocus
+                generalDefocus = (coordinates.getX() * math.cos(radiansTiltAngle) + coordinates.getZ() * math.sin(radiansTiltAngle)) * ts.getSamplingRate() * math.sin(radiansTiltAngle)
+                correctedDefU = defocusU + defocusDir * generalDefocus
+                correctedDefV = defocusV + defocusDir * generalDefocus
+                return correctedDefU, correctedDefV
+
+    def getClosestCTF(self, tiltSeries: TiltSeries, tiltAngle: Float) -> CTFModel:
+        """
+        This function returns the Tilt Image's CTF inside a given
+        Tilt Series which is closest to the given tilt angle.
+        """
+        # Initial distance
+        distance = 360
+
+        # Find , 
+        for tiltImage in tiltSeries:
+            # Obtaining difference in tilt between given angle and tilt image angle
+            tiltDistance = abs(tiltAngle - tiltImage.getTiltAngle())
+
+            # If tilt difference is less than current distance, update distance and
+            # keep current image's CTF as current closest CTF
+            if tiltDistance < distance:
+                distance = tiltDistance
+                outputCTF = tiltImage.getCTF()
+        
+        # Returning closest CTF
+        return outputCTF
