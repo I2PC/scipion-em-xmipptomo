@@ -366,6 +366,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # The form has a parameter called inputSets that carries
         # the 3D coordinates from the input pickers
         self.inputSetsOf3DCoordinates : list = [item.get() for item in self.inputSets]
+        print("Found this many input sets: %d" % len(self.inputSetsOf3DCoordinates), flush=True)
 
         # Calculate the total amount of ROIs to save resources
         # The SetOfCoordinates3D is a EMSet -> Set so len() can be applied
@@ -727,54 +728,83 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             tomoName = self._stripTomoFilename(tomoPath)
             if not self.trainSkip:
                 howManyPositive = howManyCoords(self._getPosCoordsFilename(tomoName))
-                # Extract the known good examples
-                self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
                 # Generate the bad examples for later extraction
-                self.noisePick(tomoPath, self._getAllCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName), howManyPositive)
+                self.noisePick(tomoPath, self._getConsCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName), howManyPositive)
                 # Actually extract the bad examples
                 self.tomogramExtract(tomoPath, self._getNegCoordsFilename(tomoName), self._getNegSubtomogramPath())
-            # In any case, we want to extract the doubt subtomograms
-            self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
+            # Extract the known good examples
+            if self.isTherePositive(tomoName):
+                self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
+            # Extract the doubt subtomograms
+            if self.isThereDoubt(tomoName):
+                self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
         # Tengo: todo extraido
         # Necesito: combinar todos en un solo XMD
-
 
         print("Combining the metadata of the whole dataset...", flush=True)
         
         extractFns = folderContentEndingWith(self._getDoubtSubtomogramPath(), "_extracted.xmd")
         # For every summary file of each tomogram...
         doubtBasePath = self._getDoubtSubtomogramPath()
+        posBasePath = self._getPosSubtomogramPath()
         outMd = emlib.MetaData()
 
         for tomoPath in self.uniqueTomoIDs:
         # Estan las cosas en /extra/dataset/doubt/TOMONAME_cons_doubt_extracted.xmd
             tomoName = self._stripTomoFilename(tomoPath)
             fn = self._getDoubtSubtomogramPath(str(tomoName + "_cons_doubt_extracted.xmd"))
+            fnPos = self._getPosSubtomogramPath(str(tomoName +  "_cons_pos_extracted.xmd"))
 
             print(str("Filename for combination is: " + fn), flush=True)
             inMd = emlib.MetaData(fn)
             
-            for inRow in inMd:
-                # READ
-                x = int(inMd.getValue(emlib.MDL_XCOOR, inRow))
-                y = int(inMd.getValue(emlib.MDL_YCOOR, inRow))
-                z = int(inMd.getValue(emlib.MDL_ZCOOR, inRow))
-                partId = int(inMd.getValue(emlib.MDL_PARTICLE_ID, inRow))
-                subtomoFilename : str = inMd.getValue(emlib.MDL_IMAGE, inRow)
-                sr = float(self.consSampRate)
-                bs = int(self.consBoxSize)
+            if self.isThereDoubt(tomoName):
+                for inRow in inMd:
+                    # READ
+                    x = int(inMd.getValue(emlib.MDL_XCOOR, inRow))
+                    y = int(inMd.getValue(emlib.MDL_YCOOR, inRow))
+                    z = int(inMd.getValue(emlib.MDL_ZCOOR, inRow))
+                    partId = int(inMd.getValue(emlib.MDL_PARTICLE_ID, inRow))
+                    subtomoFilename : str = inMd.getValue(emlib.MDL_IMAGE, inRow)
+                    sr = float(self.consSampRate)
+                    bs = int(self.consBoxSize)
 
-                # SET
-                row_id = outMd.addObject()
-                outMd.setValue(emlib.MDL_XCOOR, x, row_id)
-                outMd.setValue(emlib.MDL_YCOOR, y, row_id)
-                outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
-                outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
-                outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
-                outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
-                outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
-                correctedPath = str( doubtBasePath + "/" + subtomoFilename)
-                outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
+                    # SET
+                    row_id = outMd.addObject()
+                    outMd.setValue(emlib.MDL_XCOOR, x, row_id)
+                    outMd.setValue(emlib.MDL_YCOOR, y, row_id)
+                    outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
+                    outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
+                    outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
+                    outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
+                    outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
+                    correctedPath = str( doubtBasePath + "/" + subtomoFilename)
+                    outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
+
+            if self.isTherePositive(tomoName):
+                # Also add positive to the combined dataset
+                inMdPos = emlib.MetaData(fnPos)
+                for inRow in inMdPos:
+                    # READ
+                    x = int(inMdPos.getValue(emlib.MDL_XCOOR, inRow))
+                    y = int(inMdPos.getValue(emlib.MDL_YCOOR, inRow))
+                    z = int(inMdPos.getValue(emlib.MDL_ZCOOR, inRow))
+                    partId = int(inMdPos.getValue(emlib.MDL_PARTICLE_ID, inRow))
+                    subtomoFilename : str = inMdPos.getValue(emlib.MDL_IMAGE, inRow)
+                    sr = float(self.consSampRate)
+                    bs = int(self.consBoxSize)
+
+                    # SET
+                    row_id = outMd.addObject()
+                    outMd.setValue(emlib.MDL_XCOOR, x, row_id)
+                    outMd.setValue(emlib.MDL_YCOOR, y, row_id)
+                    outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
+                    outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
+                    outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
+                    outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
+                    outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
+                    correctedPath = str( posBasePath + "/" + subtomoFilename)
+                    outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
         
         # Persist to disk
         outMd.write(self._getCombinedDatasetFile())
@@ -876,10 +906,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         
         # Generate the dataframe
         cols_out = ['subtomoname','identifier','boxsize','samplingrate','tomoname','x','y','z','score']
-        size_paco = 0
-
-        for _ in md:
-            size_paco +=1
+        size_paco = md.size()
 
         self.scoredDf = pd.DataFrame(index=range(size_paco),columns=cols_out)
 
@@ -1083,6 +1110,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         res = query.iloc[0][1]
         return res
     
+    def isTherePositive(self, tomoName):
+        return os.path.exists(self._getPosCoordsFilename(tomoName))
+
+    def isThereDoubt(self, tomoName):
+        return os.path.exists(self._getDoubtCoordsFilename(tomoName))
+    
 def intersectLists(l1: list, l2: list ) -> list:
         out = [val for val in l1 if val in l2]
         return out
@@ -1096,10 +1129,7 @@ def subtractLists(l1: list, l2: list) -> list:
 
 def howManyCoords(tomoFileName : str ) -> int:
     md = emlib.MetaData(tomoFileName)
-    length = 0
-    for _ in md:
-        length += 1
-    return length
+    return md.size()
 
 def folderContentEndingWith(path: str, filter: str) -> list:
     fns = os.listdir(path)
