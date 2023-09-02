@@ -46,6 +46,7 @@ import pyworkflow.utils as pwutils
 import pandas as pd
 import numpy as np
 
+from typing import NamedTuple
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
@@ -103,6 +104,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     VALUE_CONS_MEAN     = 3
     FORM_VALUE_CONS_TYPELIST_LABELS = ["First found", "Biggest", "Smallest", "Mean value"]
     FORM_VALUE_CONS_TYPELIST        = [VALUE_CONS_FIRST, VALUE_CONS_BIG, VALUE_CONS_SMALL, VALUE_CONS_MEAN]
+
 
     #--------------- DEFINE param functions ---------------
 
@@ -942,8 +944,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         md_filtered.write(self._getOutputFilteredFile())
     
         # Apply the filter to the column of the zscore
-        self.scoredDf_filtered : pd.DataFrame= self.scoredDf[self.scoredDf['score'] >= self.outScoreThreshold]
+        self.scoredDf_filtered : pd.DataFrame = self.scoredDf[self.scoredDf['score'] >= self.outScoreThreshold]
 
+        # Deduplicate the ones that are literally the same
+        intermediate : pd.DataFrame = self.scoredDf_filtered.drop_duplicates(subset=['x','y','z','tomoname']).reset_index()
+        print("Equal dedup: from %d to %d" %(len(self.scoredDf_filtered), len(intermediate)))
+        # No descomentes esto hasta haber arreglado dedup
+        # self.scoredDf_filtered_dedup : pd.DataFrame = self.dedup(intermediate)
+        self.scoredDf_filtered_dedup = intermediate
     
     # BLOCK 3 - Prepare output for Scipion GUI
     def createOutputStep(self):
@@ -985,17 +993,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # objIdCounter = 1
         # label = emlib.label2Str(emlib.MDL_ZSCORE)
-        for ind in self.scoredDf_filtered.index:
+        for ind in self.scoredDf_filtered_dedup.index:
             c : Coordinate3D = Coordinate3D()
             # ['subtomoname','identifier','boxsize','samplingrate','tomoname','x','y','z','score']
             # c.setBoxSize(self.consBoxSize)
-            tsid = self._getTsIdFromName(self.scoredDf_filtered['tomoname'][ind])
+            tsid = self._getTsIdFromName(self.scoredDf_filtered_dedup['tomoname'][ind])
             # c.setTomoId(tsid)
             t : Tomogram = tomoDict[tsid]
             c.setVolume(t)
-            c.setX(self.scoredDf_filtered['x'][ind], tconst.BOTTOM_LEFT_CORNER)
-            c.setY(self.scoredDf_filtered['y'][ind], tconst.BOTTOM_LEFT_CORNER)
-            c.setZ(self.scoredDf_filtered['z'][ind], tconst.BOTTOM_LEFT_CORNER)
+            c.setX(self.scoredDf_filtered_dedup['x'][ind], tconst.BOTTOM_LEFT_CORNER)
+            c.setY(self.scoredDf_filtered_dedup['y'][ind], tconst.BOTTOM_LEFT_CORNER)
+            c.setZ(self.scoredDf_filtered_dedup['z'][ind], tconst.BOTTOM_LEFT_CORNER)
             # c.setAttributeValue(label, self.scoredDf_filtered['score'][ind])
             # TODO: volId y objId faltan maybe quizas esta un poco confuso eso
             # c.setObjId(objIdCounter)
@@ -1115,7 +1123,38 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
     def isThereDoubt(self, tomoName):
         return os.path.exists(self._getDoubtCoordsFilename(tomoName))
-    
+
+    def dedup(self, df: pd.DataFrame) -> pd.DataFrame:
+        # TODO: CULO
+        # Calculate the threshold for assimilation
+        thold = int(int(self.consBoxSize)/2)
+        # Create a dataframe with same columns but no data
+        res = pd.DataFrame(columns=df.columns)
+        xyzres = np.empty(3,dtype=int)
+        xyz = np.empty(3, dtype=int)
+        row : pd.Series
+        rowres: pd.Series
+        for _, row in df.iterrows():
+            xyz[0] = row['x']
+            xyz[1] = row['y']
+            xyz[2] = row['z']
+            for _, rowres in res.iterrows():
+                xyzres[0] = rowres['x']
+                xyzres[1] = rowres['y']
+                xyzres[2] = rowres['z']
+                if distance(xyz, xyzres) < thold:
+                    # Get assimilated lol
+                    pass
+                break
+            else:
+                res = pd.concat
+        res = res.reset_index()
+        print("Proximity dedup: from %d to %d" %(len(df), len(res)))
+        return res
+
+def distance(a: np.ndarray, b: np.ndarray) -> float:
+    return abs(np.linalg.norm(a-b))
+
 def intersectLists(l1: list, l2: list ) -> list:
         out = [val for val in l1 if val in l2]
         return out
