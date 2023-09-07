@@ -37,7 +37,7 @@ from xmipp3 import XmippProtocol
 from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
-BOX_SIZE = 32
+TARGET_BOX_SIZE = 32
 TARGET_SAMPLING_RATE = 6.25
 
 
@@ -167,13 +167,15 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         outputPath = self._getExtraPath(os.path.join(tomo.getTsId()))
         tomoFn = tomo.getFileName()
 
+        dsFactor = tomo.getSamplingRate() / TARGET_SAMPLING_RATE
+
         paramsExtractSubtomos = {
             'tomogram': tomoFn,
             'coordinates': coordFilePath,
-            'boxsize': BOX_SIZE,
+            'boxsize': round(TARGET_BOX_SIZE * dsFactor),
             'threads': 1,  # ***
             'outputPath': outputPath,
-            'downsample': TARGET_SAMPLING_RATE / tomo.getSamplingRate(),
+            'downsample': dsFactor,
         }
 
         argsExtractSubtomos = "--tomogram %(tomogram)s " \
@@ -181,7 +183,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                               "--boxsize %(boxsize)d " \
                               "--threads %(threads)d " \
                               "-o %(outputPath)s " \
-                              "--downsample %(downsample)f "
+                              "--downsample %(downsample)f " \
+                              "--normalize "
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
