@@ -30,6 +30,7 @@ This module contains utils functions for xmipp tomo protocols
 import math
 import csv
 import os
+import shutil
 
 import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
@@ -38,8 +39,7 @@ from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
-from pyworkflow.object import Set
-from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+from tomo.objects import MATRIX_CONVERSION, TiltSeries, TiltImage
 from pwem import ALIGN_PROJ
 from xmipp3.convert import alignmentToRow
 
@@ -56,16 +56,16 @@ def calculateRotationAngleAndShiftsFromTM(ti):
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
     rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
-    Sx = tm[0][2]
-    Sy = tm[1][2]
+    sx = tm[0][2]
+    sy = tm[1][2]
 
-    return rotationAngle, Sx, Sy
+    return rotationAngle, sx, sy
 
 
 def readXmdStatisticsFile(fnmd):
-    x_pos = []
-    y_pos = []
-    z_pos = []
+    xPos = []
+    yPos = []
+    zPos = []
     avg = []
     std = []
 
@@ -74,11 +74,11 @@ def readXmdStatisticsFile(fnmd):
     for row in table.iterRows(fileName='noname@' + fnmd):
         avg.append(row.get('avg'))
         std.append(row.get('stddev'))
-        x_pos.append(row.get('xcoor'))
-        y_pos.append(row.get('ycoor'))
-        z_pos.append(row.get('zcoor'))
+        xPos.append(row.get('xcoor'))
+        yPos.append(row.get('ycoor'))
+        zPos.append(row.get('zcoor'))
 
-    return x_pos, y_pos, z_pos, avg, std
+    return xPos, yPos, zPos, avg, std
 
 
 def tiltSeriesParticleToXmd(tsParticle):
@@ -138,7 +138,7 @@ def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defau
 
     for objId in mdts:
         fnImg = os.path.join(odir, mdts.getValue(lib.MDL_IMAGE, objId))
-        tilt = mdts.getValue(lib.MDL_ANGLE_TILT, objId)
+        mdts.getValue(lib.MDL_ANGLE_TILT, objId)
 
         originalTi = inTs[counter]
         newTi = TiltImage()
@@ -164,15 +164,15 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
     mdts = lib.MetaData()
     tsid = ts.getTsId()
 
-    for index, item in enumerate(ts):
+    for _, item in enumerate(ts):
 
         transform = item.getTransform()
         if transform is None:
             rot = 0
-            Sx = 0
-            Sy = 0
+            sx = 0
+            sy = 0
         else:
-            rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(item)
+            rot, sx, sy = calculateRotationAngleAndShiftsFromTM(item)
 
         tiIndex = item.getLocation()[0]
         fn = str(tiIndex) + "@" + item.getFileName()
@@ -196,8 +196,8 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
         tilt = item.getTiltAngle()
         nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
         nRow.setValue(lib.MDL_ANGLE_ROT, rot)
-        nRow.setValue(lib.MDL_SHIFT_X, Sx)
-        nRow.setValue(lib.MDL_SHIFT_Y, Sy)
+        nRow.setValue(lib.MDL_SHIFT_X, sx)
+        nRow.setValue(lib.MDL_SHIFT_Y, sy)
         nRow.addToMd(mdts)
 
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
@@ -261,9 +261,9 @@ def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
     coordDict = []
     lines = []
 
-    fnCoor_directory = os.path.dirname(fnCoor)
-    if not os.path.exists(fnCoor_directory):
-        os.makedirs(fnCoor_directory)
+    fnCoorDirectory = os.path.dirname(fnCoor)
+    if not os.path.exists(fnCoorDirectory):
+        os.makedirs(fnCoorDirectory)
 
     for item in setOfCoordinates.iterCoordinates(volume=tomo):
         coord = item
