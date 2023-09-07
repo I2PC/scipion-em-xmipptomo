@@ -38,7 +38,6 @@ from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
 TARGET_BOX_SIZE = 32
-TARGET_SAMPLING_RATE = 6.25
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
@@ -95,6 +94,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                       help='Tomograms from which extract the fiducials (gold beads) at the specified coordinates '
                            'locations.')
 
+        form.addParam('fiducialSize',
+                      FloatParam,
+                      default=10,
+                      label='Fiducial size (nm)',
+                      help='Peaked gold bead size in nanometers.')
+
         form.addParam('misaliThrBool',
                       BooleanParam,
                       default=True,
@@ -141,6 +146,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     def _insertAllSteps(self):
         self.tomoDict = self.getTomoDict()
 
+        # Target sampling that fits the fiducial in 16 px (half od the box size to feed the network).
+        self.targetSamplingRate = self.fiducialSize.get() / 1.6
+
         for key in self.tomoDict.keys():
             tomo = self.tomoDict[key]
             coordFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
@@ -167,7 +175,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         outputPath = self._getExtraPath(os.path.join(tomo.getTsId()))
         tomoFn = tomo.getFileName()
 
-        dsFactor = tomo.getSamplingRate() / TARGET_SAMPLING_RATE
+        dsFactor = self.targetSamplingRate / tomo.getSamplingRate()
 
         paramsExtractSubtomos = {
             'tomogram': tomoFn,
