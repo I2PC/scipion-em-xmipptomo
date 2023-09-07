@@ -172,7 +172,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         paramsExtractSubtomos = {
             'tomogram': tomoFn,
             'coordinates': coordFilePath,
-            'boxsize': round(TARGET_BOX_SIZE * dsFactor),
+            'boxsize': TARGET_BOX_SIZE,
             'threads': 1,  # ***
             'outputPath': outputPath,
             'downsample': dsFactor,
@@ -184,7 +184,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                               "--threads %(threads)d " \
                               "-o %(outputPath)s " \
                               "--downsample %(downsample)f " \
-                              "--normalize "
+                              "--normalize " \
+                              "--fixedBoxSize "
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
