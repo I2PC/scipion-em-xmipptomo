@@ -258,7 +258,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                 subtomogram = SubTomogram()
                 subtomogram.setLocation(subtomoPath)
                 subtomogram.setCoordinate3D(newCoord3D)
-                subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
+                subtomogram.setSamplingRate(self.targetSamplingRate)
                 subtomogram.setVolName(tomo.getTsId())
                 subtomogram._strongMisaliScore = firstPredictionArray[i]
                 subtomogram._weakMisaliScore = secondPredictionArray[i]
@@ -404,7 +404,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             outputSubtomos = self._createSetOfSubTomograms(suffix="FS")
 
             outputSubtomos.copyInfo(self.isot)
-            outputSubtomos.setSamplingRate(TARGET_SAMPLING_RATE)
+            outputSubtomos.setSamplingRate(self.targetSamplingRate)
 
             outputSubtomos.setStreamState(Set.STREAM_OPEN)
 
