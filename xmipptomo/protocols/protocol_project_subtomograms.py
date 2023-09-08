@@ -40,7 +40,7 @@ from pyworkflow.protocol import params
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SubTomogram, Coordinate3D, TiltSeries
+from tomo.objects import SubTomogram, Coordinate3D, TiltSeries, TomoAcquisition
 from xmipp3.convert import readSetOfParticles
 
 # Protocol output variable name
@@ -181,6 +181,15 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         outputSetOfParticles.setAlignmentProj()
         dimensions = self.getSubtomogramDimensions().split(' ')
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
+
+        # Setting acquisition info
+        #from tomo.objects import SetOfSubTomograms
+        acquisition = TomoAcquisition()
+        print("TEST first item", inputSubtomograms.getFirstItem())
+        print("TEST first acquisition", inputSubtomograms.getFirstItem().getAcquisition())
+        print("TEST acquisition", inputSubtomograms.getAcquisition())
+        acquisition.copyInfo(inputSubtomograms.getAcquisition())
+        outputSetOfParticles.setAcquisition(acquisition)
 
         # Getting input element list
         inputList = [subtomogram.getFileName() for subtomogram in inputSubtomograms]
