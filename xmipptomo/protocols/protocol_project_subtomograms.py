@@ -228,6 +228,9 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         self._defineOutputs(outputSetOfParticles=outputSetOfParticles)
         self._defineSourceRelation(self.inputSubtomograms, outputSetOfParticles)
 
+        # Test acquisition in particle
+        print("TEST PARTICLE:", outputSetOfParticles.getFirstItem().getAcquisition())
+
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
         """
