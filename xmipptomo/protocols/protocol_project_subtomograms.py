@@ -183,11 +183,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
 
         # Setting acquisition info
-        #from tomo.objects import SetOfSubTomograms
         acquisition = TomoAcquisition()
-        print("TEST first item", inputSubtomograms.getFirstItem())
-        print("TEST first acquisition", inputSubtomograms.getFirstItem().getAcquisition())
-        print("TEST acquisition", inputSubtomograms.getAcquisition())
         acquisition.copyInfo(inputSubtomograms.getAcquisition())
         outputSetOfParticles.setAcquisition(acquisition)
 
@@ -227,9 +223,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
         self._defineOutputs(outputSetOfParticles=outputSetOfParticles)
         self._defineSourceRelation(self.inputSubtomograms, outputSetOfParticles)
-
-        # Test acquisition in particle
-        print("TEST PARTICLE:", outputSetOfParticles.getFirstItem().getAcquisition())
 
     # --------------------------- INFO functions --------------------------------------------
     def _validate(self):
