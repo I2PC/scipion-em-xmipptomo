@@ -29,7 +29,8 @@ from pwem.emlib import MetaData, MDL_MAX, MDL_MIN
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.object import Set
-from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
+from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED, StringParam, \
+    GPU_LIST, USE_GPU
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram, SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from tomo import constants
@@ -64,6 +65,22 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
+        form.addHidden(USE_GPU,
+                       BooleanParam,
+                       default=True,
+                       label="Use GPU for execution",
+                       help="This protocol has both CPU and GPU implementation. "
+                            "Select the one you want to use.")
+
+        form.addHidden(GPU_LIST,
+                       StringParam,
+                       default='0',
+                       expertLevel=LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="GPU ID. To pick the best available one set 0. "
+                            "For a specific GPU set its number ID "
+                            "(starting from 1).")
+
         form.addSection(label='Input')
 
         form.addParam('inputSetOfCoordinates',
@@ -204,11 +221,13 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
 
         paramsMisaliPrediction = {
             'modelPick': self.modelPick.get(),
-            'subtomoFilePath': subtomoFilePath
+            'subtomoFilePath': subtomoFilePath,
+            'g': self.getGpuList()[0],
         }
 
         argsMisaliPrediction = "--modelPick %(modelPick)d " \
-                               "--subtomoFilePath %(subtomoFilePath)s "
+                               "--subtomoFilePath %(subtomoFilePath)s " \
+                               "-g %(g)s "
 
         # Set misalignment threshold
         if self.misaliThrBool.get():
