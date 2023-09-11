@@ -37,6 +37,7 @@ from pwem.emlib import MetaData, metadata, MDL_CTF_PHASE_SHIFT, MDL_CTF_DEFOCUSU
 from pwem.emlib import MDL_CTF_DEFOCUSV, MDL_CTF_DEFOCUS_ANGLE, MDL_ANGLE_TILT
 from pyworkflow import BETA
 from pyworkflow.protocol import params
+from pyworkflow.utils import Message
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
@@ -60,6 +61,9 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     METHOD_SHEARS = 2
     TYPE_N_SAMPLES = 0
     TYPE_STEP = 1
+    INTERPOLATION_BSPLINE = 0
+    INTERPOLATION_NEAREST = 1
+    INTERPOLATION_LINEAR = 2
 
     # --------------------------- Class constructor --------------------------------------------
     def __init__(self, **args):
@@ -77,7 +81,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         form.addParallelSection(threads=4)
 
         # Generating form
-        form.addSection(label='Input subtomograms')
+        form.addSection(label=Message.LABEL_INPUT)
         form.addParam('inputSubtomograms', params.PointerParam, pointerClass="SetOfSubTomograms,SetOfVolumes", important=True,
                       label='Set of subtomograms', help="Set of subtomograms whose projections will be generated.")
         form.addParam('hasCtfCorrected', params.BooleanParam, default=True, label='Is CTF corrected?: ',
@@ -91,17 +95,27 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
                         choices=['Fourier', 'Real space', 'Shears'], label="Transform method: ", expertLevel=params.LEVEL_ADVANCED,
                         help='Select the algorithm that will be used to obtain the projections.')
-        tiltGroup = form.addGroup('Tilt range')
-        tiltGroup.addParam('tiltRangeStart', params.IntParam, default=-60, label='Tilt range start:',
-                        help='The initial value of the range of angles the projection will be produced on.\nDefaults to -60º.')
-        tiltGroup.addParam('tiltRangeEnd', params.IntParam, default=60, label='Tilt range end:',
-                        help='The final value of the range of angles the projection will be produced on.\nDefaults to 60º.')
+        
+        # Parameter group for fourier transform method
+        fourierGroup = form.addGroup('Fourier parameters', condition=f"transformMethod=={self.METHOD_FOURIER}", expertLevel=params.LEVEL_ADVANCED)
+        fourierGroup.addParam('pad', params.IntParam, default=2, label="Pad: ", help="Controls the padding factor.")
+        fourierGroup.addParam('maxfreq', params.FloatParam, default=0.25, label="Maximum frequency: ",
+                                help="Maximum frequency for the pixels.\nBy default, pixels with frequency more than 0.25 are not considered.")
+        fourierGroup.addParam('interp', params.EnumParam, default=self.INTERPOLATION_BSPLINE, label="Interpolation method: ", choices=["BSpline", "Nearest", "Linear"],
+                                help="Method for interpolation.\nOptions:\n\nBSpline: Cubic BSpline\nNearest: Nearest Neighborhood\nLinear: Linear BSpline")
+        
+        # Tilt related parameter group
+        tiltGroup = form.addGroup('Tilt parameters')
+        tiltLine = tiltGroup.addLine("Tilt range (degrees)", help='The initial and final values of the range of angles the projection will be produced on.\n'
+                            'Defaults to -60º for initial and 60º for final.')
+        tiltLine.addParam('tiltRangeStart', params.IntParam, default=-60, label='Start: ')
+        tiltLine.addParam('tiltRangeEnd', params.IntParam, default=60, label='End: ')
         tiltGroup.addParam('tiltTypeGeneration', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.TYPE_N_SAMPLES,
                         choices=['NSamples', 'Step'], label="Type of sample generation: ",
                         help='Select either the number of samples to be taken or the separation in degrees between each sample.')
-        tiltGroup.addParam('tiltRangeNSamples', params.IntParam, condition='tiltTypeGeneration==%d' % self.TYPE_N_SAMPLES, label='Number of samples:',
+        tiltGroup.addParam('tiltRangeNSamples', params.IntParam, condition=f'tiltTypeGeneration=={self.TYPE_N_SAMPLES}', label='Number of samples:',
                         help='Number of samples to be produced.\nIt has to be 1 or greater.')
-        tiltGroup.addParam('tiltRangeStep', params.IntParam, condition='tiltTypeGeneration==%d' % self.TYPE_STEP, label='Step:',
+        tiltGroup.addParam('tiltRangeStep', params.IntParam, condition=f'tiltTypeGeneration=={self.TYPE_STEP}', label='Step:',
                         help='Number of degrees each sample will be separated from the next.\nIt has to be greater than 0.')
 
     # --------------------------- INSERT steps functions --------------------------------------------
@@ -196,13 +210,12 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             mdCtf = MetaData(self.getProjectionMetadataAbsolutePath(subtomogram))
             for row in metadata.iterRows(mdCtf):
                 # If CTF does not exist or has been corrected, set some values to 0
+                row.setValue(MDL_CTF_PHASE_SHIFT, 0.0)
                 if self.hasCtfCorrected:
-                    row.setValue(MDL_CTF_PHASE_SHIFT, 0.0)
                     row.setValue(MDL_CTF_DEFOCUSU, 0.0)
                     row.setValue(MDL_CTF_DEFOCUSV, 0.0)
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
                 else:
-                    row.setValue(MDL_CTF_PHASE_SHIFT, 0.0)
                     # Calculate subtomogram coordinates on the Tilt Series
                     defU, defV = self.getCorrectedDefocus(row.getValue(MDL_ANGLE_TILT), subtomogram.getCoordinate3D())
                     row.setValue(MDL_CTF_DEFOCUSU, defU)
@@ -329,7 +342,17 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         This function returns the string value associated to the form value provided by the user regarding transform method.
         """
         if self.transformMethod.get() == self.METHOD_FOURIER:
-            return 'fourier'
+            # Obtaining string and params for fourier method
+            methodString = f'fourier {self.pad.get()} {self.maxfreq.get()} '
+
+            # Adding interpolation method
+            if self.interp.get() == self.INTERPOLATION_BSPLINE:
+                methodString += 'bspline'
+            elif self.interp.get() == self.INTERPOLATION_NEAREST:
+                methodString += 'nearest'
+            else:
+                methodString += 'linear'
+            return methodString
         elif self.transformMethod.get() == self.METHOD_REAL_SPACE:
             return 'real_space'
         else:
