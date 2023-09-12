@@ -324,23 +324,34 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         return tomoDict
 
     def addTomoToOutput(self, tomo, overallPrediction):
-        if overallPrediction == 1:  # Strong misali
-            self.getOutputSetOfStrongMisalignedTomograms()
-            self.strongMisalignedTomograms.append(tomo)
-            self.strongMisalignedTomograms.write()
-            self._store()
+        self.info("Adding tomogram %s to set %d" % (tomo.getObjId(), overallPrediction))
 
-        elif overallPrediction == 2:  # Weak misali
-            self.getOutputSetOfWeakMisalignedTomograms()
-            self.weakMisalignedTomograms.append(tomo)
-            self.weakMisalignedTomograms.write()
-            self._store()
+        try:
+            if overallPrediction == 1:  # Strong misali
+                self.getOutputSetOfStrongMisalignedTomograms()
+                self.strongMisalignedTomograms.append(tomo)
+                self.strongMisalignedTomograms.write()
+                self._store()
 
-        elif overallPrediction == 3:  # Ali
-            self.getOutputSetOfAlignedTomograms()
-            self.alignedTomograms.append(tomo)
-            self.alignedTomograms.write()
-            self._store()
+            elif overallPrediction == 2:  # Weak misali
+                self.getOutputSetOfWeakMisalignedTomograms()
+                self.weakMisalignedTomograms.append(tomo)
+                self.weakMisalignedTomograms.write()
+                self._store()
+
+            elif overallPrediction == 3:  # Ali
+                self.getOutputSetOfAlignedTomograms()
+                self.alignedTomograms.append(tomo)
+                self.alignedTomograms.write()
+                self._store()
+
+        except Exception as e:
+            if "UNIQUE" in str(e):
+                self.info("Error adding tomogram %s to set %d. It might be already added to set (duplicated id)" %
+                          (tomo.getObjId(), overallPrediction))
+            else:
+                self.error("Error adding tomogram %s to set %d." % (tomo.getObjId(), overallPrediction))
+                self.error(str(e))
 
     @staticmethod
     def readPredictionArrays(outputSubtomoXmdFilePath):
