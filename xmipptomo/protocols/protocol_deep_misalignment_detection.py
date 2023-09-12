@@ -283,8 +283,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                 subtomogram._weakMisaliScore = secondPredictionArray[i]
 
                 self.outputSubtomos.append(subtomogram)
-                self.outputSubtomos.write()
-                self._store()
+            self.outputSubtomos.write()
+            self._store()
 
         else:
             print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
