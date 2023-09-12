@@ -243,11 +243,11 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                 nRow.setValue(lib.MDL_IMAGE, fn)
 
                 defU = ctfti.getDefocusU()
-                defV = ctfti.getDefocusV()
-                defAng = ctfti.getDefocusAngle()
+                #defV = ctfti.getDefocusV()
+                #defAng = ctfti.getDefocusAngle()
                 nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
-                nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
-                nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+                #nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
+                #nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
 
                 nRow.setValue(lib.MDL_TSID, tsId)
                 tilt = ti.getTiltAngle()
@@ -275,19 +275,23 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             2) A folder where the particlestacks will be stored is created. The name of this folder is the tsId
             3) Launches the xmipp_tomo_extract_particlestacks
         """
+        print('starting')
         ts = self.tiltseries.get()[objId]
 
         tsId = ts.getTsId()
         tomoPath = self._getExtraPath(tsId)
         os.mkdir(tomoPath)
-
+        print('after creating folder')
         tomoFn = ts.getFileName()
-
         fnCoords = self.writeMdCoordinates(ts, tomoPath)
         if self.setCTFinfo:
+            print('setting CTF info')
             fnTs = self.writeMdTiltSeriesWithCTF(ts, tomoPath)
         else:
+            print('CTF info will not be set')
             fnTs = writeMdTiltSeries(ts, tomoPath, fnXmd=tsId + '_ts.xmd')
+
+        print('The infor was set')
 
         params = ' --tiltseries %s' % fnTs
         params += ' --coordinates %s' % fnCoords

@@ -156,13 +156,14 @@ def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defau
     return newTs
 
 
-def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
+def writeMdTiltSeries(ts, tomoPath):
     """
         Returns a metadata with the tilt series information, TsID, filename and tilt angle.
     """
 
     mdts = lib.MetaData()
     tsid = ts.getTsId()
+    print(tsid)
 
     for _, item in enumerate(ts):
 
@@ -179,6 +180,7 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
         nRow = md.Row()
         nRow.setValue(lib.MDL_IMAGE, fn)
 
+        '''
         if item.hasCTF():
             defU = item.getCTF().getDefocusU()
             defV = item.getCTF().getDefocusV()
@@ -186,12 +188,14 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
             nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
             nRow.setValue(lib.MDL_CTF_DEFOCUSU, defV)
             nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
-
+        '''
+        '''
         if ts.hasOddEven():
             fnOdd = item.getOdd()
             fnEven = item.getEven()
             nRow.setValue(lib.MDL_HALF1, fnOdd)
             nRow.setValue(lib.MDL_HALF2, fnEven)
+        '''
         nRow.setValue(lib.MDL_TSID, tsid)
         tilt = item.getTiltAngle()
         nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
@@ -200,12 +204,25 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
         nRow.setValue(lib.MDL_SHIFT_Y, sy)
         nRow.addToMd(mdts)
 
-        fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
+    fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
 
     mdts.write(fnts)
 
     return fnts
 
+
+def setGeometricalParametersToRow(row, rot, tilt, psi, sx, sy, defU, defV, defAng):
+    if defAng is None:
+        defAng = 0.0
+    row.setValue(lib.MDL_CTF_DEFOCUSU, defU)
+    row.setValue(lib.MDL_CTF_DEFOCUSV, defV)
+    row.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+    row.setValue(lib.MDL_ANGLE_TILT, tilt)
+    row.setValue(lib.MDL_ANGLE_ROT, rot)
+    row.setValue(lib.MDL_ANGLE_PSI, psi)
+    row.setValue(lib.MDL_SHIFT_X, sx)
+    row.setValue(lib.MDL_SHIFT_Y, sy)
+    return row
 
 def removeTmpElements(tmpElements):
     """ This function removes all given temporary files and directories. """

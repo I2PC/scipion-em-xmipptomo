@@ -36,19 +36,19 @@ from pwem.convert.transformations import translation_from_matrix, euler_from_mat
 from pyworkflow import BETA
 from pyworkflow.protocol.params import IntParam, FloatParam, LEVEL_ADVANCED, PointerParam, BooleanParam
 from tomo.protocols import ProtTomoBase
+import pwem.emlib.metadata as md
+
 import pwem
 from xmipp3.convert import writeSetOfVolumes
-from ..utils import calculateRotationAngleAndShiftsFromTM
+from ..utils import calculateRotationAngleAndShiftsFromTM, setGeometricalParametersToRow
 from ..objects import SetOfTiltSeriesParticle, TiltSeriesParticle, TiltParticle
 
 from pwem.objects import Volume
 
-
 FN_INPUTPARTICLES = 'ts_'
 XMD_EXT = '.xmd'
-MRC_EXT = '.mrc'
+MRCS_EXT = '.mrcs'
 SUFFIX_CTF_CORR = '_ctf_corrected'
-
 
 
 class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
@@ -56,12 +56,13 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
 
     _label = 'initial volume'
     _devStatus = BETA
+    tsIdList = []
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
         form.addParam('inputStacks', PointerParam,
-                      pointerClass="SetOfTiltSeriesParticle, SetOfParticles",
+                      pointerClass="SetOfTiltSeriesParticle",
                       label='Particles',
                       help="Input Tilt series particles")
 
@@ -90,7 +91,7 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
                       label="Correct for CTF envelope",
                       help=' Only in cases where the envelope is well estimated correct for it')
 
-        form.addParallelSection(threads = 1, mpi = 0)
+        form.addParallelSection(threads=1, mpi=0)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
@@ -98,23 +99,78 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.wienerCorrectionStep)
         self._insertFunctionStep(self.createGalleryStep)
-        #self._insertFunctionStep(self.reconstructStep)
-        #self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.aligningStep)
+        # self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
-    def wienerCorrectionStep(self, tsIdList):
-        #TODO: Check if is phase flipped
-        sampling = 1
+    def convertInputStep(self):
+        # To obtain a list with the tsIds and write the particles with such tsId as a metadata (.xmd) file
+        # These .xmd will be used as input in the wienerCorrectionStep to correct the CTF
+        sotsp = self.inputStacks.get()
 
-        for tsId in tsIdList:
-            params = '  -i %s' % os.path.join(self._getExtraPath(tsId), tsId+XMD_EXT)
-            params += '  -o %s' % os.path.join(self._getExtraPath(tsId), tsId+SUFFIX_CTF_CORR+XMD_EXT)
-            params += '  --save_metadata_stack %s' % os.path.join(self._getExtraPath(tsId), tsId+SUFFIX_CTF_CORR+MRC_EXT)
+        # List of tsIds
+        self.tsIdList = []
+
+        for tp in sotsp.iterItems():
+            tsId = str(tp.getOriginalTs())
+            if tsId not in self.tsIdList:
+                # If not, add it to the list
+                os.mkdir(self._getExtraPath(tsId))
+                self.tsIdList.append(tsId)
+
+        psi = 0.0
+        for tsId in self.tsIdList:
+            mdtp = lib.MetaData()
+            mdtpZeroTilt = lib.MetaData()
+            fnParticles = os.path.join(self._getExtraPath(tsId), tsId + XMD_EXT)
+            fnParticlesZero = os.path.join(self._getExtraPath(tsId), tsId +'_zeroTilt'+ XMD_EXT)
+            for tsparticle in sotsp:
+                tsIdOrig = str(tsparticle.getOriginalTs())
+                if tsId == tsIdOrig:
+                    # A huge an non sense tilt number
+                    mintilt = 1e38
+                    for tp in tsparticle:
+                        tilt = tp.getTiltAngle()
+                        rot, sx, sy = calculateRotationAngleAndShiftsFromTM(tp)
+                        nRow = md.Row()
+                        nRowZeroTilt = md.Row()
+                        fn = tp.getFileName()
+                        nRow.setValue(lib.MDL_IMAGE, fn)
+                        ctf = tp.getCTF()
+                        defU = ctf.getDefocusU()
+                        defV = ctf.getDefocusV()
+                        defAng = ctf.getDefocusAngle()
+                        nRow = setGeometricalParametersToRow(nRow, rot, tilt, psi, sx, sy, defU, defV, defAng)
+                        if np.abs(tilt)<mintilt:
+                            mintilt = tilt
+                            rotZero, tiltZero, psiZero, sxZero, syZero, defUZero, defVZero, defAngZero = rot, tilt, psi, sx, sy, defU, defV, defAng
+                            nRowZeroTilt = setGeometricalParametersToRow(nRowZeroTilt, rotZero, tiltZero, psiZero,
+                                                                         sxZero, syZero, defUZero, defVZero, defAngZero)
+                            nRowZeroTilt.addToMd(mdtpZeroTilt)
+                        nRow.addToMd(mdtp)
+
+            mdtp.write(fnParticles)
+            mdtpZeroTilt.write(fnParticlesZero)
+
+    def mergeIndividualXmdFiles(self):
+        for tsId in self.tsIdList:
+            and
+
+
+    def wienerCorrectionStep(self):
+        # TODO: Check if is phase flipped
+        sampling = self.inputStacks.get().getSamplingRate()
+
+        for tsId in self.tsIdList:
+            params = '  -i %s' % os.path.join(self._getExtraPath(tsId), tsId + XMD_EXT)
+            params += '  -o %s' % os.path.join(self._getExtraPath(tsId), tsId + SUFFIX_CTF_CORR + MRCS_EXT)
+            params += '  --save_metadata_stack %s' % os.path.join(self._getExtraPath(tsId),
+                                                                  tsId + SUFFIX_CTF_CORR + XMD_EXT)
             params += '  --pad %s' % self.padding_factor.get()
             params += '  --wc %s' % self.wiener_constant.get()
             params += '  --sampling_rate %s' % sampling
 
-            if self.inputParticles.get().isPhaseFlipped():
+            if self.inputStacks.get().isPhaseFlipped():
                 params += '  --phase_flipped '
 
             if self.correctEnvelope:
@@ -126,35 +182,50 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
             self.runJob('xmipp_ctf_correct_wiener2d', params, numberOfMpi=nproc, numberOfThreads=nT)
 
 
-    def convertInputStep(self):
-        # To obtain a list with the tsIds
-        sotp = self.inputStacks.get()
-        for tp in sotp.iterItems():
-            tsId = tp.getTsId()
-            fnParticles = os.path.join(self._getExtraPath(tsId), tsId+XMD_EXT)
-            self.writeParticleStackToMd(sotp, fnParticles)
 
 
     def createGalleryStep(self):
+        #TODO: Check if an initial volume is not provided
+        sampling = self.inputStacks.get().getSamplingRate()
 
         if self.provideInitialVolume.get():
-            fnVol = self.initVol.get()
+            fnVol = self.initVol.get().getFileName()
         else:
             fnVol = ''
 
-        params =  ' -i %s' % fnVol
-        params += ' -o %s' % self._getExtraPath('gallery')
-        params += ' --sampling_rate %f' % 5
-        params += ' ----psi_sampling %f' % 5
+        params = ' -i %s' % fnVol
+        params += ' -o %s' % self._getExtraPath('gallery.mrcs')
+        params += ' --sampling_rate %f' % sampling
+        params += ' --psi_sampling %f' % 5
 
         self.runJob('xmipp_angular_project_library', params)
 
-
-    def writeParticleStackToMd(self, stack, fn):
+    def writeParticleStackToMd(self, sotsp, fn):
 
         md = lib.MetaData()
         psi = 0.0
-        for ti in stack:
+        for tsparticle in sotsp:
+            for tp in tsparticle:
+                tilt = tp.getTiltAngle()
+                rot, sx, sy = calculateRotationAngleAndShiftsFromTM(tp)
+                nRow = md.Row()
+                nRow.setValue(lib.MDL_IMAGE, fn)
+                defU = tp.getDefocusU()
+                defV = tp.getDefocusV()
+                defAng = tp.getDefocusAngle()
+                nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
+                nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
+                nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+
+                nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
+                nRow.setValue(lib.MDL_ANGLE_ROT, rot)
+                nRow.setValue(lib.MDL_ANGLE_PSI, psi)
+                nRow.setValue(lib.MDL_SHIFT_X, sx)
+                nRow.setValue(lib.MDL_SHIFT_Y, sy)
+                nRow.addToMd(md)
+
+        '''
+        for ti in sotsp:
             tilt = ti.getTiltAngle()
             rot, sx, sy = calculateRotationAngleAndShiftsFromTM(ti)
             nRow = md.Row()
@@ -172,10 +243,24 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
             nRow.setValue(lib.MDL_SHIFT_X, sx)
             nRow.setValue(lib.MDL_SHIFT_Y, sy)
             nRow.addToMd(md)
-
+        '''
         md.write(fn)
 
-    def reconstructStep(self, objId):
+    def aligningStep(self, objId):
+
+        stack = self.inputStacks.get()[objId]
+        fn = self._getExtraPath('caca.xmd')
+        self.writeParticleStackToMd(stack, fn)
+        params = ' -i %s ' % self._getExtraPath(fn)
+        if self.correctCTF:
+            params += ' --useCTF '
+        params += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
+        params += ' -o %s ' % self._getExtraPath()
+        params += ' --thr %d ' % self.numberOfThreads.get()
+
+        self.runJob('xmipp_tomo_align_subtomo_stack', params)
+
+    def reconstructionStep(self, objId):
 
         stack = self.inputStacks.get()[objId]
         fn = self._getExtraPath('caca.xmd')
@@ -189,12 +274,11 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_reconstruct_fourier', params)
 
-
     def createOutputStep(self):
-       pass
-
+        pass
 
         # --------------------------- INFO functions --------------------------------------------
+
     def _validate(self):
         errors = []
         return errors
@@ -207,5 +291,3 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase):
     def _methods(self):
         methods = []
         return methods
-
-
