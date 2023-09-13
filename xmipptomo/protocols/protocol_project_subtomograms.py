@@ -146,7 +146,11 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
 
         # Generating projections for each subtomogram
         for subtomogram in self.inputSubtomograms.get():
-            deps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), useparamFile=useParamFile, prerequisites=deps))
+            generationDeps = []
+            generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), useparamFile=useParamFile, prerequisites=deps))
+        
+        # Updating dependency list
+        deps = deps + generationDeps
 
         # Conditionally removing temporary files
         if self.cleanTmps.get():
