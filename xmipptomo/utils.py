@@ -51,11 +51,10 @@ from pwem.objects import Transform
 
 def calculateRotationAngleAndShiftsFromTM(ti):
     """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
-
     tm = ti.getTransform().getMatrix()
     cosRotationAngle = tm[0][0]
     sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
+    rotationAngle = float(math.degrees(math.atan(sinRotationAngle / cosRotationAngle)))
     sx = tm[0][2]
     sy = tm[1][2]
 
@@ -164,14 +163,14 @@ def writeMdTiltSeries(ts, tomoPath):
     mdts = lib.MetaData()
     tsid = ts.getTsId()
     print(tsid)
-
+    fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
     for _, item in enumerate(ts):
 
         transform = item.getTransform()
         if transform is None:
-            rot = 0
-            sx = 0
-            sy = 0
+            rot = 0.0
+            sx = 0.0
+            sy = 0.0
         else:
             rot, sx, sy = calculateRotationAngleAndShiftsFromTM(item)
 
@@ -182,9 +181,10 @@ def writeMdTiltSeries(ts, tomoPath):
 
         '''
         if item.hasCTF():
-            defU = item.getCTF().getDefocusU()
-            defV = item.getCTF().getDefocusV()
-            defAng = item.getCTF().getDefocusAngle()
+            ctf = item.getCTF()
+            defU = ctf.getCTF().getDefocusU()
+            defV = ctf.getCTF().getDefocusV()
+            defAng = ctf.getCTF().getDefocusAngle()
             nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
             nRow.setValue(lib.MDL_CTF_DEFOCUSU, defV)
             nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
@@ -196,6 +196,7 @@ def writeMdTiltSeries(ts, tomoPath):
             nRow.setValue(lib.MDL_HALF1, fnOdd)
             nRow.setValue(lib.MDL_HALF2, fnEven)
         '''
+
         nRow.setValue(lib.MDL_TSID, tsid)
         tilt = item.getTiltAngle()
         nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
@@ -203,17 +204,15 @@ def writeMdTiltSeries(ts, tomoPath):
         nRow.setValue(lib.MDL_SHIFT_X, sx)
         nRow.setValue(lib.MDL_SHIFT_Y, sy)
         nRow.addToMd(mdts)
-
-    fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
-
     mdts.write(fnts)
 
     return fnts
 
 
-def setGeometricalParametersToRow(row, rot, tilt, psi, sx, sy, defU, defV, defAng):
+def setGeometricalParametersToRow(row, fnZero, rot, tilt, psi, sx, sy, defU, defV, defAng):
     if defAng is None:
         defAng = 0.0
+    row.setValue(lib.MDL_IMAGE, fnZero)
     row.setValue(lib.MDL_CTF_DEFOCUSU, defU)
     row.setValue(lib.MDL_CTF_DEFOCUSV, defV)
     row.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)

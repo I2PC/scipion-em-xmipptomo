@@ -229,38 +229,39 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             else:
                 ti = tsList[idxTS]
                 ctfti = ctfList[idxCTF]
+                print(ctfti)
+                print(ti)
                 transform = ti.getTransform()
                 if transform is None:
-                    rot = 0
-                    Sx = 0
-                    Sy = 0
+                    rot = 0.0
+                    Sx = 0.0
+                    Sy = 0.0
                 else:
                     rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(ti)
+                nRow = md.Row()
 
                 tiIndex = ti.getLocation()[0]
                 fn = str(tiIndex) + "@" + ti.getFileName()
-                nRow = md.Row()
-                nRow.setValue(lib.MDL_IMAGE, fn)
-
-                defU = ctfti.getDefocusU()
-                #defV = ctfti.getDefocusV()
-                #defAng = ctfti.getDefocusAngle()
-                nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
-                #nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
-                #nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
-
-                nRow.setValue(lib.MDL_TSID, tsId)
                 tilt = ti.getTiltAngle()
+                defU = ctfti.getDefocusU()
+                # defV = ctfti.getDefocusV()
+                # defAng = ctfti.getDefocusAngle()
+                nRow.setValue(lib.MDL_IMAGE, fn)
+                nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
+                # nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
+                # nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+                nRow.setValue(lib.MDL_TSID, tsId)
                 nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
                 nRow.setValue(lib.MDL_ANGLE_ROT, rot)
                 nRow.setValue(lib.MDL_SHIFT_X, Sx)
                 nRow.setValue(lib.MDL_SHIFT_Y, Sy)
                 nRow.setValue(lib.MDL_DOSE, dose)
                 nRow.addToMd(mdts)
-
+        print(warningStr)
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsId)
 
         mdts.write(fnts)
+
         return fnts
 
     def getCTFfromId(self, setofctftomoseries, targetTsId):
@@ -277,21 +278,22 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         """
         print('starting')
         ts = self.tiltseries.get()[objId]
+        print(ts)
 
         tsId = ts.getTsId()
         tomoPath = self._getExtraPath(tsId)
-        os.mkdir(tomoPath)
-        print('after creating folder')
+        if not os.path.exists(tomoPath):
+            os.mkdir(tomoPath)
+
         tomoFn = ts.getFileName()
         fnCoords = self.writeMdCoordinates(ts, tomoPath)
+
         if self.setCTFinfo:
             print('setting CTF info')
             fnTs = self.writeMdTiltSeriesWithCTF(ts, tomoPath)
         else:
             print('CTF info will not be set')
-            fnTs = writeMdTiltSeries(ts, tomoPath, fnXmd=tsId + '_ts.xmd')
-
-        print('The infor was set')
+            fnTs = writeMdTiltSeries(ts, tomoPath)
 
         params = ' --tiltseries %s' % fnTs
         params += ' --coordinates %s' % fnCoords
@@ -321,7 +323,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         sampling = inputTs.getSamplingRate()
         outputSetOfTiltSeries = self._createSetOfTiltSeriesParticle()
         outputSetOfTiltSeries.setSamplingRate(sampling)
-        boxsize = 3
+        boxsize = self.boxSize.get()
 
         acquisitionInfo = inputTs.getAcquisition()
 
@@ -381,7 +383,6 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
         self._defineSourceRelation(self.tiltseries, outputSetOfTiltSeries)
 
-
     def getOutputSetOfTiltSeries(self):
         sampling = self.tiltseries.get().getSamplingRate()
         if hasattr(self, "outputSetOfTiltSeriesParticle"):
@@ -397,14 +398,13 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             self._defineSourceRelation(self.tiltseries, outputSetOfTiltSeries)
         return self.outputSetOfTiltSeries
 
-
     def getTiltSeriesParticles(self, tsId):
 
         fnts = os.path.join(self._getExtraPath(tsId), "%s.xmd" % tsId)
         dictionary = {}
         keyBaseParticle = 'tsp'
 
-        if (os.path.isfile(fnts)):
+        if os.path.isfile(fnts):
             for i, row in enumerate(md.iterRows(fnts)):
                 pId = row.getValue(lib.MDL_PARTICLE_ID)
                 defU = row.getValue(lib.MDL_CTF_DEFOCUSU)
