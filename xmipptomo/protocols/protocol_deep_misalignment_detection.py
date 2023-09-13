@@ -39,7 +39,7 @@ from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
 COORDINATES_EXTRACTED_FILE_NAME = 'subtomo_coords_extracted.xmd'
-TARGET_BOX_SIZE = 32
+TARGET_BOX_SIZE = 1000000000
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
@@ -218,12 +218,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     def subtomoPrediction(self, key):
         tomo = self.tomoDict[key]
 
-        subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_EXTRACTED_FILE_NAME)
-
-        print(subtomoFilePath)
+        subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
+        subtomoExtractedXmdFilePath = self._getExtraPath(os.path.join(tomo.getTsId()),
+                                                         COORDINATES_EXTRACTED_FILE_NAME)
 
         # Check if no coordinates have been extracted in the previous step
-        if os.path.exists(subtomoFilePath):
+        if os.path.exists(subtomoExtractedXmdFilePath):
             paramsMisaliPrediction = {
                 'modelPick': self.modelPick.get(),
                 'subtomoFilePath': subtomoFilePath,
@@ -248,7 +248,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                         argsMisaliPrediction % paramsMisaliPrediction,
                         env=self.getCondaEnv())
         else:
-            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + " IMPOSSIBLE TO STUDY " +
                       "MISALIGNMENT!")
 
     def createOutputStep(self, key, coordFilePath):
@@ -295,7 +295,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             self._store()
 
         else:
-            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + " IMPOSSIBLE TO STUDY " +
                       "MISALIGNMENT!")
 
     def closeOutputSetsStep(self):
