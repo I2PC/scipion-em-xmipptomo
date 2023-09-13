@@ -37,7 +37,8 @@ from tomo import constants
 from xmipp3 import XmippProtocol
 from xmipptomo import utils
 
-COORDINATES_FILE_NAME = 'subtomo_coords_extracted.xmd'
+COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
+COORDINATES_EXTRACTED_FILE_NAME = 'subtomo_coords_extracted.xmd'
 TARGET_BOX_SIZE = 32
 
 
@@ -217,31 +218,38 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     def subtomoPrediction(self, key):
         tomo = self.tomoDict[key]
 
-        subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
+        subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_EXTRACTED_FILE_NAME)
 
-        paramsMisaliPrediction = {
-            'modelPick': self.modelPick.get(),
-            'subtomoFilePath': subtomoFilePath,
-            'g': self.getGpuList()[0],
-        }
+        print(subtomoFilePath)
 
-        argsMisaliPrediction = "--modelPick %(modelPick)d " \
-                               "--subtomoFilePath %(subtomoFilePath)s " \
-                               "-g %(g)s "
+        # Check if no coordinates have been extracted in the previous step
+        if os.path.exists(subtomoFilePath):
+            paramsMisaliPrediction = {
+                'modelPick': self.modelPick.get(),
+                'subtomoFilePath': subtomoFilePath,
+                'g': self.getGpuList()[0],
+            }
 
-        # Set misalignment threshold
-        if self.misaliThrBool.get():
-            paramsMisaliPrediction['misaliThr'] = self.misaliThr.get()
+            argsMisaliPrediction = "--modelPick %(modelPick)d " \
+                                   "--subtomoFilePath %(subtomoFilePath)s " \
+                                   "-g %(g)s "
 
-            argsMisaliPrediction += "--misaliThr %(misaliThr)f "
+            # Set misalignment threshold
+            if self.misaliThrBool.get():
+                paramsMisaliPrediction['misaliThr'] = self.misaliThr.get()
 
-        # Set misalignment criteria
-        if self.misalignmentCriteria.get() == 1:
-            argsMisaliPrediction += "--misalignmentCriteriaVotes "
+                argsMisaliPrediction += "--misaliThr %(misaliThr)f "
 
-        self.runJob('xmipp_deep_misalignment_detection',
-                    argsMisaliPrediction % paramsMisaliPrediction,
-                    env=self.getCondaEnv())
+            # Set misalignment criteria
+            if self.misalignmentCriteria.get() == 1:
+                argsMisaliPrediction += "--misalignmentCriteriaVotes "
+
+            self.runJob('xmipp_deep_misalignment_detection',
+                        argsMisaliPrediction % paramsMisaliPrediction,
+                        env=self.getCondaEnv())
+        else:
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+                      "MISALIGNMENT!")
 
     def createOutputStep(self, key, coordFilePath):
         tomo = self.tomoDict[key]
@@ -287,8 +295,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             self._store()
 
         else:
-            print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
-                  "MISALIGNMENT!")
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
+                      "MISALIGNMENT!")
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
@@ -303,8 +311,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             self.strongMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.strongMisalignedTomograms.write()
 
-        self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
-        self.outputSubtomos.write()
+        if self.outputSubtomos:
+            self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
+            self.outputSubtomos.write()
 
         self._store()
 
