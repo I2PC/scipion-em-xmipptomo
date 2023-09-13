@@ -53,7 +53,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         form.addSection(label='Input')
         form.addParam('inputSubtomos', PointerParam, pointerClass='SetOfSubTomograms', label="Subtomograms ",
                       help='Select the SetOfSubTomograms with transform matrix which will be subtracted.')
-        form.addParam('average', PointerParam, pointerClass='SetOfSubTomograms', label="Average subtomogram ",
+        form.addParam('average', PointerParam, pointerClass='SubTomogram', label="Average subtomogram ",
                       help='Select an average subtomogram to be subtracted.')
         form.addParam('maskBool', BooleanParam, label='Mask subtomograms?', default=True,
                       help='The mask are not mandatory but highly recommendable.')
@@ -150,7 +150,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
     def subtractionStep(self):
         """Subtract reference to each of the subtomogram in the input Set"""
-        average = self.average.get().getFirstItem().getFileName()
+        average = self.average.get().getFileName()
         if average.endswith('.mrc'):
             average += ':mrc'
         resol = self.resol.get()
@@ -206,7 +206,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
             if self.maskBool:
                 summary.append("Mask: %s" % self.mask.get().getFileName())
             if self.resol.get() != 0:
-                summary.append("Subtraction at resolution %f A" % self.resol.get())
+                summary.append("Subtraction at resolution %0.2f A" % self.resol.get())
         return summary
 
     def _methods(self):
@@ -217,7 +217,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
             methods.append("Subtraction of average %s performed to %s subtomograms" %
                            (self.average.get().getFileName(), self.inputSubtomos.get().getSize()))
             if self.resol.get() != 0:
-                methods.append(" at resolution %f A" % self.resol.get())
+                methods.append(" at resolution %0.2f A" % self.resol.get())
         return methods
 
     def _validate(self):
@@ -229,8 +229,6 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
             if not subtomo.hasTransform():
                 validateMsgs.append(
                     'Please provide subtomograms which have transformation matrix.')
-        if self.average.get().getSize() != 1:
-            validateMsgs.append('Average subtomogram must contain just 1 item.')
         return validateMsgs
 
     # --------------------------- UTLIS functions --------------------------------------------
