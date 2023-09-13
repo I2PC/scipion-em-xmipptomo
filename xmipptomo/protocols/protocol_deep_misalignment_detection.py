@@ -37,7 +37,7 @@ from tomo import constants
 from xmipp3 import XmippProtocol
 from xmipptomo import utils
 
-COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
+COORDINATES_FILE_NAME = 'subtomo_coords_extracted.xmd'
 TARGET_BOX_SIZE = 32
 
 
