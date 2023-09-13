@@ -39,7 +39,7 @@ from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
 COORDINATES_EXTRACTED_FILE_NAME = 'subtomo_coords_extracted.xmd'
-TARGET_BOX_SIZE = 1000000000
+TARGET_BOX_SIZE = 32
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
