@@ -26,7 +26,7 @@
 # *
 # **************************************************************************
 
-from pyworkflow import BETA
+from pyworkflow import BETA, UPDATED, NEW, PROD
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, FloatParam
 from pyworkflow.protocol.constants import LEVEL_ADVANCED
 
@@ -36,8 +36,11 @@ import pwem.emlib.metadata as md
 from pwem.protocols import EMProtocol
 
 from tomo.protocols import ProtTomoBase
+from xmipp3.convert import writeSetOfParticles, readSetOfParticles
 from xmipp3.convert import xmippToLocation, writeSetOfVolumes, alignmentToRow
 
+OUTPUT = "output_subtomograms.xmd"
+INPUT_PARTICLES = "input_subtomograms.xmd"
 
 class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
     """ This protocol subtracts a subtomogram average to a SetOfSubtomograms, which are internally aligned and
@@ -46,7 +49,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
     determined region."""
 
     _label = 'subtomo subtraction'
-    _devStatus = BETA
+    _devStatus = UPDATED
 
     # --------------------------- DEFINE param functions --------------------------------------------
     def _defineParams(self, form):
@@ -77,14 +80,18 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
                       expertLevel=LEVEL_ADVANCED, help='Save input volume 1 (first subtomogram of the set) filtered '
                                                        'and input volume 2 (average) adjusted, which are the volumes '
                                                        'that are really subtracted.')
+        form.addParallelSection(threads=0, mpi=4)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('applyAlignStep')
+        self._insertFunctionStep('convertStep')
         self._insertFunctionStep('subtractionStep')
         self._insertFunctionStep('createOutputStep')
 
     # --------------------------- STEPS functions --------------------------------------------
+    def convertStep(self):
+        writeSetOfParticles(self.inputSubtomos.get(), self._getExtraPath(self.INPUT_PARTICLES))
+
     def applyAlignStep(self):
         """Align subtomograms to be in the same orientation as the reference"""
         inputSet = self.inputSubtomos.get()
@@ -156,7 +163,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         resol = self.resol.get()
         iter = self.iter.get()
         program = "xmipp_volume_subtraction"
-        args = '--i2 %s --iter %s --lambda %s --sub' % \
+        args = '--ref %s --iter %s --lambda %s --sub' % \
                (average, iter, self.rfactor.get())
         if resol:
             fc = self.inputSubtomos.get().getSamplingRate() / resol
@@ -191,7 +198,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         inputSubtomos = self.inputSubtomos.get()
         outputSet = self._createSetOfSubTomograms()
         outputSet.copyInfo(inputSubtomos)
-        outputSet.copyItems(inputSubtomos, updateItemCallback=self._updateItemOutput)
+        readSetOfParticles(self._getExtraPath(OUTPUT), outputSet)
         self._defineOutputs(outputSubtomograms=outputSet)
         self._defineSourceRelation(inputSubtomos, outputSet)
 
