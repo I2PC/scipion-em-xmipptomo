@@ -145,7 +145,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     print(row)
                 
                 # Generating param file
-                paramDeps.append(self._insertFunctionStep(self.generateParamFile, angleFile))
+                paramDeps.append(self._insertFunctionStep(self.generateParamFile, tsId))
 
         else:
             # If type of generation is not from Tilt Series, generate single param file
@@ -165,7 +165,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         self._insertFunctionStep(self.createOutputStep, prerequisites=generationDeps)
 
     # --------------------------- STEPS functions --------------------------------------------
-    def generateParamFile(self, angleFile: str=None):
+    def generateParamFile(self, tsId: str=''):
         """
         This function writes the config file for Xmipp Phantom.
         """
@@ -177,7 +177,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         content += '_dimensions2D   \'{}\'\n'.format(self.getSubtomogramDimensions())
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
             content += "# Projection angles file. Used when projection angles are read instead of calculated\n"
-            content += f"_projAngleFile {angleFile}\n"
+            content += f"_projAngleFile {self.getAngleFileAbsolutePath(tsId)}\n"
             #"_projAngleFile /data/relocated/ScipionUserData/projects/Pruebas/Runs/003193_XmippProtProjectSubtomograms/extra/reference.xmd\n"
         else:
             content += '# Rotation range and number of samples [Start Finish NSamples]\n'
@@ -194,7 +194,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             content += '# Noise\n'
 
         # Writing content to file and closing
-        with open(self.getXmippParamPath(), "w") as paramFile:
+        with open(self.getXmippParamPath(tsId=tsId), "w") as paramFile:
             paramFile.write(content)
 
     def generateSubtomogramProjections(self, subtomogram: Union[SubTomogram, Volume, str], tsId: str=''):
@@ -218,16 +218,19 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         This function removes the temporary files of this protocol.
         """
         # Creating list of things to remove
-        # Xmipp Phantom config file
-        removeList = [self.getXmippParamPath()]
+        removeList = []
 
-        # Adding extra items when generation type is from Tilt Series
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
-            # Reference metadata file
-            removeList.append(self.getReferenceMetadataFile())
+            # For each Tilt Series, add angle file and param file
+            for tsId in self.getAngleDictionary():
+                removeList.append(self.getAngleFileAbsolutePath(tsId))
+                removeList.append(self.getXmippParamPath(tsId=tsId))
+        else:
+            # Only one Xmipp param file
+            removeList.append(self.getXmippParamPath())
 
         # Removing items
-        self.runJob('rm', ' '.join(removeList))
+        self.runJob('rm -f', ' '.join(removeList))
 
     def createOutputStep(self):
         """
