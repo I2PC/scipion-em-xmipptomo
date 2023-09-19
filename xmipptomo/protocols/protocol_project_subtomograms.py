@@ -28,11 +28,11 @@
 
 # General imports
 import os, math
-from typing import Tuple
+from typing import Tuple, Union, TypedDict
 
 # Scipion em imports
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles, CTFModel, Float
+from pwem.objects import SetOfParticles, CTFModel, Float, Volume
 from pwem.emlib import MetaData, metadata, MDL_CTF_PHASE_SHIFT, MDL_CTF_DEFOCUSU
 from pwem.emlib import MDL_CTF_DEFOCUSV, MDL_CTF_DEFOCUS_ANGLE, MDL_ANGLE_TILT
 from pyworkflow import BETA
@@ -65,9 +65,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     INTERPOLATION_BSPLINE = 0
     INTERPOLATION_NEAREST = 1
     INTERPOLATION_LINEAR = 2
-
-    # Other constants
-    STEP_DUMMY_VALUE = 40
 
     # --------------------------- Class constructor --------------------------------------------
     def __init__(self, **args):
@@ -130,37 +127,45 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
         # Defining list of function ids to be waited by the createOutput function
-        # Writing config file
-        deps = [self._insertFunctionStep(self.generateConfigFile)]
-
-        # Use param file condition
-        useParamFile = self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES
+        paramDeps = []
 
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
-            # When generation type is from Tilt Series, proyect with the param file
-            # only the first item to obtain a metadata file that will be reused for the rest of proyection
-            firstSubTomogram = self.inputSubtomograms.get().getFirstItem()
-            deps.append(self._insertFunctionStep(self.generateSubtomogramProjections, firstSubTomogram.getFileName(), prerequisites=deps))
-            proyectionMDFile = self.getProjectionMetadataAbsolutePath(firstSubTomogram)
-            deps.append(self._insertFunctionStep(self.renameMetadataFile, proyectionMDFile, prerequisites=deps))
+            # Obtaining list of angle tilts and rots per Tilt Series
+            angles = self.getAngleDictionary()
 
-        # Generating projections for each subtomogram
-        for subtomogram in self.inputSubtomograms.get():
-            generationDeps = []
-            generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), useparamFile=useParamFile, prerequisites=deps))
+            # Generating a metadata angle file and a param file for each Tilt Series
+            for tsId in angles:
+                # Generating metadata angle file
+                angleFile = self.getAngleFileAbsolutePath(tsId)
+                
+                # TODO: Not working
+                raise NotImplementedError("Extraction from TS is still WIP, it won't work.")
+                mdAng = MetaData(angleFile)
+                for row in metadata.iterRows(mdAng):
+                    print(row)
+                
+                # Generating param file
+                paramDeps.append(self._insertFunctionStep(self.generateParamFile, angleFile))
+
+        else:
+            # If type of generation is not from Tilt Series, generate single param file
+            paramDeps.append(self._insertFunctionStep(self.generateParamFile))
         
-        # Updating dependency list
-        deps = deps + generationDeps
-
+        # Generating projections for each subtomogram
+        generationDeps = []
+        for subtomogram in self.inputSubtomograms.get():
+            tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES else subtomogram.getCoordinate3D().getTomoId()
+            generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), tsId, prerequisites=paramDeps))
+        
         # Conditionally removing temporary files
         if self.cleanTmps.get():
-            deps.append(self._insertFunctionStep(self.removeTempFiles, prerequisites=deps))
+            self._insertFunctionStep(self.removeTempFiles, prerequisites=generationDeps)
         
         # Create output
-        self._insertFunctionStep(self.createOutputStep, prerequisites=deps)
+        self._insertFunctionStep(self.createOutputStep, prerequisites=generationDeps)
 
     # --------------------------- STEPS functions --------------------------------------------
-    def generateConfigFile(self):
+    def generateParamFile(self, angleFile: str=None):
         """
         This function writes the config file for Xmipp Phantom.
         """
@@ -170,34 +175,36 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         content += 'data_block1\n'
         content += '# X and Y projection dimensions [Xdim Ydim]\n'
         content += '_dimensions2D   \'{}\'\n'.format(self.getSubtomogramDimensions())
-        content += '# Rotation range and number of samples [Start Finish NSamples]\n'
-        content += '_projRotRange    \'0 0 1\'\n'
-        content += '# Rotation angle added noise  [noise (bias)]\n'
-        content += '_projRotNoise   \'0\'\n'
-        content += '# Tilt range and number of samples for Tilt [Start Finish NSamples]\n'
-        content += '_projTiltRange    \'{} {} {}\'\n'.format(self.tiltRangeStart.get(), self.tiltRangeEnd.get(), self.getStepValue())
-        content += '# Tilt angle added noise\n'
-        content += '_projTiltNoise   \'0\'\n'
-        content += '# Psi range and number of samples\n'
-        content += '_projPsiRange    \'0 0 0\'\n'
-        content += '# Psi added noise\n_projPsiNoise   \'0\'\n'
-        content += '# Noise\n'
+        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
+            content += "# Projection angles file. Used when projection angles are read instead of calculated\n"
+            content += f"_projAngleFile {angleFile}\n"
+            #"_projAngleFile /data/relocated/ScipionUserData/projects/Pruebas/Runs/003193_XmippProtProjectSubtomograms/extra/reference.xmd\n"
+        else:
+            content += '# Rotation range and number of samples [Start Finish NSamples]\n'
+            content += '_projRotRange    \'0 0 1\'\n'
+            content += '# Rotation angle added noise  [noise (bias)]\n'
+            content += '_projRotNoise   \'0\'\n'
+            content += '# Tilt range and number of samples for Tilt [Start Finish NSamples]\n'
+            content += '_projTiltRange    \'{} {} {}\'\n'.format(self.tiltRangeStart.get(), self.tiltRangeEnd.get(), self.getStepValue())
+            content += '# Tilt angle added noise\n'
+            content += '_projTiltNoise   \'0\'\n'
+            content += '# Psi range and number of samples\n'
+            content += '_projPsiRange    \'0 0 0\'\n'
+            content += '# Psi added noise\n_projPsiNoise   \'0\'\n'
+            content += '# Noise\n'
 
         # Writing content to file and closing
-        with open(self.getXmippParamPath(), "w") as confFile:
-            confFile.write(content)
+        with open(self.getXmippParamPath(), "w") as paramFile:
+            paramFile.write(content)
 
-    def generateSubtomogramProjections(self, subtomogram, useParamFile=True):
+    def generateSubtomogramProjections(self, subtomogram: Union[SubTomogram, Volume, str], tsId: str=''):
         """
         This function generates the projection for a given input subtomogram.
         """
         params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
         params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
         params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
-        if useParamFile:
-            params += ' --params {}'.format(self.getXmippParamPath())           # Path to Xmipp phantom param file
-        else:
-            params += ' --angles 0 {} 0'.format(90)                         # Specific angle from a Tilt Image #TODO magic number
+        params += ' --params {}'.format(self.getXmippParamPath(tsId=tsId))      # Path to Xmipp phantom param file
         self.runJob("xmipp_phantom_project", params)
     
     def renameMetadataFile(self, metadataFile):
@@ -307,7 +314,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Then, '\' is inserted before every space again, to include now possible folders with spaces in the absolute path
         return path.replace('\\\ ', ' ').replace(' ', '\ ')
     
-    def getSubtomogramRelativePath(self, subtomogram: SubTomogram) -> str:
+    def getSubtomogramRelativePath(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This method returns a the subtomogram path relative to current directory.
         Path is scaped to support spaces.
@@ -316,9 +323,9 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             and current directory is /home/username/documents
             this will return '/test/import_file.mrc'
         """
-        return self.scapePath(subtomogram.getFileName() if isinstance(subtomogram, SubTomogram) else subtomogram)
+        return self.scapePath(subtomogram if isinstance(subtomogram, str) else subtomogram.getFileName())
 
-    def getSubtomogramAbsolutePath(self, subtomogram: SubTomogram) -> str:
+    def getSubtomogramAbsolutePath(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This method returns a the absolute path for the subtomogram.
         Path is scaped to support spaces.
@@ -342,39 +349,42 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         return self.getSubtomogramName(filename).replace('import_', '')
 
-    def getProjectionName(self, subtomogram: SubTomogram) -> str:
+    def getProjectionName(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This function returns the name of the projection file for a given input subtomogram.
         """
         name = os.path.splitext(self.getCleanSubtomogramName(self.getSubtomogramAbsolutePath(subtomogram)))[0]
         return '{}_image.mrcs'.format(name)
     
-    def getProjectionMetadataName(self, subtomogram: SubTomogram) -> str:
+    def getProjectionMetadataName(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This function returns the filename of the metadata file for a given input subtomogram.
         """
         return os.path.splitext(self.getProjectionName(subtomogram))[0] + '.xmd'
 
-    def getProjectionAbsolutePath(self, subtomogram: SubTomogram) -> str:
+    def getProjectionAbsolutePath(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This function returns the full path of a given subtomogram.
         """
         return self.scapePath(os.path.abspath(self._getExtraPath(self.getProjectionName(subtomogram))))
     
-    def getProjectionMetadataAbsolutePath(self, subtomogram: SubTomogram) -> str:
+    def getProjectionMetadataAbsolutePath(self, subtomogram: Union[SubTomogram, Volume, str]) -> str:
         """
         This function returns the full path of a given subtomogram's metadata file.
         """
         return os.path.splitext(self.getProjectionAbsolutePath(subtomogram))[0] + '.xmd'
+    
+    def getAngleFileAbsolutePath(self, tsId: str) -> str:
+        """
+        This function returns the full path of a given tilt series's metadata angle file.
+        """
+        return os.path.abspath(self._getExtraPath(f'{tsId}.xmd'))
 
     def getStepValue(self) -> float:
         """
         This function translates the provided sample generation input to number of samples for Xmipp phantom project.
         """
-        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
-            # If generation type is from Tilt Series, return a dummy value to generate the first projection
-            return self.STEP_DUMMY_VALUE
-        elif self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES:
+        if self.tiltTypeGeneration.get() == self.TYPE_N_SAMPLES:
             return self.tiltRangeNSamples.get()
         else:
             # Converting step to number of samples
@@ -415,11 +425,12 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                                      "If you are using the integrated test, run the extract subtomos's test first."])
             raise TypeError(errorMessage)
 
-    def getXmippParamPath(self) -> str:
+    def getXmippParamPath(self, tsId: str='') -> str:
         """
         This function returns the path for the config file for Xmipp Phantom.
         """
-        return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), 'xmippPhantom.param')))
+        filename = 'projections' + (f'_{tsId}' if tsId else '') + '.param'
+        return self.scapePath(os.path.abspath(os.path.join(self._getExtraPath(''), filename)))
     
     def getReferenceMetadataFile(self) -> str:
         """
@@ -487,3 +498,22 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         
         # Returning closest CTF
         return outputCTF
+    
+    def getAngleDictionary(self) -> TypedDict:
+        """
+        This function returs a dictionary containing all the angles of each Tilt Series of the input set
+        """
+        # Initializing empty dictionary
+        angleDict = {}
+        
+        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
+            for ts in self.tiltRangeTS.get():
+                tsId = ts.getTsId()
+                # Adding angle list to dictionary
+                angleDict[tsId] = []
+                for ti in ts:
+                    # Add each angle tilt and rotation to the list
+                    angleDict[tsId].append({'angleRot': 0.0, 'angleTilt': ti.getTiltAngle()})
+
+        # Returning result dictionary
+        return angleDict
