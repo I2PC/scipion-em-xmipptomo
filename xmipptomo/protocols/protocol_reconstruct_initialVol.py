@@ -38,6 +38,7 @@ from pyworkflow.protocol.params import IntParam, FloatParam, LEVEL_ADVANCED, Poi
     GT, GE, Range, EnumParam, USE_GPU, GPU_LIST
 from tomo.protocols import ProtTomoBase
 import pwem.emlib.metadata as md
+import random
 
 import pwem
 from xmipp3.convert import writeSetOfVolumes
@@ -49,10 +50,12 @@ from ..objects import SetOfTiltSeriesParticle, TiltSeriesParticle, TiltParticle
 from pwem.objects import Volume
 
 FN_INPUTPARTICLES = 'ts_'
+PARTICLES = 'particles'
 XMD_EXT = '.xmd'
 MRCS_EXT = '.mrcs'
 SUFFIX_CTF_CORR = '_ctf_corrected'
 SUFFIX_ZEROPARTICLES = 'zeroParticles'
+ITERATION = 'iteration_'
 
 
 class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol):
@@ -98,6 +101,12 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         form.addParam('correctEnvelope', BooleanParam, default='False', expertLevel=LEVEL_ADVANCED,
                       label="Correct for CTF envelope",
                       help=' Only in cases where the envelope is well estimated correct for it')
+
+        form.addParam('symmetryGroup', StringParam, default='c1',
+                      label='Symmetry group',
+                      help='If no symmetry is present, give c1')
+        form.addParam('initialResolution', FloatParam, label="Initial resolution (A)", default=40.0, validators=[GT(0)],
+                      help='Image comparison resolution limit at the first iteration of the refinement')
 
         form.addSection(label='CTF')
         form.addParam('considerInputCtf', BooleanParam, label='Consider CTF',
@@ -188,30 +197,37 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
 
+        # ConvertInputStep:
         self._insertFunctionStep(self.convertInputStep)
-        self._insertFunctionStep(self.wienerCorrectionZeroDegStep)
-        self._insertFunctionStep(self.wienerCorrectionStep)
+        if self.correctCTF.get():
+            self._insertFunctionStep(self.wienerCorrectionZeroDegStep)
+            self._insertFunctionStep(self.wienerCorrectionStep)
 
         for iteration in range(0, self.numberOfIterations.get()):
-            iterFolder = self._getExtraPath('iteration_%04d' % iteration)
-            if not os.path.isdir(iterFolder):
-                os.mkdir(iterFolder)
+            self._insertFunctionStep(self.setIterationParamsStep, iteration)
             self._insertFunctionStep(self.createGalleryStep, iteration)
             self._insertFunctionStep(self.trainDatabaseStep, iteration)
             self._insertFunctionStep(self.aligningFaissStep, iteration)
-            # self._insertFunctionStep(self.validateAligningStep)
-            # self._insertFunctionStep(self.reconstructionStep)
+            #self._insertFunctionStep(self.validateAligningStep, iteration)
+            self._insertFunctionStep(self.reconstructionStep, iteration)
         # self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertInputStep(self):
-        # To obtain a list with the tsIds and write the particles with such tsId as a metadata (.xmd) file
-        # These .xmd will be used as input in the wienerCorrectionStep to correct the CTF
+        """ Get the input set of tilt series particles and creates two metadata files (.xmd):
+        zeroParticles.xmd and particles.xmd
+        Output Files
+         ----------
+         zeroParticles.xmd : Contain the set of particles closest to 0 degrees tilt particles
+
+         particles.xmd : Contain the set of particles with all tilt particles
+        """
+        #TODO: Modify the sampling rate and the voltage. It is hard coded
+        # Input set of tilt series particles
         sotsp = self.inputStacks.get()
 
-        # List of tsIds
+        # Creating a list of tsIds
         self.tsIdList = []
-
         for tp in sotsp.iterItems():
             tsId = str(tp.getOriginalTs())
             if tsId not in self.tsIdList:
@@ -221,46 +237,55 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
 
         psi = 0.0
         mdtpZeroTilt = lib.MetaData()
+        sampling = self.inputStacks.get().getSamplingRate()
         fnParticlesZero = self._getExtraPath(SUFFIX_ZEROPARTICLES) + XMD_EXT
-        for tsId in self.tsIdList:
-            mdtp = lib.MetaData()
+        particleId = 0
 
-            fnParticles = os.path.join(self._getExtraPath(tsId), tsId + XMD_EXT)
+        mdtp = lib.MetaData()
 
-            for tsparticle in sotsp:
-                tsIdOrig = str(tsparticle.getOriginalTs())
-                if tsId == tsIdOrig:
-                    # A huge an non sense tilt number
-                    mintilt = 1e38
-                    for tp in tsparticle:
-                        tilt = tp.getTiltAngle()
-                        rot, sx, sy = calculateRotationAngleAndShiftsFromTM(tp)
-                        nRow = md.Row()
-                        nRowZeroTilt = md.Row()
-                        fn = tp.getFileName()
-                        ctf = tp.getCTF()
-                        defU = ctf.getDefocusU()
-                        defV = ctf.getDefocusV()
-                        defAng = ctf.getDefocusAngle()
-                        nRow = setGeometricalParametersToRow(nRow, fn, rot, tilt, psi, sx, sy, defU, defV, defAng)
-                        if np.abs(tilt) < mintilt:
-                            mintilt = np.abs(tilt)
-                            fnZero = fn
-                            rotZero, tiltZero, psiZero, sxZero, syZero, defUZero, defVZero, defAngZero = rot, tilt, psi, sx, sy, defU, defV, defAng
-                        nRow.addToMd(mdtp)
-                    nRowZeroTilt = setGeometricalParametersToRow(nRowZeroTilt, fnZero, rotZero, tiltZero, psiZero,
-                                                                 sxZero, syZero, defUZero, defVZero, defAngZero)
+        fnParticles = self._getExtraPath(PARTICLES + XMD_EXT)
 
-                    nRowZeroTilt.addToMd(mdtpZeroTilt)
-            mdtp.write(fnParticles)
+        for tsparticle in sotsp:
+            tsIdOrig = str(tsparticle.getOriginalTs())
+            # A huge an non sense tilt number
+            mintilt = 1e38
+            for tp in tsparticle:
+                tilt = tp.getTiltAngle()
+                rot, sx, sy = calculateRotationAngleAndShiftsFromTM(tp)
+                nRow = md.Row()
+                nRowZeroTilt = md.Row()
+                location = tp.getLocation()
+                fn = str(location[0])+'@'+location[1]
+                ctf = tp.getCTF()
+                defU = ctf.getDefocusU()
+                defV = ctf.getDefocusV()
+                defAng = ctf.getDefocusAngle()
+                nRow.setValue(lib.MDL_TSID, tsIdOrig)
+                nRow.setValue(lib.MDL_PARTICLE_ID, particleId)
+                nRow.setValue(lib.MDL_SAMPLINGRATE, sampling)
+                nRow.setValue(lib.MDL_CTF_CS, 2.7)
+                nRow.setValue(lib.MDL_CTF_VOLTAGE, 300.0)
+                nRow = setGeometricalParametersToRow(nRow, fn, rot, tilt, psi, sx, sy, defU, defV, defAng)
+                if np.abs(tilt) < mintilt:
+                    mintilt = np.abs(tilt)
+                    fnZero = fn
+                    rotZero, tiltZero, psiZero, sxZero, syZero, defUZero, defVZero, defAngZero = rot, tilt, psi, sx, sy, defU, defV, defAng
+                nRow.addToMd(mdtp)
+
+            nRowZeroTilt.setValue(lib.MDL_TSID, tsIdOrig)
+            nRowZeroTilt.setValue(lib.MDL_PARTICLE_ID, particleId)
+            nRowZeroTilt.setValue(lib.MDL_SAMPLINGRATE, sampling)
+            nRowZeroTilt.setValue(lib.MDL_CTF_CS, 2.7)
+            nRowZeroTilt.setValue(lib.MDL_CTF_VOLTAGE, 300.0)
+            nRowZeroTilt.setValue(lib.MDL_PARTICLE_ID, particleId)
+            nRowZeroTilt = setGeometricalParametersToRow(nRowZeroTilt, fnZero, rotZero, tiltZero, psiZero,
+                                                         sxZero, syZero, defUZero, defVZero, defAngZero)
+            nRowZeroTilt.addToMd(mdtpZeroTilt)
+            particleId += 1
+        mdtp.write(fnParticles)
         mdtpZeroTilt.write(fnParticlesZero)
 
-    def mergeIndividualXmdFiles(self):
-        pass
-        # for tsId in self.tsIdList:
-        #    and
-
-    def wienerJob(self, inputdata, outputfolder, svmetadata):
+    def wienerCmd(self, inputdata, outputfolder, svmetadata):
         # TODO: Check if is phase flipped
         sampling = self.inputStacks.get().getSamplingRate()
         paddingFactor = self.padding_factor.get()
@@ -287,32 +312,56 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         outputfolder = self._getExtraPath(SUFFIX_ZEROPARTICLES + SUFFIX_CTF_CORR + MRCS_EXT)
         svmetadata = self._getExtraPath(SUFFIX_ZEROPARTICLES + SUFFIX_CTF_CORR + XMD_EXT)
 
-        self.wienerJob(inputdata, outputfolder, svmetadata)
+        self.wienerCmd(inputdata, outputfolder, svmetadata)
 
     def wienerCorrectionStep(self):
-        for tsId in self.tsIdList:
-            inputdata = os.path.join(self._getExtraPath(tsId), tsId + XMD_EXT)
-            outputfolder = os.path.join(self._getExtraPath(tsId), tsId + SUFFIX_CTF_CORR + MRCS_EXT)
-            svmetadata = os.path.join(self._getExtraPath(tsId), tsId + SUFFIX_CTF_CORR + XMD_EXT)
+        inputdata = self._getExtraPath(PARTICLES + XMD_EXT)
+        outputfolder = self._getExtraPath(PARTICLES + SUFFIX_CTF_CORR + MRCS_EXT)
+        svmetadata = self._getExtraPath(PARTICLES + SUFFIX_CTF_CORR + XMD_EXT)
 
-            self.wienerJob(inputdata, outputfolder, svmetadata)
+        self.wienerCmd(inputdata, outputfolder, svmetadata)
+
 
     def createGalleryStep(self, iteration):
-        # TODO: Check if an initial volume is not provided
         # TODO: Adjust resolution in projection
         if self.provideInitialVolume.get():
-            fnVol = self.initVol.get().getFileName()
+            if iteration == 0:
+                fnVol = self.initVol.get().getFileName()
+            else:
+                fnVol = self._getIterationPath(iteration-1, 'reconstruction.mrc')
         else:
-            fnVol = ''
-        boxsize = self.inputStacks.get().getFirstItem().getBoxSize()
-        sampling = self.inputStacks.get().getSamplingRate()
-        angular_sampling = np.arctan2(2.0 * self.maximumResolution.get(), float(boxsize) * sampling) * 180 / 3.14159
+            if iteration == 0:
+                #TODO: Check first if the particles have orientation if not random reconstruction
+                fnIn = self._getExtraPath(SUFFIX_ZEROPARTICLES + SUFFIX_CTF_CORR) + XMD_EXT
+                fnVol = self._getIterationPath(iteration, 'reconstruction.mrc')
+                self.createFirstVolume(fnIn, fnVol)
+            else:
+                fnVol = self._getIterationPath(iteration-1, 'reconstruction.mrc')
+
+        md = lib.MetaData(self._getIterationParametersFilename(iteration))
+        angular_sampling = md.getValue(lib.MDL_ANGLE_DIFF, 1)
 
         params = ' -i %s' % fnVol
         params += ' -o %s' % os.path.join(self._getExtraPath('iteration_%04d' %iteration), 'gallery_%s.mrcs' % iteration)
         params += ' --sampling_rate %f' % angular_sampling
 
         self.runJob('xmipp_angular_project_library', params)
+
+    def createFirstVolume(self, fnInputParticles, fnReconstruction):
+        sampling = self.inputStacks.get().getSamplingRate()
+        threads = self.numberOfThreads.get()
+
+        mdtpZeroTilt = lib.MetaData(fnInputParticles)
+        newMd = lib.MetaData()
+        for row in md.iterRows(mdtpZeroTilt):
+            newRow = row
+            newRow.setValue(lib.MDL_ANGLE_ROT, 360.0*random.random())
+            newRow.setValue(lib.MDL_ANGLE_TILT, np.arccos(2*random.random()-1)*180.0/np.pi)
+            newRow.setValue(lib.MDL_ANGLE_PSI, 360.0*random.random())
+            newRow.addToMd(newMd)
+        newMd.write(fnInputParticles)
+
+        self.reconstructionCmd(fnInputParticles, sampling, fnReconstruction, threads)
 
     def writeParticleStackToMd(self, sotsp, fn):
 
@@ -339,14 +388,74 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
                 nRow.addToMd(md)
         md.write(fn)
 
-    def setInfoFirstIteration(self, iteration, fnSetInfo):
+    def setInfoFirstIteration(self, fnSetInfo):
         sampling = self.inputStacks.get().getSamplingRate()
         maxfreqDig = sampling/self.maximumResolution.get()
-        self.setInfoIteration(iteration, self.maximumResolution.get(), maxfreqDig,
+        self.setInfoIteration(self.maximumResolution.get(), maxfreqDig,
                                self.initialMaxPsi.get(), self.initialMaxShift.get(),
                                self.shiftStep.get(), self.angleStep.get(), fnSetInfo)
 
-    def setInfoIteration(self, iteration, maxResolution, maxfreqDig, maxPsi, maxShift, shiftStep, angleStep, fnSetInfo):
+    def setIterationParamsStep(self, iteration):
+        '''
+        It creates a Metadata file with the information need for each iteration of the alignment
+        '''
+        iterFolder = self._getIterationPath(iteration)
+        sampling = self.inputStacks.get().getSamplingRate()
+
+        if not os.path.isdir(iterFolder):
+            os.mkdir(iterFolder)
+
+        if iteration == 0:
+            resolution = float(self.initialResolution.get())
+        else:
+            resolution = self.getResolution(iteration - 1, self._getIterationPath(iteration-1, 'fsc.xmd'))
+
+        imageSize = self.getParticleSize()
+        print(sampling)
+        print(resolution)
+        frequency = sampling / resolution
+        maxPsi = self.initialMaxPsi.get()
+        maxShift = self.initialMaxShift.get()
+        shiftStep = self._computeShiftStep(frequency) if self.useAutomaticStep else float(self.shiftStep)
+        angleStep = self._computeAngleStep(frequency, imageSize) if self.useAutomaticStep else float(self.angleStep)
+        maxResolution = max(resolution, float(self.maximumResolution.get()))
+        maxFrequency = sampling / maxResolution
+
+        # boxsize = self.inputStacks.get().getFirstItem().getBoxSize()
+        # sampling = self.inputStacks.get().getSamplingRate
+        # angular_sampling = np.arctan2(2.0 * self.maximumResolution.get(), float(boxsize) * sampling) * 180 / 3.14159
+
+        # Write to metadata
+        md = lib.MetaData()
+        id = md.addObject()
+        md.setValue(lib.MDL_RESOLUTION_FREQ, maxResolution, id)
+        md.setValue(lib.MDL_RESOLUTION_FREQREAL, maxFrequency, id)
+        md.setValue(lib.MDL_ANGLE_PSI, maxPsi, id)
+        md.setValue(lib.MDL_SHIFT_X, maxShift, id)
+        md.setValue(lib.MDL_SHIFT_Y, maxShift, id)
+        md.setValue(lib.MDL_SHIFT_DIFF, shiftStep, id)
+        md.setValue(lib.MDL_ANGLE_DIFF, angleStep, id)
+        md.write(self._getIterationParametersFilename(iteration))
+
+    def _computeAngleStep(self, maxFrequency: float, size: int) -> float:
+        import math
+        # At the alignment resolution limit, determine the
+        # angle between to neighboring Fourier coefficients
+        s = 1.0 / (maxFrequency * size)
+        angle = math.asin(s)
+
+        # The angular error is at most half of the sampling
+        # Therefore use the double angular sampling
+        angle *= 2
+
+        return math.degrees(angle)
+
+    def _computeShiftStep(self, digital_freq: float, eps: float = 0.5) -> float:
+        # Assuming that in Nyquist (0.5) we are able to
+        # detect a shift of eps pixels
+        return (0.5 / digital_freq) * eps
+
+    def setInfoIteration(self, maxResolution, maxfreqDig, maxPsi, maxShift, shiftStep, angleStep, fnSetInfo):
         # Write to metadata
         md = lib.MetaData()
         id = md.addObject()
@@ -364,27 +473,31 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
 
     def trainDatabaseStep(self, iteration: int):
         #TODO: Change resolution and freqDig when will be updated
+
+        maxFrequencyDig, maxPsi, maxShift, _, _ = self.getAlignmentInfo(iteration)
+
         trainingSize = int(self.databaseTrainingSetSize)
         recipe = self.databaseRecipe
-
+        '''
         imageSize = self.getParticleSize()
 
         fnSetInfo = self._getIterationParametersFilename(iteration)
-
+        
         if iteration == 0:
-            self.setInfoFirstIteration(iteration, fnSetInfo)
+            self.setInfoFirstIteration(fnSetInfo)
             maxShiftPx = self.initialMaxShift.get()
             maxPsi = self.initialMaxPsi.get()
             sampling = self.inputStacks.get().getSamplingRate()
-            maxFrequencyDig = sampling / self.maximumResolution.get()
+            maxFrequencyDig = sampling / (self.maximumResolution.get())
         else:
-            self.setInfoIteration(iteration, fnSetInfo)
             md = lib.MetaData(fnSetInfo)
             maxFrequencyDig = md.getValue(lib.MDL_RESOLUTION_FREQREAL, 1)
             maxPsi = md.getValue(lib.MDL_ANGLE_PSI, 1)
             maxShiftPx = md.getValue(lib.MDL_SHIFT_X, 1)
+            self.setInfoIteration(maxResolution, maxfreqDig, maxPsi, maxShiftPx, shiftStep, self.angleStep.get(), fnSetInfo)
 
         maxShift = maxShiftPx / float(imageSize)
+        '''
 
         fnGallery = os.path.join(self._getExtraPath('iteration_%04d' %iteration), 'gallery_%s.doc' % iteration)
 
@@ -393,8 +506,8 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         args += ['-o', self._getTrainingIndexFilename(iteration)]
         args += ['--recipe', recipe]
         # args += ['--weights', self._getWeightsFilename(iteration)]
-        args += ['--max_shift', maxShift]  # FIXME fails with != 180
-        args += ['--max_psi', maxPsi]
+        args += ['--max_shift', maxShift]
+        args += ['--max_psi', maxPsi] # FIXME fails with != 180
         args += ['--max_frequency', maxFrequencyDig]
         args += ['--training', trainingSize]
         args += ['--batch', self.batchSize]
@@ -447,14 +560,22 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
 
         return maxFrequency, maxPsi, maxShift, nShift, nRotations
 
+
     def aligningFaissStep(self, iteration):
 
         maxFrequency, maxPsi, maxShift, nShift, nRotations = self.getAlignmentInfo(iteration)
 
         if iteration == 0:
-            inputMdFilename = self._getExtraPath(SUFFIX_ZEROPARTICLES) + XMD_EXT
+            if self.correctCTF.get():
+                inputMdFilename = self._getExtraPath(SUFFIX_ZEROPARTICLES + SUFFIX_CTF_CORR + XMD_EXT)
+            else:
+                #TODO: Change me
+                inputMdFilename = self._getExtraPath(SUFFIX_ZEROPARTICLES + XMD_EXT)
         else:
-            inputMdFilename = self._getIterationInputParticleMdFilename(iteration)
+            if self.correctCTF.get():
+                inputMdFilename = self._getExtraPath(SUFFIX_ZEROPARTICLES + SUFFIX_CTF_CORR + XMD_EXT)
+            else:
+                inputMdFilename = self._getExtraPath(SUFFIX_ZEROPARTICLES + XMD_EXT)
         fnGallery = os.path.join(self._getExtraPath('iteration_%04d' % iteration), 'gallery_%s.doc' % iteration)
 
         local = 0
@@ -478,8 +599,8 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         args += ['--dropna']
         args += ['--batch', self.batchSize]
         args += ['--max_size', self.databaseMaximumSize]
-        args += ['-k', self.numberOfMatches]
-        args += ['--reference_labels', 'angleRot', 'angleTilt', 'ref3d', 'imageRef']
+        args += ['-k', self.numberOfMatches.get()]
+        args += ['--reference_labels', 'angleRot', 'angleTilt']
         if self.useGpu:
             args += ['--device'] + self._getDeviceList()
         if local > 0:
@@ -492,33 +613,121 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         self.runJob('xmipp_swiftalign_query', args, numberOfMpi=1, env=env)
 
 
-    def validateAligningStep(self, objId):
+    def validateAligningStep(self, iteration):
 
-        stack = self.inputStacks.get()[objId]
-        fn = self._getExtraPath('caca.xmd')
-        self.writeParticleStackToMd(stack, fn)
-        params = ' -i %s ' % self._getExtraPath(fn)
-        if self.correctCTF:
-            params += ' --useCTF '
-        params += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
-        params += ' -o %s ' % self._getExtraPath()
+        fnZeroAligned = self._getAlignmentRepetitionMdFilename(iteration)
+        initVol = self._getIterationPath(iteration, 'reconstruction.mrc')
+        params = ' -i %s ' % fnZeroAligned
+        params += ' --initVol %f ' % initVol
+        params += ' -o %s ' % self._getIterationPath(iteration)
         params += ' --thr %d ' % self.numberOfThreads.get()
 
         self.runJob('xmipp_tomo_align_subtomo_stack', params)
 
-    def reconstructionStep(self, objId):
+    def reconstructionCmd(self, fnMd, sampling, output, threads):
 
-        stack = self.inputStacks.get()[objId]
-        fn = self._getExtraPath('caca.xmd')
-        self.writeParticleStackToMd(stack, fn)
-        params = ' -i %s ' % self._getExtraPath(fn)
-        if self.correctCTF:
-            params += ' --useCTF '
-        params += ' --sampling %f ' % (self.subtomos.get().getSamplingRate())
-        params += ' -o %s ' % self._getExtraPath()
-        params += ' --thr %d ' % self.numberOfThreads.get()
+        params = ' -i %s ' % fnMd
+        #if self.correctCTF:
+        #    params += ' --useCTF '
+        params += ' --sampling %f ' % sampling
+        params += ' -o %s ' % output
+        params += ' --fast '
+        #params += ' --thr %d ' % threads
 
-        self.runJob('xmipp_reconstruct_fourier', params)
+        self.runJob('xmipp_reconstruct_fourier_accel', params)
+
+
+    def reconstructionStep(self, iteration):
+
+        sampling = self.inputStacks.get().getSamplingRate()
+        output = self._getIterationPath(iteration, 'reconstruction.mrc')
+        nThr = self.numberOfThreads.get()
+        fn = self._getAlignmentRepetitionMdFilename(iteration)
+        self.reconstructionCmd(fn, sampling, output, nThr)
+
+        self.goldStandard(iteration, sampling, nThr)
+
+
+    def goldStandard(self, iteration, sampling, nThr):
+        fnHalf1 = self._getIterationPath(iteration, 'tiltseriesParticles_half1' + XMD_EXT)
+        fnHalf2 = self._getIterationPath(iteration, 'tiltseriesParticles_half2' + XMD_EXT)
+        fnParticles = self._getIterationPath(iteration, 'aligned' + XMD_EXT)
+
+        mdParticles = lib.MetaData(fnParticles)
+        totalParticlesHalf = mdParticles.size()*0.5
+        print('......................')
+        print(totalParticlesHalf)
+        print('......................')
+        mdHalf1 = lib.MetaData()
+        mdHalf2 = lib.MetaData()
+        npart = 1
+        for row in md.iterRows(mdParticles):
+            if npart<totalParticlesHalf:
+                rowHalf1 = row
+                rowHalf1.addToMd(mdHalf1)
+            else:
+                rowHalf2 = row
+                rowHalf2.addToMd(mdHalf2)
+            npart += 1
+        mdHalf1.write(fnHalf1)
+        mdHalf2.write(fnHalf2)
+
+        outputHalf1 = self._getIterationPath(iteration, 'half1.mrc')
+        outputHalf2 = self._getIterationPath(iteration, 'half2.mrc')
+        self.reconstructionCmd(fnHalf1, sampling, outputHalf1, nThr)
+        self.reconstructionCmd(fnHalf2, sampling, outputHalf2, nThr)
+
+        outputXmd = self._getIterationPath(iteration, 'fsc.xmd')
+        self.estimateFSC(outputHalf1, outputHalf2, sampling, outputXmd, iteration)
+
+    def estimateFSC(self, fnhalf1, fnhalf2, sampling, outputXmd, iteration):
+
+        self.fscCmd(fnhalf1, fnhalf2, sampling, outputXmd)
+
+    def getResolution(self, iteration, fnFSC):
+        fscList = []
+        freqList = []
+        mdFSC = lib.MetaData(fnFSC)
+        for row in md.iterRows(mdFSC):
+            fscValue = row.getValue(lib.MDL_RESOLUTION_FRC)
+            freq = row.getValue(lib.MDL_RESOLUTION_FREQREAL)
+            fscList.append(fscValue)
+            freqList.append(freq)
+
+        #In ascending order (3, 5, 15, ...49)
+        threshold = 0.143
+        candidates = np.array(fscList)
+
+        maxFrequency, _, _, _, _ = self.getAlignmentInfo(iteration)
+
+        print('maxfreq = ', maxFrequency)
+
+        resolution = None
+        for i, fsc in enumerate(candidates):
+            freq = freqList[i]
+            if freq>100.0:
+                continue
+            else:
+                if fsc < threshold:
+                    if freq<=maxFrequency:
+                        resolution = freq
+                        break
+
+        if resolution is None:
+            resolution = maxFrequency
+
+        return resolution
+
+
+
+    def fscCmd(self, fnhalf1, fnhalf2, sampling, outputXmd):
+
+        params  = ' -i %s ' % fnhalf1
+        params += ' --ref %s ' % fnhalf2
+        params += ' --sampling_rate %f ' % sampling
+        params += ' -o %s ' % outputXmd
+
+        self.runJob('xmipp_resolution_fsc', params)
 
     def createOutputStep(self):
         pass
@@ -527,6 +736,9 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
 
     def _validate(self):
         errors = []
+
+        if self.inputStacks.get().getSamplingRate()>(2*self.maximumResolution.get()):
+            errors.append('The maximum resolution cannot be lesser than Nyquist')
         return errors
 
     def _summary(self):
@@ -537,3 +749,4 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
     def _methods(self):
         methods = []
         return methods
+

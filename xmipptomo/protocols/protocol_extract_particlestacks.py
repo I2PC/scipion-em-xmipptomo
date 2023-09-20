@@ -229,27 +229,20 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             else:
                 ti = tsList[idxTS]
                 ctfti = ctfList[idxCTF]
-                print(ctfti)
-                print(ti)
-                transform = ti.getTransform()
-                if transform is None:
-                    rot = 0.0
-                    Sx = 0.0
-                    Sy = 0.0
-                else:
-                    rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(ti)
+
+                rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(ti)
                 nRow = md.Row()
 
                 tiIndex = ti.getLocation()[0]
                 fn = str(tiIndex) + "@" + ti.getFileName()
                 tilt = ti.getTiltAngle()
                 defU = ctfti.getDefocusU()
-                # defV = ctfti.getDefocusV()
-                # defAng = ctfti.getDefocusAngle()
+                defV = ctfti.getDefocusV()
+                defAng = ctfti.getDefocusAngle()
                 nRow.setValue(lib.MDL_IMAGE, fn)
                 nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
-                # nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
-                # nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+                nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
+                nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
                 nRow.setValue(lib.MDL_TSID, tsId)
                 nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
                 nRow.setValue(lib.MDL_ANGLE_ROT, rot)
@@ -348,7 +341,6 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                 tsParticle.setAnglesCount(nangles)
                 tsParticle.setBoxSize(boxsize)
 
-                print('boxsize', boxsize)
                 tsParticle.setOriginalTs(tsId)
                 outputSetOfTiltSeries.append(tsParticle)
 
@@ -357,7 +349,12 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     tp.setObjId(itti)
                     tp.setTsId(tsId)
                     tp.setSamplingRate(sampling)
-                    tp.setLocation(itti , subtomoFile)
+                    tp.setLocation(itti+1 , subtomoFile)
+                    #fn = dictionary[particlekey]['filename'][itti].split('@')
+                    #print('fn %i %i', fn[0], itti)
+                    #tp.setLocation(int(fn[0]), fn[1])
+
+
 
                     tp.setTiltAngle(dictionary[particlekey]['tilt'][itti])
 
@@ -386,10 +383,8 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
     def getOutputSetOfTiltSeries(self):
         sampling = self.tiltseries.get().getSamplingRate()
         if hasattr(self, "outputSetOfTiltSeriesParticle"):
-            print('hasatrr')
             self.outputSetOfTiltSeries.enableAppend()
         else:
-            print('first')
             outputSetOfTiltSeries = self._createSetOfTiltSeries()
             outputSetOfTiltSeries.copyInfo(self.tiltseries.get())
             outputSetOfTiltSeries.setDim(self.tiltseries.get().getDim())
@@ -406,6 +401,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
 
         if os.path.isfile(fnts):
             for i, row in enumerate(md.iterRows(fnts)):
+                fn = row.getValue(lib.MDL_IMAGE)
                 pId = row.getValue(lib.MDL_PARTICLE_ID)
                 defU = row.getValue(lib.MDL_CTF_DEFOCUSU)
                 defV = row.getValue(lib.MDL_CTF_DEFOCUSV)
@@ -420,6 +416,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                 keyparticle = keyBaseParticle + str(pId)
                 if keyparticle not in dictionary:
                     dictionary[keyparticle] = {}
+                    dictionary[keyparticle]['filename'] = []
                     dictionary[keyparticle]['tsId'] = []
                     dictionary[keyparticle]['defU'] = []
                     dictionary[keyparticle]['defV'] = []
@@ -430,6 +427,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     dictionary[keyparticle]['shiftY'] = []
                     dictionary[keyparticle]['dose'] = []
 
+                dictionary[keyparticle]['filename'].append(fn)
                 dictionary[keyparticle]['tsId'].append(tsId)
                 dictionary[keyparticle]['defU'].append(defU)
                 dictionary[keyparticle]['defV'].append(defV)

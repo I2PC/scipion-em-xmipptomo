@@ -50,13 +50,19 @@ from pwem.objects import Transform
 
 
 def calculateRotationAngleAndShiftsFromTM(ti):
-    """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
-    tm = ti.getTransform().getMatrix()
-    cosRotationAngle = tm[0][0]
-    sinRotationAngle = tm[1][0]
-    rotationAngle = float(math.degrees(math.atan(sinRotationAngle / cosRotationAngle)))
-    sx = tm[0][2]
-    sy = tm[1][2]
+    """ This method calculates the rot and shifts of a tilt image from its associated transformation matrix."""
+    transform = ti.getTransform()
+    if transform is None:
+        rotationAngle = 0.0
+        sx = 0.0
+        sy = 0.0
+    else:
+        tm = transform.getMatrix()
+        cosRotationAngle = tm[0][0]
+        sinRotationAngle = tm[1][0]
+        rotationAngle = float(math.degrees(math.atan(sinRotationAngle / cosRotationAngle)))
+        sx = tm[0][2]
+        sy = tm[1][2]
 
     return rotationAngle, sx, sy
 
@@ -166,13 +172,7 @@ def writeMdTiltSeries(ts, tomoPath):
     fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
     for _, item in enumerate(ts):
 
-        transform = item.getTransform()
-        if transform is None:
-            rot = 0.0
-            sx = 0.0
-            sy = 0.0
-        else:
-            rot, sx, sy = calculateRotationAngleAndShiftsFromTM(item)
+        rot, sx, sy = calculateRotationAngleAndShiftsFromTM(item)
 
         tiIndex = item.getLocation()[0]
         fn = str(tiIndex) + "@" + item.getFileName()
