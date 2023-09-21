@@ -315,10 +315,29 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             errors.append('The step must be greater than 0.')
         
         # Checking if input projectable set can be related to Tilt Series when TS is selected as angle extraction method
-        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES and len([ts for ts in self.tiltRangeTS.get()]) > 1:
-            # Initializing empty error string
-            error = ''
+        angleExtractionError = self._validateGenerationType()
+        if angleExtractionError:
+            errors.append(angleExtractionError)
+        
+        # Checking if MPI is selected (only threads are allowed)
+        if self.numberOfMpi > 1:
+            errors.append('MPI cannot be selected, because Scipion is going to drop support for it. Select threads instead.')
 
+        return errors
+    
+    # --------------------------- Auxiliary INFO functions --------------------------------------------
+    def _validateGenerationType(self):
+        # Initializing base error string
+        baseErrorStr = 'In order to use Tilt Series as a method of angle extraction, at least one of the following conditions must be met:\n'
+        baseErrorStr += '\t- There must be only one Tilt Series within the input set of Tilt Series.\n'
+        baseErrorStr += '\t- The input subtomograms must be subtomograms (not volumes) and they must contain coordinates that lead to one of the input Tilt Series.\n'
+        baseErrorStr += 'In this case, the following validation error occured:\n'
+
+        # Initializing error string
+        error = ''
+
+        # Checking if input projectable set can be related to Tilt Series when TS is selected as angle extraction method
+        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES and len([ts for ts in self.tiltRangeTS.get()]) > 1:
             # Checking if input subtomograms are of class SetOfSubTomograms (SetOfVolumes can't have a Coordinate3D to link them to a TiltSeries)
             if not isinstance(self.inputSubtomograms.get(), SetOfSubTomograms):
                 error = 'Input subtomograms are not of a real set of subtomograms.\n'
@@ -335,18 +354,8 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                         error = 'At least one input subtomogram\'s 3D coordinate does not match any Tilt Series id.\n'
                         break
             
-            # Checking if any errors were produced, and show them if so
-            if error:
-                errors.append('In order to use Tilt Series as a method of angle extraction, at least one of the following conditions must be met:\n'
-                            '\t- There must be only one Tilt Series within the input set of Tilt Series.\n'
-                            '\t- The input subtomograms must be subtomograms (not volumes) and they must contain coordinates that lead to one of the input Tilt Series.\n'
-                            f'In this case, the following validation error occured:\n{error}')
-        
-        # Checking if MPI is selected (only threads are allowed)
-        if self.numberOfMpi > 1:
-            errors.append('MPI cannot be selected, because Scipion is going to drop support for it. Select threads instead.')
+        return baseErrorStr + error if error else ''
 
-        return errors
 
     # --------------------------- UTILS functions --------------------------------------------
     def scapePath(self, path: str) -> str:
