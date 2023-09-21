@@ -216,7 +216,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         params = '-i {}'.format(self.getSubtomogramAbsolutePath(subtomogram))   # Path to subtomogram
         params += ' -o {}'.format(self.getProjectionAbsolutePath(subtomogram))  # Path to output projection
         params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
-        params += ' --params {}'.format(self.getXmippParamPath(tsId=tsId))      # Path to Xmipp phantom param file
+        params += ' --params {}'.format(self.getXmippParamPath(tsId=tsId))      # Path to Xmipp param file
         self.runJob("xmipp_phantom_project", params)
     
     def renameMetadataFile(self, metadataFile: str):
