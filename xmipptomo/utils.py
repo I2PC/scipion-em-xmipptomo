@@ -36,7 +36,7 @@ import shutil
 # Scipion em imports
 import emtable
 from pwem import ALIGN_PROJ
-from pwem.objects import Integer, CTFModel
+from pwem.objects import Integer, CTFModel, Transform
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
@@ -52,17 +52,21 @@ OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
 
 def calculateRotationAngleAndShiftsFromTM(ti):
-    """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
-
-    tm = ti.getTransform().getMatrix()
-    cosRotationAngle = tm[0][0]
-    sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
-    sx = tm[0][2]
-    sy = tm[1][2]
+    """ This method calculates the rot and shifts of a tilt image from its associated transformation matrix."""
+    transform = ti.getTransform()
+    if transform is None:
+        rotationAngle = 0.0
+        sx = 0.0
+        sy = 0.0
+    else:
+        tm = transform.getMatrix()
+        cosRotationAngle = tm[0][0]
+        sinRotationAngle = tm[1][0]
+        rotationAngle = float(math.degrees(math.atan(sinRotationAngle / cosRotationAngle)))
+        sx = tm[0][2]
+        sy = tm[1][2]
 
     return rotationAngle, sx, sy
-
 
 def readXmdStatisticsFile(fnmd):
     xPos = []
