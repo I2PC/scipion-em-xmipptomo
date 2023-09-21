@@ -170,14 +170,6 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- INFO functions ----------------------------
-    def _validate(self):
-        validateMsgs = []
-        
-        if not self.inputSetOfTiltSeries.get().hasValue():
-            validateMsgs = 'Input Tilt series must be provided'
-
-        return validateMsgs
-
     def _summary(self):
         summary = []
         if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
