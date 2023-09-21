@@ -168,7 +168,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Generating projections for each subtomogram
         generationDeps = []
         for subtomogram in self.inputSubtomograms.get():
-            tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES else subtomogram.getCoordinate3D().getTomoId()
+            tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES or len([ts for ts in self.tiltRangeTS.get()]) == 1 else subtomogram.getCoordinate3D().getTomoId()
             generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), tsId, prerequisites=paramDeps))
         
         # Conditionally removing temporary files
@@ -192,7 +192,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
             content += "# Projection angles file. Used when projection angles are read instead of calculated\n"
             content += f"_projAngleFile {self.getAngleFileAbsolutePath(tsId)}\n"
-            #"_projAngleFile /data/relocated/ScipionUserData/projects/Pruebas/Runs/003193_XmippProtProjectSubtomograms/extra/reference.xmd\n"
         else:
             content += '# Rotation range and number of samples [Start Finish NSamples]\n'
             content += '_projRotRange    \'0 0 1\'\n'
@@ -317,7 +316,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             errors.append('The step must be greater than 0.')
         
         # Checking if input projectable set can be related to Tilt Series when TS is selected as angle extraction method
-        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES and len([ti for ti in self.tiltRangeTS.get()]) > 1:
+        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES and len([ts for ts in self.tiltRangeTS.get()]) > 1:
             # Initializing empty error string
             error = ''
 
@@ -341,7 +340,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             if error:
                 errors.append('In order to use Tilt Series as a method of angle extraction, at least one of the following conditions must be met:\n'
                             '\t- There must be only one Tilt Series within the input set of Tilt Series.\n'
-                            '\t- The input subtomograms must be subtomograms (not volumes) and they must contain coordinates that lead to one of the input Tilt Series.\n\n'
+                            '\t- The input subtomograms must be subtomograms (not volumes) and they must contain coordinates that lead to one of the input Tilt Series.\n'
                             f'In this case, the following validation error occured:\n{error}')
         
         # Checking if MPI is selected (only threads are allowed)
@@ -558,8 +557,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                 angleDict[tsId] = []
                 for ti in ts:
                     # Add each angle tilt and rotation to the list
-                    angleDict[tsId].append({self.COLUMN_ANGLE_ROT: 0.0, self.COLUMN_ANGLE_TILT: ti.getTiltAngle()})
-                    #angleDict[tsId].append({self.COLUMN_ANGLE_ROT: calculateRotationAngleAndShiftsFromTM(ti)[0], self.COLUMN_ANGLE_TILT: ti.getTiltAngle()})
+                    angleDict[tsId].append({self.COLUMN_ANGLE_ROT: calculateRotationAngleAndShiftsFromTM(ti)[0], self.COLUMN_ANGLE_TILT: ti.getTiltAngle()})
 
         # Returning result dictionary
         return angleDict
