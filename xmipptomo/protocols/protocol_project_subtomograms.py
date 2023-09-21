@@ -29,6 +29,7 @@
 # General imports
 import os, math
 from typing import Tuple, Union, TypedDict
+from emtable import Table
 
 # Scipion em imports
 from pwem.protocols import EMProtocol
@@ -41,8 +42,11 @@ from pyworkflow.utils import Message
 
 # External plugin imports
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SubTomogram, Coordinate3D, TiltSeries, TomoAcquisition
+from tomo.objects import SubTomogram, Coordinate3D, TiltSeries, TomoAcquisition, SetOfSubTomograms
 from xmipp3.convert import readSetOfParticles
+
+# Plugin imports
+from ..utils import calculateRotationAngleAndShiftsFromTM
 
 # Protocol output variable name
 OUTPUTATTRIBUTE = 'outputSetOfParticles'
@@ -65,6 +69,11 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     INTERPOLATION_BSPLINE = 0
     INTERPOLATION_NEAREST = 1
     INTERPOLATION_LINEAR = 2
+
+    # Emtable star file column names (temporary)
+    COLUMN_ANGLE_PSI = 'anglePsi'
+    COLUMN_ANGLE_ROT = 'angleRot'
+    COLUMN_ANGLE_TILT = 'angleTilt'
 
     # --------------------------- Class constructor --------------------------------------------
     def __init__(self, **args):
@@ -132,17 +141,22 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
             # Obtaining list of angle tilts and rots per Tilt Series
             angles = self.getAngleDictionary()
+            #print("DICTIONARY:", angles)
 
             # Generating a metadata angle file and a param file for each Tilt Series
             for tsId in angles:
-                # Generating metadata angle file
+                # Getting metadata angle file path
                 angleFile = self.getAngleFileAbsolutePath(tsId)
-                
-                # TODO: Not working
-                raise NotImplementedError("Extraction from TS is still WIP, it won't work.")
-                mdAng = MetaData(angleFile)
-                for row in metadata.iterRows(mdAng):
-                    print(row)
+
+                # Generating metadata angle file with Tilt Series's data
+                angTable = Table(columns=[self.COLUMN_ANGLE_PSI, self.COLUMN_ANGLE_ROT, self.COLUMN_ANGLE_TILT])
+                for values in angles[tsId]:
+                    angTable.addRow(
+                        0.0,                            # anglePsi
+                        values[self.COLUMN_ANGLE_ROT],  # angleRot
+                        values[self.COLUMN_ANGLE_TILT]  # angleTilt
+                    )
+                angTable.write(angleFile, tableName='projectionAngles')
                 
                 # Generating param file
                 paramDeps.append(self._insertFunctionStep(self.generateParamFile, tsId))
@@ -207,7 +221,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         params += ' --params {}'.format(self.getXmippParamPath(tsId=tsId))      # Path to Xmipp phantom param file
         self.runJob("xmipp_phantom_project", params)
     
-    def renameMetadataFile(self, metadataFile):
+    def renameMetadataFile(self, metadataFile: str):
         """
         This function renames the given metadata file with a generic name.
         """
@@ -301,6 +315,34 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Checking if the step is greater than 0
         if self.tiltTypeGeneration.get() == self.TYPE_STEP and (self.tiltRangeStep.get() != None) and self.tiltRangeStep.get() <= 0:
             errors.append('The step must be greater than 0.')
+        
+        # Checking if input projectable set can be related to Tilt Series when TS is selected as angle extraction method
+        if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES and len([ti for ti in self.tiltRangeTS.get()]) > 1:
+            # Initializing empty error string
+            error = ''
+
+            # Checking if input subtomograms are of class SetOfSubTomograms (SetOfVolumes can't have a Coordinate3D to link them to a TiltSeries)
+            if not isinstance(self.inputSubtomograms.get(), SetOfSubTomograms):
+                error = 'Input subtomograms are not of a real set of subtomograms.\n'
+            # Checking if input subtomograms do have a Coordinate3D and such Coordinate3D has a tomoId that matches a tsId
+            else:
+                # Getting list of Tilt Series ids
+                tsIdList = [ts.getTsId() for ts in self.tiltRangeTS.get()]
+
+                for subtomogram in self.inputSubtomograms.get():
+                    if not subtomogram.getCoordinate3D():
+                        error = 'At least one input subtomogram does not have a 3D coordinate assigned, so it cannot be traced back to a Tilt Series.\n'
+                        break
+                    elif subtomogram.getCoordinate3D().getTomoId() not in tsIdList:
+                        error = 'At least one input subtomogram\'s 3D coordinate does not match any Tilt Series id.\n'
+                        break
+            
+            # Checking if any errors were produced, and show them if so
+            if error:
+                errors.append('In order to use Tilt Series as a method of angle extraction, at least one of the following conditions must be met:\n'
+                            '\t- There must be only one Tilt Series within the input set of Tilt Series.\n'
+                            '\t- The input subtomograms must be subtomograms (not volumes) and they must contain coordinates that lead to one of the input Tilt Series.\n\n'
+                            f'In this case, the following validation error occured:\n{error}')
         
         # Checking if MPI is selected (only threads are allowed)
         if self.numberOfMpi > 1:
@@ -516,7 +558,8 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                 angleDict[tsId] = []
                 for ti in ts:
                     # Add each angle tilt and rotation to the list
-                    angleDict[tsId].append({'angleRot': 0.0, 'angleTilt': ti.getTiltAngle()})
+                    angleDict[tsId].append({self.COLUMN_ANGLE_ROT: 0.0, self.COLUMN_ANGLE_TILT: ti.getTiltAngle()})
+                    #angleDict[tsId].append({self.COLUMN_ANGLE_ROT: calculateRotationAngleAndShiftsFromTM(ti)[0], self.COLUMN_ANGLE_TILT: ti.getTiltAngle()})
 
         # Returning result dictionary
         return angleDict
