@@ -141,7 +141,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
             # Obtaining list of angle tilts and rots per Tilt Series
             angles = self.getAngleDictionary()
-            #print("DICTIONARY:", angles)
 
             # Generating a metadata angle file and a param file for each Tilt Series
             for tsId in angles:
