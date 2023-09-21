@@ -172,12 +172,9 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
     # --------------------------- INFO functions ----------------------------
     def _validate(self):
         validateMsgs = []
-
-        if self.inputDoseType.get() == SCIPION_IMPORT:
-            for ts in self.inputSetOfTiltSeries.get():
-                if ts.getFirstItem().getAcquisition().getDosePerFrame() == None:
-                    validateMsgs.append("%s has no dose information stored in Scipion Metadata. To solve this import "
-                                        "the tilt-series with the mdoc option." % ts.getTsId())
+        
+        if not self.inputSetOfTiltSeries.get().hasValue():
+            validateMsgs = 'Input Tilt series must be provided'
 
         return validateMsgs
 
