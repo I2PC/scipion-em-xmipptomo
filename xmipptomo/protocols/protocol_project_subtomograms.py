@@ -356,7 +356,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             
         return baseErrorStr + error if error else ''
 
-
     # --------------------------- UTILS functions --------------------------------------------
     def scapePath(self, path: str) -> str:
         """
