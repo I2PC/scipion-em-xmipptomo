@@ -164,37 +164,18 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             # If type of generation is not from Tilt Series, generate single param file
             paramDeps.append(self._insertFunctionStep(self.generateParamFile))
         
-        # Test:
-        idDict = {}
-        for subtomogram in self.inputSubtomograms.get():
-            if isinstance(subtomogram, SubTomogram):
-                if subtomogram.getCoordinate3D() and subtomogram.getCoordinate3D().getTomoId():
-                    if subtomogram.getCoordinate3D().getTomoId() not in idDict.keys():
-                        idDict[subtomogram.getCoordinate3D().getTomoId()] = 1
-                    else:
-                        idDict[subtomogram.getCoordinate3D().getTomoId()] += 1
-                else:
-                    if not subtomogram.getCoordinate3D():
-                        print("SKIPPED SUBTOMOGRAM. Does not have Coordinate 3D.", subtomogram.getFileName())
-                    else:
-                        print("SKIPPED SUBTOMOGRAM. Does not have tomo id.", subtomogram.getFileName())
-            else:
-                print("SKIPPED SUBTOMOGRAM. Not a Subtomogram.", subtomogram.getFileName())
-        
-        print("FULL DICT:", idDict)
-        
         # Generating projections for each subtomogram
-        #generationDeps = []
-        #for subtomogram in self.inputSubtomograms.get():
-        #    tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES or len([ts for ts in self.tiltRangeTS.get()]) == 1 else subtomogram.getCoordinate3D().getTomoId()
-        #    generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), tsId, prerequisites=paramDeps))
-        #
-        ## Conditionally removing temporary files
-        #if self.cleanTmps.get():
-        #    self._insertFunctionStep(self.removeTempFiles, prerequisites=generationDeps)
-        #
-        ## Create output
-        #self._insertFunctionStep(self.createOutputStep, prerequisites=generationDeps)
+        generationDeps = []
+        for subtomogram in self.inputSubtomograms.get():
+            tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES or len([ts for ts in self.tiltRangeTS.get()]) == 1 else subtomogram.getCoordinate3D().getTomoId()
+            generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), tsId, prerequisites=paramDeps))
+        
+        # Conditionally removing temporary files
+        if self.cleanTmps.get():
+            self._insertFunctionStep(self.removeTempFiles, prerequisites=generationDeps)
+        
+        # Create output
+        self._insertFunctionStep(self.createOutputStep, prerequisites=generationDeps)
 
     # --------------------------- STEPS functions --------------------------------------------
     def generateParamFile(self, tsId: str=''):
