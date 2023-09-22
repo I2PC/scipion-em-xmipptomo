@@ -116,10 +116,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         
         # Tilt related parameter group
         tiltGroup = form.addGroup('Tilt parameters')
-        tiltLine = tiltGroup.addLine("Tilt range (degrees)", help='The initial and final values of the range of angles the projection will be produced on.\n'
-                            'Defaults to -60º for initial and 60º for final.')
-        tiltLine.addParam('tiltRangeStart', params.IntParam, default=-60, label='Start: ')
-        tiltLine.addParam('tiltRangeEnd', params.IntParam, default=60, label='End: ')
         tiltGroup.addParam('tiltTypeGeneration', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.TYPE_N_SAMPLES,
                         choices=['NSamples', 'Step', 'Tilt Series'], label="Type of sample generation: ",
                         help='Select the method for generating samples:\n\n'
@@ -132,6 +128,10 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                         help='Number of degrees each sample will be separated from the next.\nIt has to be greater than 0.')
         tiltGroup.addParam('tiltRangeTS', params.PointerParam, pointerClass="SetOfTiltSeries",  condition=f'tiltTypeGeneration=={self.TYPE_TILT_SERIES}',
                            label='Set of Tilt Series:', help='Set of Tilt Series where the angles of each Tilt Series will be obtained for the projection.')
+        tiltLine = tiltGroup.addLine("Tilt range (degrees)", condition=f'tiltTypeGeneration!={self.TYPE_TILT_SERIES}',
+                        help='The initial and final values of the range of angles the projection will be produced on.\nDefaults to -60º for initial and 60º for final.')
+        tiltLine.addParam('tiltRangeStart', params.IntParam, default=-60, label='Start: ')
+        tiltLine.addParam('tiltRangeEnd', params.IntParam, default=60, label='End: ')
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
