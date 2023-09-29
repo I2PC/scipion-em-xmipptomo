@@ -26,6 +26,7 @@
 
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from xmipp3.protocols import XmippProtConvertPdb
+from pwem.protocols import ProtImportPdb
 
 from xmipptomo.protocols import XmippProtPhantomSubtomo
 
@@ -39,13 +40,16 @@ class TestXmippSubtomoPhantom(BaseTest):
         cls.pdb = cls.dataset.getFile('pdb')
         setupTestProject(cls)
 
+        pdbid = "3j3i"
+        cls.protImport = cls._runImportPDB(ProtImportPdb, pdbid)
+
         setSize = True
         sizeX = 128
         sizeY = 128
         sizeZ = 128
-        pdbid = "3j3i"
         sampling = 1
-        cls.protConvert = cls._runVolumeFromPDB(XmippProtConvertPdb, pdbid, sampling, setSize, sizeZ, sizeY, sizeX)
+        pdbobj = cls.protImport.outputPdb
+        cls.protConvert = cls._runVolumeFromPDB(XmippProtConvertPdb, pdbobj, sampling, setSize, sizeZ, sizeY, sizeX)
 
 
         inputVolume = cls.protConvert.outputVolume
@@ -87,10 +91,18 @@ class TestXmippSubtomoPhantom(BaseTest):
                                 applyShift, xmin, xmax, ymin, ymax, zmin, zmax, coords, addNoise, differentStatistics, minstd, maxStd)
 
     @classmethod
-    def _runVolumeFromPDB(cls, protocolName, pdbid, sampling, setSize, size_z, size_y, size_x):
+    def _runImportPDB(cls, protocolName, pdbid):
 
         print("Run convert a pdb from database")
-        cls.protConvert = cls.newProtocol(protocolName, pdbId=pdbid, sampling=sampling, setSize=setSize,
+        cls.protImport = cls.newProtocol(protocolName, pdbId=pdbid)
+        cls.launchProtocol(cls.protImport)
+        return cls.protImport
+
+    @classmethod
+    def _runVolumeFromPDB(cls, protocolName, pdbobj, sampling, setSize, size_z, size_y, size_x):
+
+        print("Run convert a pdb from database")
+        cls.protConvert = cls.newProtocol(protocolName, pdbObj=pdbobj, sampling=sampling, setSize=setSize,
                                        size_z=size_z, size_y=size_y, size_x=size_x)
         cls.launchProtocol(cls.protConvert)
         return cls.protConvert
