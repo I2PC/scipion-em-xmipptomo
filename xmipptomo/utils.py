@@ -30,6 +30,7 @@ This module contains utils functions for xmipp tomo protocols
 import math
 import csv
 import os
+import shutil
 
 import emtable
 from tomo.constants import BOTTOM_LEFT_CORNER
@@ -38,30 +39,36 @@ from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
-from pyworkflow.object import Set
-from tomo.objects import MATRIX_CONVERSION, convertMatrix, TiltSeries, TiltImage
+from tomo.objects import MATRIX_CONVERSION, TiltSeries, TiltImage
+from pwem import ALIGN_PROJ
+from xmipp3.convert import alignmentToRow
 
 OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
 
 from pwem.objects import Transform
 
+def calculateRotationAngleAndShiftsFromTM(ti):
+    """ This method calculates the rot and shifts of a tilt image from its associated transformation matrix."""
+    transform = ti.getTransform()
+    if transform is None:
+        rotationAngle = 0.0
+        sx = 0.0
+        sy = 0.0
+    else:
+        tm = transform.getMatrix()
+        cosRotationAngle = tm[0][0]
+        sinRotationAngle = tm[1][0]
+        rotationAngle = float(math.degrees(math.atan(sinRotationAngle / cosRotationAngle)))
+        sx = tm[0][2]
+        sy = tm[1][2]
 
-def calculateRotationAngleFromTM(ti):
-    """ This method calculates que tilt image rotation angle from its associated transformation matrix."""
-
-    tm = ti.getTransform().getMatrix()
-    cosRotationAngle = tm[0][0]
-    sinRotationAngle = tm[1][0]
-    rotationAngle = math.degrees(math.atan(sinRotationAngle / cosRotationAngle))
-
-    return rotationAngle
-
+    return rotationAngle, sx, sy
 
 def readXmdStatisticsFile(fnmd):
-    x_pos = []
-    y_pos = []
-    z_pos = []
+    xPos = []
+    yPos = []
+    zPos = []
     avg = []
     std = []
 
@@ -70,16 +77,27 @@ def readXmdStatisticsFile(fnmd):
     for row in table.iterRows(fileName='noname@' + fnmd):
         avg.append(row.get('avg'))
         std.append(row.get('stddev'))
-        x_pos.append(row.get('xcoor'))
-        y_pos.append(row.get('ycoor'))
-        z_pos.append(row.get('zcoor'))
+        xPos.append(row.get('xcoor'))
+        yPos.append(row.get('ycoor'))
+        zPos.append(row.get('zcoor'))
 
-    return x_pos, y_pos, z_pos, avg, std
+    return xPos, yPos, zPos, avg, std
+
+
+def tiltSeriesParticleToXmd(tsParticle):
+    mdtsp = lib.MetaData()
+    for ti in tsParticle:
+        tm = ti.getTransformationMatrix()
+        fn = ti.parseFileName()
+        nRow = md.Row()
+        nRow.setValue(lib.MDL_IMAGE, fn)
+        alignmentToRow(tm, nRow, ALIGN_PROJ)
+        nRow.addToMd(mdtsp)
 
 
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
-     its tomo tomoId). If no tomoId is input the the xmd output file will contain all the coordinates belonging to the
+     its tomo tomoId). If no tomoId is input the xmd output file will contain all the coordinates belonging to the
      set. """
 
     xmdHeader = "# XMIPP_STAR_1 *\n" \
@@ -119,11 +137,11 @@ def xmdToTiltSeries(outputSetOfTs, inTs, fnXmd, sampling=1, odir='', tsid='defau
     newTs = TiltSeries(tsId=tsid)
     newTs.copyInfo(inTs, copyId=True)
     outputSetOfTs.append(newTs)
-    fnStack = os.path.join(odir, tsid + suffix +'.mrcs')
+    fnStack = os.path.join(odir, tsid + suffix + '.mrcs')
 
     for objId in mdts:
         fnImg = os.path.join(odir, mdts.getValue(lib.MDL_IMAGE, objId))
-        tilt = mdts.getValue(lib.MDL_ANGLE_TILT, objId)
+        mdts.getValue(lib.MDL_ANGLE_TILT, objId)
 
         originalTi = inTs[counter]
         newTi = TiltImage()
@@ -145,32 +163,44 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
     """
         Returns a metadata with the tilt series information, TsID, filename and tilt angle.
     """
-    mdts = lib.MetaData()
 
+    mdts = lib.MetaData()
     tsid = ts.getTsId()
 
-    for index, item in enumerate(ts):
+    for _, item in enumerate(ts):
 
-        #transform = item.getTransform()
-        #if transform is None:
-        #    tm = convertMatrix(np.eye(4))
-        #else:
-        #    tm = transform.getMatrix(convention=MATRIX_CONVERSION.XMIPP)
-        #Maq = Transform(matrix=tm)
+        transform = item.getTransform()
+        if transform is None:
+            rot = 0
+            sx = 0
+            sy = 0
+        else:
+            rot, sx, sy = calculateRotationAngleAndShiftsFromTM(item)
 
         tiIndex = item.getLocation()[0]
         fn = str(tiIndex) + "@" + item.getFileName()
         nRow = md.Row()
         nRow.setValue(lib.MDL_IMAGE, fn)
+
+        if item.hasCTF():
+            defU = item.getCTF().getDefocusU()
+            defV = item.getCTF().getDefocusV()
+            defAng = item.getCTF().getDefocusAngle()
+            nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
+            nRow.setValue(lib.MDL_CTF_DEFOCUSU, defV)
+            nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
+
         if ts.hasOddEven():
-            fnOdd  = item.getOdd()
+            fnOdd = item.getOdd()
             fnEven = item.getEven()
             nRow.setValue(lib.MDL_HALF1, fnOdd)
             nRow.setValue(lib.MDL_HALF2, fnEven)
         nRow.setValue(lib.MDL_TSID, tsid)
-        nRow.setValue(lib.MDL_ANGLE_TILT, item.getTiltAngle())
-        # nRow.setValue(lib.MDL_ANGLE_ROT, int(coord.getY(const.BOTTOM_LEFT_CORNER)))
-        # alignmentToRow(Maq, nRow, ALIGN_PROJ)
+        tilt = item.getTiltAngle()
+        nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
+        nRow.setValue(lib.MDL_ANGLE_ROT, rot)
+        nRow.setValue(lib.MDL_SHIFT_X, sx)
+        nRow.setValue(lib.MDL_SHIFT_Y, sy)
         nRow.addToMd(mdts)
 
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
@@ -179,3 +209,86 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
 
     return fnts
 
+
+def removeTmpElements(tmpElements):
+    """ This function removes all given temporary files and directories. """
+    # Removing selected elements
+    for item in tmpElements:
+        if os.path.exists(item):
+            if os.path.isdir(item):
+                shutil.rmtree(item)
+            else:
+                os.remove(item)
+
+
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=0):
+    """ This method takes a xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
+    every coordinate. This method also transform the coordinates into the Scipion convention. This method allows
+    different xmd formats containing coordinates information:
+        format=0: plain coordinates, xmd files only contains (x, y, z) values.
+        format=1: coordinates with alignment information, xmd files contains also shifts and angle values."""
+
+    coorList = []
+
+    with open(coordFilePath) as f:
+        inputLines = f.readlines()
+
+    if xmdFormat == 0:
+        for line in inputLines[7:]:
+            vector = line.split()
+
+            coorList.append([float(vector[0]),
+                             float(vector[1]),
+                             float(vector[2])])
+
+    if xmdFormat == 1:
+        for line in inputLines[15:]:
+            vector = line.split()
+
+            coorList.append([float(vector[-3]),
+                             float(vector[-2]),
+                             float(vector[-1])])
+
+    return coorList
+
+
+def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
+    """
+        Write the xmd file containing the set of coordinates corresponding to the given tomogram at the specified
+        location
+    """
+    mdCoor = lib.MetaData()
+
+    tsid = tomo.getTsId()
+
+    coordDict = []
+    lines = []
+
+    fnCoorDirectory = os.path.dirname(fnCoor)
+    if not os.path.exists(fnCoorDirectory):
+        os.makedirs(fnCoorDirectory)
+
+    for item in setOfCoordinates.iterCoordinates(volume=tomo):
+        coord = item
+        transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
+
+        if coord.getTomoId() == tsid:
+            nRow = md.Row()
+            nRow.setValue(lib.MDL_ITEM_ID, int(coord.getObjId()))
+            coord.setVolume(tomo)
+
+            nRow.setValue(lib.MDL_XCOOR, int(coord.getX(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_YCOOR, int(coord.getY(BOTTOM_LEFT_CORNER)))
+            nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(BOTTOM_LEFT_CORNER)))
+
+            alignmentToRow(transform, nRow, ALIGN_PROJ)
+            nRow.addToMd(mdCoor)
+
+            newCoord = item.clone()
+            newCoord.setVolume(coord.getVolume())
+            coordDict.append(newCoord)
+            lines.append(coordDict)
+
+    mdCoor.write(fnCoor)
+
+    return fnCoor
