@@ -30,8 +30,10 @@ from pyworkflow import BETA, UPDATED, NEW, PROD
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, FloatParam
 from pyworkflow.protocol.constants import LEVEL_ADVANCED
 from pwem.protocols import EMProtocol
+from pwem import ALIGN_3D
 from tomo.protocols import ProtTomoBase
-from xmipp3.convert import writeSetOfParticles, readSetOfParticles
+from xmipptomo.convert import writeSetOfSubtomograms
+from xmipp3.convert import readSetOfParticles
 
 OUTPUT = "output_subtomograms.xmd"
 INPUT = "input_subtomograms.xmd"
@@ -84,7 +86,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertStep(self):
-        writeSetOfParticles(self.inputSubtomos.get(), self._getExtraPath(INPUT))
+        writeSetOfSubtomograms(self.inputSubtomos.get(), self._getExtraPath(INPUT), aligntype=ALIGN_3D)
 
     def subtractionStep(self):
         """Subtract reference to each of the subtomogram in the input Set"""
