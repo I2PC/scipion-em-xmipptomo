@@ -57,8 +57,8 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
     def _insertAllSteps(self):
 
         for ts in self.inputSetOfTiltSeries.get():
-            self._insertFunctionStep('resizeTiltSeries', ts.getObjId())
-            self._insertFunctionStep('createOutputStep', ts.getObjId())
+            self._insertFunctionStep(self.resizeTiltSeries, ts.getObjId())
+            self._insertFunctionStep(self.createOutputStep, ts.getObjId())
         self._insertFunctionStep('closeStreamStep')
 
     # --------------------------- STEP functions --------------------------------

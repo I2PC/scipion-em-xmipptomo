@@ -61,13 +61,14 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries',
                       important=True,
-                      label='Input set of tilt-series to be filtered.')
+                      label='Input set of tilt-series to be filtered by dose.')
 
+        #TODO: Use it
         form.addParam('initialDose',
                       params.FloatParam,
                       default=0.0,
                       expertLevel=params.LEVEL_ADVANCED,
-                      label='Initial dose (e/sq A)',
+                      label='Initial dose (e/A^2)',
                       help='Dose applied before any of the images in the input file were taken; this value will be '
                            'added to all the prior dose values, however they were obtained.')
 

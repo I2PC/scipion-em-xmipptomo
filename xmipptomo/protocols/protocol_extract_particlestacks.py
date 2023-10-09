@@ -239,6 +239,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                 defU = ctfti.getDefocusU()
                 defV = ctfti.getDefocusV()
                 defAng = ctfti.getDefocusAngle()
+                print(defAng)
                 nRow.setValue(lib.MDL_IMAGE, fn)
                 nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
                 nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
@@ -361,6 +362,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     ctfmodel = CTFModel()
                     ctfmodel.setDefocusU(dictionary[particlekey]['defU'][itti])
                     ctfmodel.setDefocusV(dictionary[particlekey]['defV'][itti])
+                    ctfmodel.setDefocusAngle(dictionary[particlekey]['defAng'][itti])
 
                     c = np.cos(np.deg2rad(dictionary[particlekey]['rot'][itti]))
                     s = np.sin(np.deg2rad(dictionary[particlekey]['rot'][itti]))
