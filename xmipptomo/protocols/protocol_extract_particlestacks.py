@@ -27,18 +27,17 @@
 import os
 import glob
 from pwem.emlib import lib
-from pwem.objects import Particle, Volume, Transform, String, SetOfVolumes, SetOfParticles, ImageDim
+from pwem.objects import Transform, ImageDim
 from pwem.protocols import EMProtocol
 from pwem import ALIGN_PROJ
 import pwem.emlib.metadata as md
-import pwem.emlib.image.image_handler as ih
 
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, IntParam, BooleanParam
 
 from tomo.objects import SetOfCTFTomoSeries, SetOfTiltSeries, SetOfCoordinates3D, TomoAcquisition, MATRIX_CONVERSION
 from ..objects import SetOfTiltSeriesParticle, TiltSeriesParticle
-from ..utils import writeMdTiltSeries, calculateRotationAngleAndShiftsFromTM
+from ..utils import writeMdTiltSeries, calculateRotationAngleAndShiftsFromTM, getCTFfromId
 import tomo.constants as const
 
 from tomo.protocols import ProtTomoBase
@@ -204,7 +203,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         sorted_Idx_doseValueInTS = sorted(range(len(doseValueInTS)), key=lambda k: doseValueInTS[k])
 
         doseValueInTSCTF = []
-        ctfTomo = self.getCTFfromId(self.ctfTomoSeries.get(), tsId)
+        ctfTomo = getCTFfromId(self.ctfTomoSeries.get(), tsId)
         ctfList = []
         tiltSeriesFromCTF = ctfTomo.getTiltSeries()
 
@@ -259,12 +258,6 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
 
         mdts.write(fnts)
         return fnts
-
-    def getCTFfromId(self, setofctftomoseries, targetTsId):
-        for ctfts in setofctftomoseries:
-            ctfId = ctfts.getTsId()
-            if targetTsId == ctfId:
-                return ctfts
 
     def extractStackStep(self, objId):
         """ This function executes xmipp_tomo_extract_particlestacks. To do that
