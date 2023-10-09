@@ -26,7 +26,8 @@
 from pwem import emlib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
-from pwem.constants import (NO_INDEX, ALIGN_NONE, ALIGN_PROJ, ALIGN_2D, ALIGN_3D)
+from pwem.constants import (NO_INDEX, ALIGN_NONE, ALIGN_PROJ, ALIGN_2D,
+                            ALIGN_3D)
 import numpy as np
 from collections import OrderedDict
 from xmipp3.base import getLabelPythonType, iterMdRows
@@ -74,8 +75,8 @@ def writeSetOfImages(imgSet, filename, imgToFunc,
         rowFunc: this function can be used to setup the row before
             adding to metadata.
     """
-    mdSet = emlib.MetaData()
 
+    mdSet = emlib.MetaData()
     setOfImagesToMd(imgSet, mdSet, imgToFunc, **kwargs)
     mdSet.write('%s@%s' % (blockName, filename))
 
