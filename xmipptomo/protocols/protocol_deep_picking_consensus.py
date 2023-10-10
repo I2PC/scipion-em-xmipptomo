@@ -127,103 +127,45 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         form.addParallelSection(threads=1, mpi=1)
 
         form.addSection(label='Main')
-
-        group_model = form.addGroup('Neural Network model')
-
-        group_model.addParam('votingMode', params.BooleanParam,
-            default = False,
-            expertLevel=LEVEL_ADVANCED,
-            label = 'Voting instead of DNN',
-            help = 'Activating this will ignore all NN parameters and only perform '
-            'a consensus based on regular voting after doing the coordinates fusion.'
-        )
-
-        group_model.addParam('votingThreshold', params.FloatParam,
-            default = 0.6,
-            label = "Required consensus threshold",
-            condition = 'votingMode == True',
-            help = 'Sets the required consensus threshold (0,1] ratio needed for '
-            'a result to be considered good in simple voting mode. Bear in mind '
-            'the amount of input pickers when choosing this value. For instance, '
-            'a 0.7 value will not be achievable with two input pickers as the volumes '
-            'will appear either in 0.5 or in 1.0 of the total pickers.'
-        )
-
-        ## Neural Network parameters
-        group_model.addParam('modelInitialization', params.EnumParam,
-            choices = self.FORM_MODEL_TRAIN_TYPELIST_LABELS,
-            default = self.MODEL_TRAIN_NEW,
-            label = 'Select a model',
-            # help = 'When set to *%s*, the network will start with a fresh and randomly '
-            # 'initialized model. The option *%s* will let you choose a previously trained '
-            # 'model. Lastly, *%s* will utilize the same model that was used in the '
-            # 'previous run of this protocol.'
-            help = 'When set to *%s*, the network will start with a fresh and randomly '
-            'initialized model. The option *%s* will let you choose a previously trained '
-            'model.'
-            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
-            # % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
-        ## Model choices
-        # For previous runs
-        # group_model.addParam('continueRun', params.PointerParam,
-        #     pointerClass = self.getClassName(),
-        #     condition = 'modelInitialization == %s'%self.MODEL_TRAIN_PREVRUN, allowsNull=True,
-        #     label = 'Select previous run',
-        #     help = 'Choose from a previous run to continue from.'
-        # )
-        # For NOT NEW models
-        group_model.addParam('skipTraining', params.BooleanParam,
-            default = False,
-            condition = 'modelInitialization != %s'%self.MODEL_TRAIN_NEW,
-            label = 'Skip training step',
-            help = ' When set to *Yes*, the volumes will be directly fed to the model, '
-            ' If set to *No*, you must provide a training set of volumes.'
-        )
-        group_model.addParam('trainingBatch', params.IntParam, default='16',
-                        label = 'Training batch size',
-                        help = 'Amount of subtomograms in a training batch. '
-                        'If the provided subtomograms are not enough for the '
-                        'NN, this has to be increased. If the machine hangs due'
-                        ' to memory issues, this has to be reduced.'
-        )
-
-        group_input = form.addGroup('Input')
-        ## Input
-        group_input.addParam('inputSets', params.MultiPointerParam,
+        form.addParam('inputSets', params.MultiPointerParam,
                         pointerClass = SetOfCoordinates3D, allowsNull=False,
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
-        group_input.addParam('doPositiveInput', params.BooleanParam, default=False,
+        form.addParam('classThreshold', params.FloatParam, default=0.7,
+                label = 'Quality threshold',
+                help='Choose a number in the continuous (0,1] to adjust '
+                'the threshold used internally to determine if the '
+                'input is classified as a _particle_ or as bad _noise_'
+                '. When set to -1 all particles are outputted.'
+        )
+
+        # Additional data
+        form.addSection(label='Additional data')
+        form.addParam('doPositiveInput', params.BooleanParam, default=False,
                              label = 'Manually insert positive inputs',
                              help = 'This option enables the input of positive-labelled data '
                              'into the NN training. For example, previously checked or hand '
                              'picked coordinates.'
                              )    
-        group_input.addParam('positiveInputSets', params.MultiPointerParam,
+        form.addParam('positiveInputSets', params.MultiPointerParam,
                         condition = 'doPositiveInput == True', 
                         pointerClass = SetOfCoordinates3D, allowsNull=True,
                         label = 'Positive references',
                         help = 'Select pickings that are presumed to be true e.g. hand-picked coordinates.'  
         )
-        group_input.addParam('doNegativeInput', params.BooleanParam, default=False,
+        form.addParam('doNegativeInput', params.BooleanParam, default=False,
                              label = 'Manually insert negative inputs',
                              help = 'This option enables the input of negative-labelled data '
                              'into the NN training. For example, previously picked gold or noise.'
                              )    
-        group_input.addParam('negativeInputSets', params.MultiPointerParam,
+        form.addParam('negativeInputSets', params.MultiPointerParam,
                         condition = 'doNegativeInput == True', 
                         pointerClass = SetOfCoordinates3D, allowsNull=True,
                         label = 'Negative references',
                         help = 'Select pickings that are presumed to be negative e.g. hand-picked noise.'  
         )
-        group_input.addParam('classThreshold', params.FloatParam, default=0.6,
-                        label = 'Tolerance threshold',
-                        help='Choose a threshold in the range (0,1] to adjust '
-                        'the threshold used internally to determine if the '
-                        'input is classified as a _particle_ or as bad _noise_'
-                        '. When set to -1 all particles are considered _good_.'
-        )
+
 
         form.addSection(label='Preprocess')
         group_coords = form.addGroup('Coordinate consensus')
@@ -232,44 +174,43 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help='Amount of input pickers choosing a coordinate needed '
                         'to deem a coordinate as a positive input during consensus.'
         )
-        group_coords.addParam('coordConsensusRadius', params.FloatParam, default=0.2,
+        group_coords.addParam('coordConsensusRadius', params.FloatParam, default=0.5,
                         label="Same-element relative radius",
                         validators=[params.Positive],
                         help='Two sets of coordinates are determined to be of '
                         'the same particle if they are within this radius. The'
                         ' radius is given in [fraction of particle size] units.'
         )
-        group_coords.addParam('coordConsensusType', params.EnumParam, 
-                      choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
-                      default = self.COORD_CONS_FIRST,
-                      label = 'Representant choosing method',
-                      help = 'When assimilating all the pickings related to the'
-                      ' same ROI... *%s* will choose the number of the first '
-                      'element in the list, while *%s* will calculate a mean and '
-                      'later force the resize of all subtomograms to match it.' 
-                      % tuple(self.FORM_COORD_CONS_TYPELIST_LABELS)
-        )
+        # group_coords.addParam('coordConsensusType', params.EnumParam, 
+        #               choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
+        #               default = self.COORD_CONS_FIRST,
+        #               label = 'Representant choosing method',
+        #               help = 'When assimilating all the pickings related to the'
+        #               ' same ROI... *%s* will choose the number of the first '
+        #               'element in the list, while *%s* will calculate a mean and '
+        #               'later force the resize of all subtomograms to match it.' 
+        #               % tuple(self.FORM_COORD_CONS_TYPELIST_LABELS)
+        # )
 
-        group_bssr = form.addGroup('Box size and Sampling Rate consensus')
+        # group_bssr = form.addGroup('Box size and Sampling Rate consensus')
 
-        group_bssr.addParam('valueConsensusType', params.EnumParam,
-                      choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
-                      default = self.VALUE_CONS_SMALL,
-                      label = 'Boxsize choosing method',
-                      help = 'Choose which boxsize will be used if there is '
-                      'more than one: *%s*, *%s*, *%s* or *%s*.'
-                      % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
-        )
+        # group_bssr.addParam('valueConsensusType', params.EnumParam,
+        #               choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
+        #               default = self.VALUE_CONS_SMALL,
+        #               label = 'Boxsize choosing method',
+        #               help = 'Choose which boxsize will be used if there is '
+        #               'more than one: *%s*, *%s*, *%s* or *%s*.'
+        #               % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
+        # )
 
         group_noise = form.addGroup('Noise picking algorithm')
-        group_noise.addParam('fracNoise', params.FloatParam, default=0.9,
-                      label="Amount of noise picked for negative input",
-                      help='Controls how much noise is picked and given '
-                      'to the NN as negative input during training. It is'
-                      ' expressed in [0..1] - fraction of the total amount'
-                      ' of coordinates found on input')
-
-        group_noise.addParam('noiseThreshold', params.FloatParam, default=0.5,
+        # group_noise.addParam('fracNoise', params.FloatParam, default=0.9,
+        #               label="Amount of noise picked for negative input",
+        #               help='Controls how much noise is picked and given '
+        #               'to the NN as negative input during training. It is'
+        #               ' expressed in [0..1] - fraction of the positive amount'
+        #               ' of coordinates found on input')
+        group_noise.addParam('noiseThreshold', params.FloatParam, default=0.6,
                       label='Noise picking evasion radius',
                       help='Controls the radius (0..1] relative to the box '
                       'size that the noise picking algorithm will use. This '
@@ -278,25 +219,44 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
         
         form.addSection(label='Training')
+        form.addParam('modelInitialization', params.EnumParam,
+            choices = self.FORM_MODEL_TRAIN_TYPELIST_LABELS,
+            default = self.MODEL_TRAIN_NEW,
+            label = 'Select a model',
+            help = 'When set to *%s*, the network will start with a fresh and randomly '
+            'initialized model. The option *%s* will let you choose a previously trained '
+            'model.'
+            % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
+        form.addParam('skipTraining', params.BooleanParam,
+            default = False,
+            condition = 'modelInitialization != %s'%self.MODEL_TRAIN_NEW,
+            label = 'Skip training step',
+            help = ' When set to *Yes*, the volumes will be directly fed to the model, '
+            ' If set to *No*, you must provide a training set of volumes.'
+        )
+        form.addParam('trainingBatch', params.IntParam, default='32',
+                label = 'Training batch size',
+                help = 'Amount of subtomograms in a training batch. '
+                'If the provided subtomograms are not enough for the '
+                'NN, this has to be increased. If the machine hangs due'
+                ' to memory issues, this has to be reduced.'
+        )
         form.addParam('numberEpochs', params.IntParam, default=6,
                         label = 'Cycles (total epochs)',
                         help = 'Number of process cycles that will be done '
                         'with the data in order to train the Neural Network.',
         )
-
         form.addParam('validationFraction', params.FloatParam, default=0.15,
                       label='Validation fraction',
                       help='Fraction of the labeled set that will be used as '
                       'the validation data for the NN training.',
         )
-
         form.addParam('regulStrength', params.FloatParam, default = 0.00001,
                       label = 'L2 regularisation strength',
                       help = 'Hyperparameter that controls the extra term '
                       'added to the cost function to evade overfitting in '
                       'the trained model'
                       )
-
         form.addParam('learningRatef', params.FloatParam, default = 0.0005,
                         label = 'Learning rate',
                         help = 'Hyperparameter that controls the difference '
@@ -306,13 +266,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'Very low value cause the NN to get stuck in local '
                         'minimas.'
         )
-
         form.addParam('choiceDynLearningRate', params.BooleanParam, default = True,
                         label = 'Dynamic learning rate',
                         help = 'The learning rate can be updated on runtime '
                         'depending on the evolution of the execution. '                    
         )
-
         form.addParam('convergStop', params.BooleanParam, default = True,
                         label = 'Stop on convergence',
                         help = 'When set to *Yes*, the protocol will stop '
@@ -322,22 +280,32 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'model stopped in a sub-optimal, local minima. This'
                         ' is not recommended for small datasets.'
         )
-
-        form.addParam('forceDataAugment', params.BooleanParam, default = False,
+        form.addParam('forceDataAugment', params.BooleanParam, default = True,
                       label = "Force data augmentation",
                       help = 'By default, the protocol will not try to '
                       'perform data augmentation on datasets if at least two '
                       'of the input pickers contain 900 structures detected.'
                       )
+        form.addParam('votingMode', params.BooleanParam,
+            default = False,
+            expertLevel=LEVEL_ADVANCED,
+            label = 'Voting instead of DNN',
+            help = 'Activating this will ignore all NN parameters and only perform '
+            'a consensus based on regular voting after doing the coordinates fusion. '
+            'Every NN parameter will be ignored if this option is active.'
+        )
+        form.addParam('votingThreshold', params.FloatParam,
+            default = 0.3,
+            label = "Required consensus threshold",
+            condition = 'votingMode == True',
+            help = 'Sets the required consensus threshold (0,1] ratio needed for '
+            'a result to be considered good in simple voting mode. Bear in mind '
+            'the amount of input pickers when choosing this value. For instance, '
+            'a 0.7 value will not be achievable with two input pickers as the volumes '
+            'will appear either in 0.5 or in 1.0 of the total pickers.'
+        )
         
-        form.addSection(label='Output')
-        form.addParam('outputOnlyCons', params.BooleanParam, default = True,
-                      label = "Output only consolidated coords",
-                      help = 'When set to True, the protocol will output the '
-                      'only the consensus coordinates + score. When False, '
-                      'it will output all of the inputs with their score, '
-                      'even though it will contain duplicities.'
-                      )
+
 
     #--------------- INSERT steps functions ----------------
     
