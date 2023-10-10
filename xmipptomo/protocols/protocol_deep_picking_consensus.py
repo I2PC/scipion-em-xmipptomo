@@ -990,34 +990,21 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         coordinates.setName("output coordinates - scored")
         coordinates.setSamplingRate(self.consSampRate)
         coordinates.setBoxSize(self.consBoxSize)
-
-        # objIdCounter = 1
-        # label = emlib.label2Str(emlib.MDL_ZSCORE)
         for ind in self.scoredDf_filtered_dedup.index:
             c : Coordinate3D = Coordinate3D()
-            # ['subtomoname','identifier','boxsize','samplingrate','tomoname','x','y','z','score']
-            # c.setBoxSize(self.consBoxSize)
             tsid = self._getTsIdFromName(self.scoredDf_filtered_dedup['tomoname'][ind])
-            # c.setTomoId(tsid)
             t : Tomogram = tomoDict[tsid]
             c.setVolume(t)
             c.setX(self.scoredDf_filtered_dedup['x'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setY(self.scoredDf_filtered_dedup['y'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setZ(self.scoredDf_filtered_dedup['z'][ind], tconst.BOTTOM_LEFT_CORNER)
-            # c.setAttributeValue(label, self.scoredDf_filtered['score'][ind])
-            # TODO: volId y objId faltan maybe quizas esta un poco confuso eso
-            # c.setObjId(objIdCounter)
             coordinates.append(c)
-            # objIdCounter += 1
-            # coordinates.write()  
-            # self._store()
         
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coordinates})
 
         inset : SetOfCoordinates3D
         for inset in self.inputSets:
-            # inset.write()
             self._defineSourceRelation(inset, coordinates)
         
 
