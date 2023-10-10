@@ -40,13 +40,12 @@ from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomog
 # Needed for the GUI definition and pyworkflow objects
 from pyworkflow.protocol import params, LEVEL_ADVANCED
 from pyworkflow import BETA
-from pyworkflow.object import Integer, Float
+from pyworkflow.object import Integer, Float, Boolean, List
 import pyworkflow.utils as pwutils
 
 import pandas as pd
 import numpy as np
 
-from typing import NamedTuple
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
 import tomo.constants as tconst
@@ -338,60 +337,64 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # GET THE INFORMATION FROM THE FORM AND STORE IN SELF -----------------
         # The form has a parameter called inputSets that carries
         # the 3D coordinates from the input pickers
-        self.inputSetsOf3DCoordinates : list = [item.get() for item in self.inputSets]
+        self.inputSetsOf3DCoordinates : List = [item.get() for item in self.inputSets]
         print("Found this many input sets: %d" % len(self.inputSetsOf3DCoordinates), flush=True)
 
         # Calculate the total amount of ROIs to save resources
         # The SetOfCoordinates3D is a EMSet -> Set so len() can be applied
-        self.totalROIs : int = sum(map(len, self.inputSetsOf3DCoordinates))
+        self.totalROIs : Integer = sum(map(len, self.inputSetsOf3DCoordinates))
         # Get the number of input pickers given in the form
-        self.nr_pickers : int = len(self.inputSetsOf3DCoordinates)
+        self.nr_pickers : Integer = len(self.inputSetsOf3DCoordinates)
         # Only for when positive examples are provided
-        self.inputSetsOf3DCoordinatesPositive : list = [item.get() for item in self.positiveInputSets]
-        self.totalROIsPositive : int = sum(map(len, self.inputSetsOf3DCoordinatesPositive))
-        self.havePositive : bool = len(self.inputSetsOf3DCoordinatesPositive) > 0
-        self.nr_pickersPos : int = len(self.inputSetsOf3DCoordinatesPositive)
+        self.inputSetsOf3DCoordinatesPositive : List = [item.get() for item in self.positiveInputSets]
+        self.totalROIsPositive : Integer = sum(map(len, self.inputSetsOf3DCoordinatesPositive))
+        self.havePositive : Boolean = len(self.inputSetsOf3DCoordinatesPositive) > 0
+        self.nr_pickersPos : Integer = len(self.inputSetsOf3DCoordinatesPositive)
         # Only for when negative examples are provided
-        self.inputSetsOf3DCoordinatesNegative : list = [item.get() for item in self.negativeInputSets]
-        self.totalROIsNegative : int = sum(map(len, self.inputSetsOf3DCoordinatesNegative))
-        self.haveNegative : bool = len(self.inputSetsOf3DCoordinatesNegative) > 0
-        self.nr_pickersNeg : int = len(self.inputSetsOf3DCoordinatesNegative)
+        self.inputSetsOf3DCoordinatesNegative : List = [item.get() for item in self.negativeInputSets]
+        self.totalROIsNegative : Integer = sum(map(len, self.inputSetsOf3DCoordinatesNegative))
+        self.haveNegative : Boolean = len(self.inputSetsOf3DCoordinatesNegative) > 0
+        self.nr_pickersNeg : Integer = len(self.inputSetsOf3DCoordinatesNegative)
         # Get fraction for noise picking
-        self.noiseFrac = float(self.fracNoise.get())
+        # self.noiseFrac = float(self.fracNoise.get())
+        self.noiseFrac = Float(0.9)
         # Get the method of doing the value consensus
-        self.valueConsType = int(self.valueConsensusType.get())
+        # self.valueConsType = int(self.valueConsensusType.get())
+        self.valueConsType = Integer(2)
         # Get the method of coordinate consensus
-        self.coordConsType = int(self.coordConsensusType.get())
+        # self.coordConsType = int(self.coordConsensusType.get())
+        self.coordConsType = Integer(1)
         # Get the relative radius for coordinate consensus
-        self.coordConsRadius = float(self.coordConsensusRadius.get())
+        self.coordConsRadius = Float(self.coordConsensusRadius.get())
         # Get the choice for training skip
-        self.trainSkip = bool(self.skipTraining.get())
+        self.trainSkip = Boolean(self.skipTraining.get())
         # Get the noise distance relative radius
-        self.noiseRadius = float(self.noiseThreshold.get())
+        self.noiseRadius = Float(self.noiseThreshold.get())
         # Get the training type
-        self.trainType = int(self.modelInitialization.get())
+        self.trainType = Integer(self.modelInitialization.get())
         # Get the number of epochs
-        self.nEpochs = int(self.numberEpochs.get())
+        self.nEpochs = Integer(self.numberEpochs.get())
         # Get L1L2 reg rate
-        self.regStrength = float(self.regulStrength.get())
+        self.regStrength = Float(self.regulStrength.get())
         # Get learningrate
-        self.learningRate = float(self.learningRatef.get())
+        self.learningRate = Float(self.learningRatef.get())
         # Get dyn learning rate bool
-        self.dynLearningRate = bool(self.choiceDynLearningRate.get())
+        self.dynLearningRate = Boolean(self.choiceDynLearningRate.get())
         # Get stop on convergency
-        self.convergeStop = bool(self.convergStop.get()) 
+        self.convergeStop = Boolean(self.convergStop.get()) 
         # Get data augmentation choice
-        self.augment = bool(self.forceDataAugment.get())
+        self.augment = Boolean(self.forceDataAugment.get())
         # Get batch size
-        self.batchSize = int(self.trainingBatch.get())
+        self.batchSize = Integer(self.trainingBatch.get())
         # Get validation fraction
-        self.valFrac = float(self.validationFraction.get())
+        # self.valFrac = float(self.validationFraction.get())
+        self.valFrac = Float(0.2)
         # Get the needed nr of pickers for POS
-        self.nr_pickers_needed = int(self.neededNumberOfPickers.get())
+        self.nr_pickers_needed = Integer(self.neededNumberOfPickers.get())
         # Global track for assigned subtomogram extraction IDs
         self.globalParticleId = 0
         # Threshold for output filtering
-        self.outScoreThreshold = float(self.classThreshold.get())
+        self.outScoreThreshold = Float(self.classThreshold.get())
 
         # Generate all the folders
         # extra/pickedpertomo
@@ -603,17 +606,20 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Fetch the different box sizes from pickers
         assert self.pickerMD is not None
 
-        if self.valueConsType ==  self.VALUE_CONS_BIG:
-            # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmax()]
-            index = self.pickerMD.idxmax()['boxsize']
-        elif self.valueConsType == self.VALUE_CONS_SMALL:
-            # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
-            index = self.pickerMD.idxmin()['boxsize']
-        elif self.valueConsType == self.VALUE_CONS_MEAN:
-            raise NotImplemented
-        elif self.valueConsType == self.VALUE_CONS_FIRST:
-            index = 0
-        result = self.pickerMD.loc[index]
+        # if self.valueConsType ==  self.VALUE_CONS_BIG:
+        #     # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmax()]
+        #     index = self.pickerMD.idxmax()['boxsize']
+        # elif self.valueConsType == self.VALUE_CONS_SMALL:
+        #     # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
+        #     index = self.pickerMD.idxmin()['boxsize']
+        # elif self.valueConsType == self.VALUE_CONS_MEAN:
+        #     raise NotImplemented
+        # elif self.valueConsType == self.VALUE_CONS_FIRST:
+        #     index = 0
+
+        # index = self.pickerMD.idxmin()['boxsize']
+        # result = self.pickerMD.loc[index]
+        result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
         
         print("Determined box size: " + str(result['boxsize']))
         print("Determined sampling rate (A/px): " + str(result['samplingrate']))
