@@ -267,11 +267,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         'minimas.'
         )
         form.addParam('choiceDynLearningRate', params.BooleanParam, default = True,
+                        expertLevel=LEVEL_ADVANCED,
                         label = 'Dynamic learning rate',
                         help = 'The learning rate can be updated on runtime '
                         'depending on the evolution of the execution. '                    
         )
         form.addParam('convergStop', params.BooleanParam, default = True,
+                        expertLevel=LEVEL_ADVANCED,
                         label = 'Stop on convergence',
                         help = 'When set to *Yes*, the protocol will stop '
                         'the training when no improvement is detected in '
@@ -281,6 +283,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         ' is not recommended for small datasets.'
         )
         form.addParam('forceDataAugment', params.BooleanParam, default = True,
+                      expertLevel=LEVEL_ADVANCED,
                       label = "Force data augmentation",
                       help = 'By default, the protocol will not try to '
                       'perform data augmentation on datasets if at least two '
