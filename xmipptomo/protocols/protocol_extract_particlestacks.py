@@ -50,18 +50,13 @@ from xmipp3.convert import alignmentToRow, readSetOfParticles
 COORD_BASE_FN = 'coords'
 EXT_XMD = '.xmd'
 
-# Tomogram type constants for particle extraction
-#OUTPUTATTRIBUTE = 'SetOfTiltSeries'
-#OUTPUTATTRIBUTE = 'SetOfTiltSeriesParticle'
-
-
 class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
     """
     Extract a set of particle stacks from a set of tilt series given a set of coordinates in the tomogram.
     """
     _label = 'extract particle stacks'
     _devStatus = BETA
-    #_possibleOutputs = {OUTPUTATTRIBUTE: SetOfTiltSeries}
+
     lines = []
     tomoFiles = []
     listofTsId = []

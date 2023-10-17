@@ -96,10 +96,16 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
                       help="Spherical aberration of the microscope")
         form.addParam('amplcontrst', FloatParam, label="Amplitude Contrast", default=0.1,
                       help="Amplitude contrast.")
+        form.addParam('magnification', FloatParam, label="Magnification", default=50000.0,
+                      help="Magnification of the acquired images.")
 
         form.addSection(label='Alignment')
-        form.addParam('addNoise', BooleanParam, label="Add noise to the tomogram.", default=True,
+        form.addParam('addNoise', BooleanParam, label="Add noise to the tilt series.", default=True,
                       help="Add noise using xmipp_transform.")
+
+        form.addParam('sigmaNoise', FloatParam, label="Standard deviation", default=20, condition='addNoise',
+                      help="The noise will be Gaussian. This parameter determines the standard deviation of the "
+                           "noise distribution.")
 
         form.addParam('heterogeneous', BooleanParam, label="2 particles?",
                       default=False, help="Add 2 different particles to allow for 3d classification")
@@ -118,6 +124,7 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
             tsId = 'TS_%i' % i
             self._insertFunctionStep(self.createTiltSeriesStep, tsId)
             self._insertFunctionStep(self.createOutputStep, tsId)
+        self._insertFunctionStep(self.closeOutputSetsStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def createTiltSeriesStep(self, tsId):
@@ -140,7 +147,7 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
         params += ' --tiltStep %i ' % self.tiltStep.get()
         params += ' --thickness %i ' % self.thickness.get()
         params += ' --sampling %f ' % self.inputVolume.get().getSamplingRate()
-        # params += ' --sigmaNoise %f ' % self.sigmaNoise.get()
+        params += ' --sigmaNoise %f ' % self.sigmaNoise.get()
 
         if self.addFiducials.get():
             params += ' --fiducialSize %f ' % self.fiducialSize.get()
@@ -148,17 +155,10 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
 
         self.runJob('xmipp_tomo_simulate_tilt_series', params)
 
-        params = ' -i %s ' % coordinatesFn
-        params += ' --vol %s ' % self.inputVolume.get().getFileName()
-        params += ' --xdim %i ' % self.xdim.get()
-        params += ' --ydim %i ' % self.ydim.get()
-        params += ' --minTilt %i ' % self.minTilt.get()
-        params += ' --maxTilt %i ' % self.maxTilt.get()
-        params += ' --tiltStep %i ' % self.tiltStep.get()
-        params += ' --thickness %i ' % self.thickness.get()
-        params += ' --sampling %f ' % self.inputVolume.get().getSamplingRate()
-        # params += ' --sigmaNoise %f ' % self.sigmaNoise.get()
-        self.runJob('xmipp_transform_add_noise', params)
+    def closeOutputSetsStep(self):
+        self.outputSetOfTiltSeries.setStreamState(Set.STREAM_CLOSED)
+        self.outputSetOfTiltSeries.write()
+        self._store()
 
     def createCoordinateFile(self):
         boxsize = self.inputVolume.get().getXDim()
@@ -208,17 +208,24 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
 
         sampling = self.inputVolume.get().getSamplingRate()
         fnTs = os.path.join(self._getExtraPath(tsId), tsId+'.mrcs')
-        print(fnTs)
         outputSetOfTiltSeries = self.getOutputSetOfTiltSeries(sampling, fnTs)
-
+        acquisitionParams = TomoAcquisition(angleMin=self.minTilt.get(), angleMax=self.maxTilt.get(), step=self.tiltStep.get(),
+                 accumDose=None, tiltAxisAngle=0.0)
         newTs = TiltSeries(tsId=tsId)
         outputSetOfTiltSeries.append(newTs)
 
+        acquisitionParams.setVoltage(self.voltage.get())
+        acquisitionParams.setMagnification(self.magnification.get())
+        acquisitionParams.setAmplitudeContrast(self.amplcontrst.get())
+        acquisitionParams.setSphericalAberration(self.sphericalAberration.get())
+
+        outputSetOfTiltSeries.setAcquisition(acquisitionParams)
+
         newTs.setSamplingRate(sampling)
+        newTs.setAcquisition(acquisitionParams)
 
         fnts = os.path.join(self._getExtraPath(tsId), "%s.xmd" % tsId)
 
-        print('before print')
         if os.path.isfile(fnts):
             for row in md.iterRows(fnts):
                 fn = row.getValue(lib.MDL_IMAGE)
@@ -232,7 +239,7 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
                 newTi.setLocation(index + 1, fnTi)
                 newTi.setSamplingRate(sampling)
 
-            newTs.append(newTi)
+                newTs.append(newTi)
 
         newTs.write(properties=False)
 
@@ -249,8 +256,9 @@ class XmippProtPhantomTiltSeries(EMProtocol, ProtTomoBase):
             outputSetOfTiltSeries = self._createSetOfTiltSeries()
             ih = ImageHandler()
             x, y, z, n = ih.getDimensions(fnTs)
-            dims = (x, y, z)
-            outputSetOfTiltSeries.setDim(dims)
+            print('n=', z)
+            dims = (x, y, z, n)
+            #outputSetOfTiltSeries.setDim(dims)
             outputSetOfTiltSeries.setSamplingRate(sampling)
             outputSetOfTiltSeries.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)

@@ -26,26 +26,23 @@
 # *
 # **************************************************************************
 import os
-import glob
 from pwem.emlib import lib
-import numpy as np
-import pwem.emlib.metadata as md
-from pwem.convert.transformations import euler_matrix
-from pwem.objects.data import Transform, Integer
-from pwem.protocols import EMProtocol
-from pwem.convert.transformations import translation_from_matrix, euler_from_matrix
-from pyworkflow import BETA
-from pyworkflow.protocol.params import IntParam, FloatParam, EnumParam, PointerParam, BooleanParam
-from tomo.protocols import ProtTomoBase
-import pwem
-from xmipp3.convert import writeSetOfVolumes
-from ..utils import calculateRotationAngleAndShiftsFromTM
-from ..objects import SetOfTiltSeriesParticle
 
-from pwem.objects import Volume
+import pwem.emlib.metadata as md
+from pwem.objects.data import Transform
+from pwem.protocols import EMProtocol
+from pyworkflow import BETA
+from pyworkflow.protocol.params import PointerParam, BooleanParam
+from tomo.protocols import ProtTomoBase
+from ..utils import calculateRotationAngleAndShiftsFromTM
+from tomo.objects import SetOfSubTomograms, TomoAcquisition, SubTomogram
+import tomo.constants as const
 
 FN_INPUTPARTICLES = 'ts_'
 XMD_EXT = '.xmd'
+
+# Tomogram type constants for particle extraction
+OUTPUTATTRIBUTE = 'Subtomograms'
 
 
 class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
@@ -72,8 +69,7 @@ class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
 
         self._insertFunctionStep(self.reconstructStep)
-        # self._insertFunctionStep(self.reconstructStep)
-        # self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def reconstructStep(self):
@@ -82,20 +78,17 @@ class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
 
         s_id = 0
         for s in stack.iterItems():
-            print(s)
             idx = s.getObjId()
             tsId = s.getOriginalTs()
-            print(tsId)
             folderTsId = self._getExtraPath(str(tsId))
-            print(tsId)
             if not os.path.exists(folderTsId):
                 os.makedirs(folderTsId)
             fn = os.path.join(folderTsId, 'subtomo_%i.xmd' % idx)
-            print(fn)
             self.writeParticleStackToMd(s, fn)
+            self.reconstructCmd(fn, folderTsId, s_id)
             s_id += 1
 
-            self.reconstructCmd(fn, folderTsId, s_id)
+
 
     def writeParticleStackToMd(self, particlestack, fn):
 
@@ -103,11 +96,8 @@ class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
         for ti in particlestack.iterItems():
             tilt = ti.getTiltAngle()
             rot, sx, sy = calculateRotationAngleAndShiftsFromTM(ti)
-
             nRow = md.Row()
-            print(ti.getFileName())
-            print(ti.getLocation())
-            fntp = str(ti.getLocation()[0]+1)+'@'+ti.getLocation()[1]
+            fntp = str(ti.getLocation()[0]) + '@' + ti.getLocation()[1]
             nRow.setValue(lib.MDL_IMAGE, fntp)
             if self.correctCTF:
                 ctf = ti.getCTF()
@@ -132,13 +122,42 @@ class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
         if self.correctCTF:
             params += ' --useCTF '
         params += ' --sampling %f ' % (self.inputStacks.get().getSamplingRate())
-        params += ' -o %s ' % os.path.join(outputfolder,'subtomo_%i.mrc' % idx)
+        params += ' -o %s ' % os.path.join(outputfolder, 'subtomo_%i.mrc' % idx)
         params += ' --thr %d ' % self.numberOfThreads.get()
 
         self.runJob('xmipp_reconstruct_fourier', params)
 
     def createOutputStep(self):
-        pass
+        """
+            This function creates the output of the protocol
+        """
+        inputTSP = self.inputStacks.get()
+        acquisitonInfo = inputTSP.getAcquisition()
+        samplingRate = inputTSP.getSamplingRate()
+
+        self.outputSubTomogramsSet = self._createSetOfSubTomograms()
+        self.outputSubTomogramsSet.setSamplingRate(samplingRate)
+        self.outputSubTomogramsSet.setAcquisition(acquisitonInfo)
+
+        for s in inputTSP.iterItems():
+            idx = s.getObjId()
+            tsId = str(s.getOriginalTs())
+            self.writeSetOfSubtomograms(tsId, self.outputSubTomogramsSet, samplingRate, idx)
+
+        self._defineOutputs(**{OUTPUTATTRIBUTE: self.outputSubTomogramsSet})
+        self._defineSourceRelation(self.inputStacks, self.outputSubTomogramsSet)
+
+    def writeSetOfSubtomograms(self, tsId, outputSubTomogramsSet, sampling, idx):
+        # fnSubtomos = os.path.join(self._getExtraPath(tsId),  'subtomo_%i.xmd' % idx)
+
+        subtomo = SubTomogram()
+        fnsubtomo = 'subtomo_%i.mrc' % idx
+        prefixPath = self._getExtraPath(tsId)
+        fn = os.path.join(prefixPath, fnsubtomo)
+        subtomo.setLocation(fn)
+        subtomo.setSamplingRate(sampling)
+        subtomo.setVolName(tsId)
+        outputSubTomogramsSet.append(subtomo)
 
         # --------------------------- INFO functions --------------------------------------------
 

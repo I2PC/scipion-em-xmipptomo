@@ -168,7 +168,7 @@ def writeMdTiltSeries(ts, tomoPath):
 
     mdts = lib.MetaData()
     tsid = ts.getTsId()
-    print(tsid)
+
     fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsid)
     for _, item in enumerate(ts):
 
