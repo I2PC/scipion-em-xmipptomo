@@ -96,8 +96,9 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         resol = self.resol.get()
         iter = self.iter.get()
         program = "xmipp_volume_subtraction"
-        args = '-i %s -o % s --ref %s --iter %s --lambda %s --sub --subtomos' % \
-               (self._getExtraPath(INPUT), self._getExtraPath(OUTPUT), average, iter, self.rfactor.get())
+        args = '-i %s -o % s --ref %s --oroot %s --iter %s --lambda %s --sub --subtomos' % \
+               (self._getExtraPath(INPUT), self._getExtraPath(OUTPUT), average,
+                self._getExtraPath("subtracted_subtomo"), iter, self.rfactor.get())
         if resol:
             fc = self.inputSubtomos.get().getSamplingRate() / resol
             args += ' --cutFreq %f --sigma %d' % (fc, self.sigma.get())
