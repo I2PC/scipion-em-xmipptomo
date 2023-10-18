@@ -32,8 +32,7 @@ from pyworkflow.protocol.constants import LEVEL_ADVANCED
 from pwem.protocols import EMProtocol
 from pwem.constants import ALIGN_3D
 from tomo.protocols import ProtTomoBase
-from xmipptomo.convert import writeSetOfSubtomograms
-from xmipp3.convert import readSetOfParticles
+from xmipptomo.convert import writeSetOfSubtomograms, readSetOfSubtomograms
 
 OUTPUT = "output_subtomograms.xmd"
 INPUT = "input_subtomograms.xmd"
@@ -115,7 +114,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         inputSubtomos = self.inputSubtomos.get()
         outputSet = self._createSetOfSubTomograms()
         outputSet.copyInfo(inputSubtomos)
-        readSetOfParticles(self._getExtraPath(OUTPUT), outputSet)
+        readSetOfSubtomograms(self._getExtraPath(OUTPUT), outputSet, alignType=ALIGN_3D)
         self._defineOutputs(outputSubtomograms=outputSet)
         self._defineSourceRelation(inputSubtomos, outputSet)
 
