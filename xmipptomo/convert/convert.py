@@ -559,7 +559,7 @@ def rowToAlignment(alignmentRow, alignType):
         else:
             psi = alignmentRow.getValue(emlib.MDL_ANGLE_PSI, 0.)
             rot = alignmentRow.getValue(emlib.MDL_ANGLE_ROT, 0.)
-            if rot != 0. and psi != 0:
+            if rot != 0 and psi != 0:
                 print("HORROR rot and psi are different from zero in 2D case")
             angles[0] = \
                 alignmentRow.getValue(emlib.MDL_ANGLE_PSI, 0.)\
