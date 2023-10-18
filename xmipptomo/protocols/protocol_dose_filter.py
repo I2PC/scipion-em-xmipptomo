@@ -102,7 +102,7 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
             doseValue = ti.getAcquisition().getAccumDose()
             fn = ti.getFileName()
             ext = getExt(fn)
-            if ext == 'mrc' or ext == 'map':
+            if ext == '.mrc' or ext == '.map':
                 fn = fn+':mrcs'
             strimg = str(idx) + '@' + fn
             idx = idx + 1
