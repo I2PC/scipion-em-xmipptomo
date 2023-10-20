@@ -28,7 +28,7 @@ import os
 from pwem.emlib import MetaData, MDL_MAX, MDL_MIN
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.object import Set
+from pyworkflow.object import Set, Float
 from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED, StringParam, \
     GPU_LIST, USE_GPU
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram, SetOfSubTomograms
@@ -287,8 +287,8 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                 subtomogram.setCoordinate3D(newCoord3D)
                 subtomogram.setSamplingRate(self.targetSamplingRate)
                 subtomogram.setVolName(tomo.getTsId())
-                subtomogram._strongMisaliScore = firstPredictionArray[i]
-                subtomogram._weakMisaliScore = secondPredictionArray[i]
+                subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
+                subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
 
                 self.outputSubtomos.append(subtomogram)
             self.outputSubtomos.write()
