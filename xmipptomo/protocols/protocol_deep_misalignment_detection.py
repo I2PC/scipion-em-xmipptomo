@@ -271,7 +271,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             self.info("For volume id " + str(tsId) + " obtained prediction from " + str(len(subtomoPathList)) +
                       " subtomos is " + str(overallPrediction))
 
-            tomo._misaliScore = predictionAverage
+            tomo._misaliScore = Float(predictionAverage)
             self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
 
             for i, subtomoPath in enumerate(subtomoPathList):
