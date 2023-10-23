@@ -45,7 +45,6 @@ from tomo.objects import Tomogram
 MONOTOMO_METHOD_URL = 'http://github.com/I2PC/scipion/wiki/XmippProtMonoTomo'
 TOMOGRAM_RESOLUTION_FILE = 'localResolutionTomogram_'
 FULL_TOMOGRAM_FILE = 'fullTomogram_'
-TOMOGRAMFOLDER = 'tomo_'
 HISTOGRAM_RESOLUTION_FILE = 'histogram_resolution_'
 BINARY_MASK = 'binarymask'
 MRCEXT = '.mrc'
@@ -152,7 +151,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         tsId = ts.getTsId()
 
         #Defining the output folder
-        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + tsId)
+        tomoPath = self._getExtraPath(tsId)
         os.mkdir(tomoPath)
 
         #Defining outfiles
@@ -201,7 +200,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         the path with an extension. Exmaple: filename = 'tomogram_' id = 5, ext = '.mrc'
         the output will be tomogram_5.mrc
         '''
-        tomoPath = self._getExtraPath(TOMOGRAMFOLDER + str(tomId))
+        tomoPath = self._getExtraPath(str(tomId))
         fnPath = os.path.join(tomoPath, filename+str(tomId)+ext)
         return fnPath
 
