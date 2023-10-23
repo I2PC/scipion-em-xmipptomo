@@ -27,26 +27,29 @@
 This module contains utils functions for xmipp tomo protocols
 """
 
+# General imports
 import math
 import csv
 import os
 import shutil
 
+# Scipion em imports
 import emtable
-from tomo.constants import BOTTOM_LEFT_CORNER
-import numpy as np
+from pwem import ALIGN_PROJ
+from pwem.objects import Integer, CTFModel, Transform
 from pwem.emlib import lib
 import pwem.emlib.metadata as md
 from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
+
+# External plugin imports
+from tomo.objects import TiltSeries, TiltImage, SetOfCTFTomoSeries
 from tomo.objects import MATRIX_CONVERSION, TiltSeries, TiltImage
-from pwem import ALIGN_PROJ
+from tomo.constants import BOTTOM_LEFT_CORNER
 from xmipp3.convert import alignmentToRow
 
 OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
-
-from pwem.objects import Transform
 
 def calculateRotationAngleAndShiftsFromTM(ti):
     """ This method calculates the rot and shifts of a tilt image from its associated transformation matrix."""
@@ -209,6 +212,15 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
 
     return fnts
 
+def getCTFfromId(setOfCTFs: SetOfCTFTomoSeries, targetTsId: Integer) -> CTFModel:
+    """
+    This function returns the CTF from the set with the given target Tilt series id. 
+    """
+    # Iterate CTF set looking for the one with targetTsId
+    for ctf in setOfCTFs:
+        # If ctf id matches target TS id, return such CTF
+        if targetTsId == ctf.getTsId():
+            return ctf
 
 def removeTmpElements(tmpElements):
     """ This function removes all given temporary files and directories. """
