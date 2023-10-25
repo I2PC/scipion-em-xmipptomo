@@ -265,9 +265,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             2) A folder where the particlestacks will be stored is created. The name of this folder is the tsId
             3) Launches the xmipp_tomo_extract_particlestacks
         """
-        print('starting')
         ts = self.tiltseries.get()[objId]
-        print(ts)
 
         tsId = ts.getTsId()
         tomoPath = self._getExtraPath(tsId)
@@ -377,6 +375,9 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
         self._defineSourceRelation(self.tiltseries, outputSetOfTiltSeries)
 
+        if self.asSPAparticles:
+            self.outputSPAparticles(acquisitionInfo)
+
     def getOutputSetOfTiltSeries(self):
         sampling = self.tiltseries.get().getSamplingRate()
         if hasattr(self, "outputSetOfTiltSeriesParticle"):
@@ -477,6 +478,20 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     rowglobal.addToMd(mdAllParticles)
         mdAllParticles.write(fn)
 
+    def outputSPAparticles(self, acquisitonInfo):
+
+        fn = self._getExtraPath('allparticles.xmd')
+        outputSet = self._createSetOfParticles()
+        outputSet.setAcquisition(acquisitonInfo)
+        self.createMdWithall2DTiltParticles(fn)
+        # TODO set dose per particle
+        readSetOfParticles(fn, outputSet)
+        outputSet.setSamplingRate(self.tiltseries.get().getSamplingRate())
+        outputSet.write()
+
+        self._defineOutputs(outputParticles=outputSet)
+        self._defineSourceRelation(self.coords, outputSet)
+        self._defineSourceRelation(self.tiltseries, outputSet)
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):

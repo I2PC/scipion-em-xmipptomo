@@ -89,7 +89,6 @@ class XmippProtReconstructSubtomos(EMProtocol, ProtTomoBase):
             s_id += 1
 
 
-
     def writeParticleStackToMd(self, particlestack, fn):
 
         mtd = lib.MetaData()

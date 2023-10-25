@@ -32,11 +32,12 @@ from pyworkflow.object import Set
 import tomo.objects as tomoObj
 from pwem.emlib.image import ImageHandler
 from xmipptomo.protocols.protocol_crop_resize_base import XmippProtResizeBase
+from ..utils import writeMdTiltSeries
 
 
 class XmippProtResizeTiltSeries(XmippProtResizeBase):
     """
-    Wrapper protocol to Xmipp image resize applied on tilt-series
+    Protocol for resizing tilt series. They can be upsampled (increase the size )or downsampled (decrease the size)
     """
 
     _label = 'resize tilt-series'
@@ -44,7 +45,7 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
-        form.addSection(label='Input')
+        form.addSection(label='Input tilt series')
 
         form.addParam('inputSetOfTiltSeries',
                       PointerParam,
@@ -57,24 +58,26 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
     def _insertAllSteps(self):
 
         for ts in self.inputSetOfTiltSeries.get():
-            self._insertFunctionStep(self.resizeTiltSeries, ts.getObjId())
-            self._insertFunctionStep(self.createOutputStep, ts.getObjId())
+            objId = ts.getObjId()
+            self._insertFunctionStep(self.resizeTiltSeries, ts)
+            self._insertFunctionStep(self.createOutputStep, objId)
         self._insertFunctionStep('closeStreamStep')
 
     # --------------------------- STEP functions --------------------------------
-    def resizeTiltSeries(self, tsObjId):
-        ts = self.inputSetOfTiltSeries.get()[tsObjId]
-        tsId = ts.getTsId()
-        extraPrefix = self._getExtraPath(tsId)
+    def resizeTiltSeries(self, ts):
 
-        path.makePath(extraPrefix)
+        tsId = ts.getTsId()
+        pathTs = self._getExtraPath(tsId)
+        if not os.path.isdir(pathTs):
+            os.mkdir(pathTs)
 
         samplingRate = self.inputSetOfTiltSeries.get().getSamplingRate()
 
         args = self.resizeCommonArgsResize(self, samplingRate)
+        xmdTs = writeMdTiltSeries(ts, pathTs)
 
-        for ti in ts:
-            self.runJob("xmipp_image_resize", self._ioArgs(ti)+args)
+        self.runJob("xmipp_image_resize", self._ioArgs(xmdTs, pathTs) + args)
+
 
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
@@ -104,9 +107,6 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
 
             newTs.append(newTi)
 
-        ih = ImageHandler()
-        x, y, z, _ = ih.getDimensions(newTs.getFirstItem().getFileName())
-        newTs.setDim((x, y, z))
         newTs.write(properties=False)
 
         outputSetOfTiltSeries.update(newTs)
@@ -125,18 +125,8 @@ class XmippProtResizeTiltSeries(XmippProtResizeBase):
         """ Get the X dimension of the tilt-series from the set """
         return self.inputSetOfTiltSeries.get().getDim()[0]
 
-    def _ioArgs(self, ti):
-        tsId = ti.getTsId()
-
-        extraPrefix = self._getExtraPath(tsId)
-
-        tiIndex = ti.getLocation()[0]
-        tsPath = os.path.join(extraPrefix, ti.parseFileName())
-
-        inputTs = str(tiIndex) + ":mrcs@" + ti.getFileName()
-        outputTs = str(tiIndex) + "@" + tsPath
-
-        return "-i %s -o %s " % (inputTs, outputTs)
+    def _ioArgs(self, xmdFn, outputPath):
+        return "-i %s --oroot %s " % (xmdFn, outputPath)
 
 
     def getOutputSetOfTiltSeries(self):
