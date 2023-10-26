@@ -62,18 +62,18 @@ class TestXmipptomoProtCCtoROI(BaseTest):
         self.assertIsNotNone(protImportCoordinates3d.outputCoordinates,
                              "There was a problem with coordinates 3d output")
 
-        protImportCoordinates3d_2 = self.newProtocol(ProtImportCoordinates3D,
-                                                     filesPath=self.coords3D,
-                                                     importTomograms=protImportTomogram.Tomograms,
-                                                     boxSize=32,
-                                                     samplingRate=5)
-        self.launchProtocol(protImportCoordinates3d_2)
-        self.assertIsNotNone(protImportCoordinates3d_2.outputCoordinates,
+        protImportCoordinates3dBis = self.newProtocol(ProtImportCoordinates3D,
+                                                      filesPath=self.coords3D,
+                                                      importTomograms=protImportTomogram.Tomograms,
+                                                      boxSize=32,
+                                                      samplingRate=5)
+        self.launchProtocol(protImportCoordinates3dBis)
+        self.assertIsNotNone(protImportCoordinates3dBis.outputCoordinates,
                              "There was a problem with coordinates 3d output 2")
 
         protJoinCoordinates = self.newProtocol(ProtUnionSet,
                                                inputSets=[protImportCoordinates3d.outputCoordinates,
-                                                          protImportCoordinates3d_2.outputCoordinates])
+                                                          protImportCoordinates3dBis.outputCoordinates])
         self.launchProtocol(protJoinCoordinates)
         self.assertIsNotNone(protJoinCoordinates.outputSet,
                              "There was a problem with join coordinates output")
