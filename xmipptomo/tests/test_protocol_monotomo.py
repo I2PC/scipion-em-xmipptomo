@@ -65,16 +65,16 @@ class TestMonoTomo(TestMonoTomoBase):
                                     maxRes=150,
                                     )
         self.launchProtocol(MonoTomo)
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_1/fullTomogram_1.mrc')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/fullTomogram_1.mrc')),
                         "MonoTomo has failed creating the resolution tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_1/histogram_resolution_1.xmd')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/histogram_resolution_1.xmd')),
                         "MonoTomo has failed creating the resolution histogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_1/localResolutionTomogram_1.mrc')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/localResolutionTomogram_1.mrc')),
                         "MonoTomo has failed creating the mean tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_2/fullTomogram_2.mrc')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/fullTomogram_2.mrc')),
                         "MonoTomo has failed creating the resolution tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_2/histogram_resolution_2.xmd')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/histogram_resolution_2.xmd')),
                         "MonoTomo has failed creating the resolution histogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('tomo_2/localResolutionTomogram_2.mrc')),
+        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/localResolutionTomogram_2.mrc')),
                         "MonoTomo has failed creating the mean tomogram")
 
