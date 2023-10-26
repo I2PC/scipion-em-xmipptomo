@@ -131,12 +131,33 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         label = 'Input coordinates',
                         help = 'Select the set of 3D coordinates that represent the subtomograms to be used as input data.'  
         )
+        form.addParam('neededNumberOfPickers', params.IntParam, default=2,
+                        label="Input positive consensus",
+                        help='Amount of input pickers choosing a coordinate needed '
+                        'to deem a coordinate as a positive input for the NN.'
+        )
         form.addParam('classThreshold', params.FloatParam, default=0.7,
-                label = 'Quality threshold',
+                label = 'Output quality threshold',
                 help='Choose a number in the continuous (0,1] to adjust '
                 'the threshold used internally to determine if the '
                 'input is classified as a _particle_ or as bad _noise_'
                 '. When set to -1 all particles are outputted.'
+        )
+        form.addParam('coordConsensusRadius', params.FloatParam, default=0.5,
+                        label="Same-element relative radius",
+                        expertLevel=LEVEL_ADVANCED,
+                        validators=[params.Positive],
+                        help='Two sets of coordinates are determined to be of '
+                        'the same particle if they are within this radius. The'
+                        ' radius is given in [fraction of particle size] units.'
+        )
+        form.addParam('noiseThreshold', params.FloatParam, default=1.0,
+                      expertLevel=LEVEL_ADVANCED,
+                      label='Noise picking evasion radius',
+                      help='Controls the radius (0..1] relative to the box '
+                      'size that the noise picking algorithm will use. This '
+                      'means that noise must be at radius*boxsize distance '
+                      'to be tagged as bad noise and used as such.'
         )
 
         # Additional data
@@ -166,20 +187,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         )
 
 
-        form.addSection(label='Preprocess')
-        group_coords = form.addGroup('Coordinate consensus')
-        group_coords.addParam('neededNumberOfPickers', params.IntParam, default=2,
-                        label="Positive threshold",
-                        help='Amount of input pickers choosing a coordinate needed '
-                        'to deem a coordinate as a positive input during consensus.'
-        )
-        group_coords.addParam('coordConsensusRadius', params.FloatParam, default=0.5,
-                        label="Same-element relative radius",
-                        validators=[params.Positive],
-                        help='Two sets of coordinates are determined to be of '
-                        'the same particle if they are within this radius. The'
-                        ' radius is given in [fraction of particle size] units.'
-        )
+        # form.addSection(label='Preprocess')        
         # group_coords.addParam('coordConsensusType', params.EnumParam, 
         #               choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
         #               default = self.COORD_CONS_FIRST,
@@ -202,20 +210,14 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         #               % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
         # )
 
-        group_noise = form.addGroup('Noise picking algorithm')
+        # group_noise = form.addGroup('Noise picking algorithm')
         # group_noise.addParam('fracNoise', params.FloatParam, default=0.9,
         #               label="Amount of noise picked for negative input",
         #               help='Controls how much noise is picked and given '
         #               'to the NN as negative input during training. It is'
         #               ' expressed in [0..1] - fraction of the positive amount'
         #               ' of coordinates found on input')
-        group_noise.addParam('noiseThreshold', params.FloatParam, default=0.6,
-                      label='Noise picking evasion radius',
-                      help='Controls the radius (0..1] relative to the box '
-                      'size that the noise picking algorithm will use. This '
-                      'means that noise must be at radius*boxsize distance '
-                      'to be tagged as bad noise and used as such.'
-        )
+        
         
         form.addSection(label='Training')
         form.addParam('modelInitialization', params.EnumParam,
