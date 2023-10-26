@@ -64,5 +64,8 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         self.assertIsNotNone(subtraction.outputSubtomograms,
                              "There was a problem with subtracted subtomograms output")
         self.assertSetSize(subtraction.outputSubtomograms, 10, "There was a problem with particles output")
-        self.assertTrue(subtraction.outputSubtomograms.getSamplingRate() == 1.0)
+
+        srTol = 0.01
+        srDiff = abs(subtraction.outputSubtomograms.getSamplingRate() - 1.0)
+        self.assertTrue(srDiff < srTol)
         self.assertTrue(subtraction.outputSubtomograms.getFirstItem().getDim() == (40, 40, 40))
