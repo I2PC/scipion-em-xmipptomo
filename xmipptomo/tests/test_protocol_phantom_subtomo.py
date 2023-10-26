@@ -24,6 +24,7 @@
 # *
 # **************************************************************************
 
+from pwem.protocols import ProtImportPdb
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from xmipp3.protocols import XmippProtConvertPdb
 
@@ -39,13 +40,16 @@ class TestXmippSubtomoPhantom(BaseTest):
         cls.pdb = cls.dataset.getFile('pdb')
         setupTestProject(cls)
 
+        pdbid = "3j3i"
+        cls.protImport = cls._importAtomicModel(ProtImportPdb, pdbid)
+
         setSize = True
         sizeX = 128
         sizeY = 128
         sizeZ = 128
-        pdbid = "3j3i"
+        pdbObj = cls.protImport.outputPdb
         sampling = 1
-        cls.protConvert = cls._runVolumeFromPDB(XmippProtConvertPdb, pdbid, sampling, setSize, sizeZ, sizeY, sizeX)
+        cls.protConvert = cls._runVolumeFromPDB(XmippProtConvertPdb, pdbObj, sampling, setSize, sizeZ, sizeY, sizeX)
 
 
         inputVolume = cls.protConvert.outputVolume
@@ -87,10 +91,17 @@ class TestXmippSubtomoPhantom(BaseTest):
                                 applyShift, xmin, xmax, ymin, ymax, zmin, zmax, coords, addNoise, differentStatistics, minstd, maxStd)
 
     @classmethod
-    def _runVolumeFromPDB(cls, protocolName, pdbid, sampling, setSize, size_z, size_y, size_x):
+    def _importAtomicModel(cls, protocolName, pdbid):
 
+        print("Import an atomic model from database")
+        cls.protImport = cls.newProtocol(protocolName, pdbId=pdbid)
+        cls.launchProtocol(cls.protImport)
+        return cls.protImport
+
+    @classmethod
+    def _runVolumeFromPDB(cls, protocolName, pdbid, sampling, setSize, size_z, size_y, size_x):
         print("Run convert a pdb from database")
-        cls.protConvert = cls.newProtocol(protocolName, pdbId=pdbid, sampling=sampling, setSize=setSize,
+        cls.protConvert = cls.newProtocol(protocolName, pdbObj=pdbid, sampling=sampling, setSize=setSize,
                                        size_z=size_z, size_y=size_y, size_x=size_x)
         cls.launchProtocol(cls.protConvert)
         return cls.protConvert
