@@ -39,6 +39,9 @@ class TestXmipptomoProtProjectZ(BaseTest):
     """This class check if the protocol project top works properly."""
 
     importProt = None
+    errorMsg = "There was a problem with particles output"
+
+
 
     @classmethod
     def setUpClass(cls):
@@ -62,7 +65,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 input=protImport.outputSubTomograms)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, self.errorMsg)
         return proj
 
     def _createProjY(self):
@@ -73,7 +76,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
         self.launchProtocol(proj)
 
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, self.errorMsg)
         return proj
 
     def _createProjZ_range(self):
@@ -84,7 +87,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 cropParam=20)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, self.errorMsg)
         return proj
 
     def _createRadAvgZ(self):
@@ -94,7 +97,7 @@ class TestXmipptomoProtProjectZ(BaseTest):
                                 radAvg=True)
         self.launchProtocol(proj)
         output = getattr(proj, SubtomoProjectOutput.particles.name)
-        self.assertSetSize(output, 4, "There was a problem with particles output")
+        self.assertSetSize(output, 4, self.errorMsg)
         return proj
 
     def test_top(self):
