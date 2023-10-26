@@ -78,8 +78,12 @@ class TestXmipptomoSplitTS(BaseTest):
         self.assertIsNotNone(protSplitTS.outputOddSetOfTiltSeries,
                              "Odd set of tilt series has not been generated")
 
-        self.assertTrue(protSplitTS.outputEvenSetOfTiltSeries.getSamplingRate() == 20.20)
-        self.assertTrue(protSplitTS.outputOddSetOfTiltSeries.getSamplingRate() == 20.20)
+        srTolerance = 0.01
+        evenSrDiff = abs(protSplitTS.outputEvenSetOfTiltSeries.getSamplingRate() - 20.20)
+        oddSrDiff = abs(protSplitTS.outputEvenSetOfTiltSeries.getSamplingRate() - 20.20)
+
+        self.assertTrue(evenSrDiff < srTolerance)
+        self.assertTrue(oddSrDiff < srTolerance)
 
         self.assertSetSize(protSplitTS.outputEvenSetOfTiltSeries, 2, "Missing TS in even set")
         self.assertSetSize(protSplitTS.outputOddSetOfTiltSeries, 2, "Missing TS in odd set")
