@@ -158,12 +158,12 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                         newCoord.outlierScore = Float(scoreCoordOutlier)
                         outSet.append(newCoord)
                 elif not self.outliers.get() and self.carbon.get():
-                    if self.carbonThreshold.get() <= scoreCoordCarbon:
+                    if scoreCoordCarbon <= self.carbonThreshold.get():
                         newCoord.carbonScore = Float(scoreCoordCarbon)
                         outSet.append(newCoord)
                 elif self.outliers.get() and self.carbon.get():
                     if self.outliersThreshold.get() >= scoreCoordOutlier and \
-                       self.carbonThreshold.get() <= scoreCoordCarbon:
+                       scoreCoordCarbon <= self.carbonThreshold.get():
                         newCoord.outlierScore = Float(scoreCoordOutlier)
                         newCoord.carbonScore = Float(scoreCoordCarbon)
                         outSet.append(newCoord)
