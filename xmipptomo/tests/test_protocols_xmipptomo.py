@@ -286,7 +286,7 @@ class XmippTomoScoreCoordinates(BaseTest):
                                                    filesPath=self.dataset.getPath(),
                                                    importTomograms=protImportTomogram.Tomograms,
                                                    filesPattern='*.txt', boxSize=32,
-                                                   samplingRate=5)
+                                                   samplingRate=2)
         self.launchProtocol(protImportCoordinates3d)
         output = getattr(protImportCoordinates3d, 'outputCoordinates', None)
         self.assertIsNotNone(output,
@@ -322,7 +322,7 @@ class XmippTomoScoreCoordinates(BaseTest):
         #                 "There was a problem with score coordinates output")
         self.assertTrue(filteredCoords.getSize() == 5)
         self.assertTrue(filteredCoords.getBoxSize() == 32)
-        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+        self.assertTrue(filteredCoords.getSamplingRate() == 2)
 
         # Test Outlier based filtering
         filteredCoords = self._createProtScoreOutliers(protCoords)
@@ -330,7 +330,7 @@ class XmippTomoScoreCoordinates(BaseTest):
         #                 "There was a problem with score coordinates output")
         self.assertTrue(filteredCoords.getSize() == 0)
         self.assertTrue(filteredCoords.getBoxSize() == 32)
-        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+        self.assertTrue(filteredCoords.getSamplingRate() == 2)
 
 
 class TestXmipptomoHalfMaps(BaseTest):
