@@ -49,17 +49,17 @@ class TestXmipptomoHalfMaps(BaseTest):
         return phantom
 
     def _half_maps(self, subtomos):
-        half_maps = self.newProtocol(XmippProtHalfMapsSubtomo, inputSubtomograms=subtomos)
-        self.launchProtocol(half_maps)
-        self.assertIsNotNone(half_maps.halfMaps,
+        halfMaps = self.newProtocol(XmippProtHalfMapsSubtomo, inputSubtomograms=subtomos)
+        self.launchProtocol(halfMaps)
+        self.assertIsNotNone(halfMaps.halfMaps,
                              "There was a problem with half maps output")
-        return half_maps
+        return halfMaps
 
     def test_half_maps(self):
         phantom = self._phantom()
-        half_maps = self._half_maps(phantom.outputSubtomograms)
-        map_even = np.squeeze(ImageHandler().read(half_maps.halfMaps[1].getFileName()).getData())
-        map_odd = np.squeeze(ImageHandler().read(half_maps.halfMaps[2].getFileName()).getData())
-        error = np.sqrt(np.sum((map_even - map_odd) ** 2) / map_even.size)
+        halfMaps = self._half_maps(phantom.outputSubtomograms)
+        mapEven = np.squeeze(ImageHandler().read(halfMaps.halfMaps[1].getFileName()).getData())
+        mapOdd = np.squeeze(ImageHandler().read(halfMaps.halfMaps[2].getFileName()).getData())
+        error = np.sqrt(np.sum((mapEven - mapOdd) ** 2) / mapEven.size)
         self.assertAlmostEqual(error, 0.0, delta=0.1, msg="Unexpected half maps")
-        return half_maps
+        return halfMaps
