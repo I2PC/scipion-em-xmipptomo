@@ -64,7 +64,7 @@ class TestXmipptomoMapback(BaseTest):
         return protImportTomogram, protPhantom
 
     def test_mapback(self):
-        protImportTomogram, protPhantom = self._runPreviousProtocols()
+        _, protPhantom = self._runPreviousProtocols()
         mapback = self.newProtocol(XmippProtSubtomoMapBack,
                                    selection=1,
                                    inputSubtomos=protPhantom.outputSubtomograms,
