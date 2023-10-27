@@ -30,10 +30,12 @@ from pyworkflow import BETA
 from pyworkflow.protocol import (IntParam, PointerParam, LEVEL_ADVANCED, BooleanParam, StringParam, FloatParam)
 from pyworkflow.utils import Environ
 from xmipp3 import Plugin
+from pwem.protocols import EMProtocol
+from tomo.protocols import ProtTomoBase
 from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
 
-class XmippProtCLTomo(ProtClassify3D):
+class XmippProtCLTomo(EMProtocol, ProtTomoBase):
     """ Averages a set of subtomograms taking into account the missing edge. """
 
     _label = 'cltomo'
@@ -134,7 +136,7 @@ class XmippProtCLTomo(ProtClassify3D):
         if levelFiles:
             levelFiles.sort()
             lastLevelFile = levelFiles[-1]
-            setOfClasses = self._createSetOfClassesVol()
+            setOfClasses = self._createSetOfClassesSubTomograms(self.inputVolumes.get())
             setOfClasses.setImages(self.inputVolumes.get())
             readSetOfClassesVol(setOfClasses, lastLevelFile)
             self._defineOutputs(outputClasses=setOfClasses)
