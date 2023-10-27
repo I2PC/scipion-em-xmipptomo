@@ -32,20 +32,22 @@ from pyworkflow.utils import Environ
 from xmipp3 import Plugin
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfSubTomograms
+from tomo.objects import SetOfSubTomograms, SetOfClassesSubTomograms
 from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
+OUTPUTATTRIBUTE ='SetOfClassesSubTomograms'
 
 class XmippProtCLTomo(EMProtocol, ProtTomoBase):
     """ Averages a set of subtomograms taking into account the missing edge. """
 
     _label = 'cltomo'
     _devStatus = BETA
+    _possibleOutputs = {OUTPUTATTRIBUTE: SetOfClassesSubTomograms}
 
     # --------------------------- DEFINE param functions --------------------------------------------
     def _defineParams(self, form):
         form.addSection(label='General parameters')
-        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfSubTomograms", label='Subtomograms',
+        form.addParam('inputVolumes', PointerParam, pointerClass=SetOfSubTomograms, label='Subtomograms',
                       help="Set of subtomograms to align")
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=3,
                       help="How many references are computed at the end of the process")
