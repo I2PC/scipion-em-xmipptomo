@@ -25,10 +25,9 @@
 # **************************************************************************
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.protocols.protocol_import_coordinates import IMPORT_FROM_EMAN
-from ..protocols import *
 import tomo.protocols
 
-from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo, OUTPUTATTRIBUTE
+from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo
 from xmipptomo.protocols.protocol_extract_subtomos import XmippProtExtractSubtomos
 
 ## Tomogram type constants for particle extraction
