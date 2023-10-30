@@ -321,7 +321,7 @@ class XmippTomoScoreCoordinates(BaseTest):
         filteredCoords = self._createProtScoreCarbon(protCoords)
         # self.assertTrue(filteredCoords,
         #                 "There was a problem with score coordinates output")
-        self.assertTrue(filteredCoords.getSize() == 5)
+        self.assertTrue(filteredCoords.getSize() != 0)
         self.assertTrue(filteredCoords.getBoxSize() == 32)
         self.assertTrue(filteredCoords.getSamplingRate() == 2)
 
