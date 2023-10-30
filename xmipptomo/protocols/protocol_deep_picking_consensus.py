@@ -646,6 +646,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             args += ' --outputAll ' + self._getConsCoordsFilename(tomoname)
             args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
             args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
+            args += ' --outputNeg ' + self._getNegCoordsFilename(tomoname)
             args += ' --boxsize ' + str(self.consBoxSize)
             args += ' --samplingrate ' + str(self.consSampRate)
             args += ' --radius ' + str(self.coordConsRadius)
@@ -655,7 +656,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
             if self.haveNegative:
                 args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
-                args += ' --outputNeg ' + self._getNegCoordsFilename(tomoname)
             args += ' --startingId ' + str(self.globalParticleId)
             print('\nHanding over to Xmipp program for coordinate consensus')
             self.runJob(program, args)
