@@ -49,7 +49,7 @@ from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_score_coordinates import XmippProtScoreCoordinates
-from .protocol_score_transform import XmippProtScoreTransform
+from .protocol_consensus_subtomo_align import XmippProtSubtomoAlignConsensus
 from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack

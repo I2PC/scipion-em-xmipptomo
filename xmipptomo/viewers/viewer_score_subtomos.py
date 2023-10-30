@@ -24,19 +24,19 @@
 # *
 # **************************************************************************
 from tomo.objects import SetOfSubTomograms
-from xmipptomo.protocols.protocol_score_transform import ScoreTransformOutputs
+from xmipptomo.protocols.protocol_consensus_subtomo_align import ScoreTransformOutputs
 from pyworkflow.viewer import Viewer
 
-from xmipptomo.protocols import XmippProtScoreTransform
+from xmipptomo.protocols import XmippProtSubtomoAlignConsensus
 from pwem.viewers.plotter import EmPlotter, plt
 
 
 class XmippTomoScoreSubtomoViewer(Viewer):
     """ Visualize the output of protocol reconstruct swarm """
     _label = 'Score transformation viewer'
-    _targets = [XmippProtScoreTransform]
+    _targets = [XmippProtSubtomoAlignConsensus]
 
-    def _visualize(self, scoreProtocol: XmippProtScoreTransform, **kwargs):
+    def _visualize(self, scoreProtocol: XmippProtSubtomoAlignConsensus, **kwargs):
         # Keep input object in case we need to launch
         # a new protocol and set dependencies
 
@@ -53,7 +53,7 @@ class XmippTomoScoreSubtomoViewer(Viewer):
 
         plotter = EmPlotter(x=1, y=1, windowTitle='Angular distribution')
 
-        plotter.plotAngularDistributionFromSet(subtomos, "Angular distribution", weightAttr=XmippProtScoreTransform.SCORE_ATTR)
+        plotter.plotAngularDistributionFromSet(subtomos, "Angular distribution", weightAttr=XmippProtSubtomoAlignConsensus.SCORE_ATTR)
 
         return plotter
 
@@ -62,9 +62,9 @@ class XmippTomoScoreSubtomoViewer(Viewer):
         plotter = EmPlotter(x=1, y=1, windowTitle='Angular distance histogram')
 
 
-        results = subtomos.getUniqueValues(["id", XmippProtScoreTransform.SCORE_ATTR])
+        results = subtomos.getUniqueValues(["id", XmippProtSubtomoAlignConsensus.SCORE_ATTR])
 
-        scores = results[XmippProtScoreTransform.SCORE_ATTR]
+        scores = results[XmippProtSubtomoAlignConsensus.SCORE_ATTR]
 
         plotter.createSubPlot("Angular distance histogram", "angle", "count")
 

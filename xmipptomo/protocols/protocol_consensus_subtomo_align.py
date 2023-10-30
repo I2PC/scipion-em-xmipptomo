@@ -44,7 +44,7 @@ class ScoreTransformOutputs(enum.Enum):
     Subtomograms = SetOfSubTomograms
 
 
-class XmippProtScoreTransform(ProtTomoPicking):
+class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
     """Protocol to score a series of alignments stored in a SetOfSubtomograms by
     quaternion distance analysis.
 
