@@ -86,24 +86,22 @@ class XmippProtScoreTransform(ProtTomoPicking):
     def scoreTransformStep(self):
         # Extract Transformation Matrices from input SubTomograms
         # first_matrices, second_matrices = self.getMatricesFromCommonItems()
-        first_matrices, second_matrices = self.getTransformMatrices()
+        commonSet1, commonSet2 = self.getMatchingCoordsFromSubtomos()
+        first_matrices, second_matrices = self.getTransformMatrices(commonSet1, commonSet2)
 
         # Convert Trasnformation Matrices to Quaternions
-        aux = list(zip(*first_matrices))
-        first_quaternions = list(zip(aux[0], listQuaternions(aux[1])))
-        aux = list(zip(*second_matrices))
-        second_quaternions = list(zip(aux[0], listQuaternions(aux[1])))
+        first_quaternions = listQuaternions(first_matrices)
+        second_quaternions = listQuaternions(second_matrices)
 
-        # Compute distance matrix from quaternions
-        dist = [(t1[0], min(quaternion_distance(t1[1], t2[1]), quaternion_distance(t1[1], -t2[1])))
-                for t1, t2 in zip(first_quaternions, second_quaternions)
-                if t1[0] == t2[0]]
+        # Compute distance matrix from quaternions --> dict {subtomo: min_quaternion_distance}
+        distDict = {subtomo: min(quaternion_distance(t1, t2), quaternion_distance(t1, -t2))
+                    for subtomo, t1, t2 in zip(commonSet1, first_quaternions, second_quaternions)}
 
         # Crete the output here. Continuation is not possible since "dist" is needed.
-        self.createOutput(dist)
+        self.createOutput(distDict)
 
         # Save summary to use it in the protocol Info
-        only_distances = np.asarray(list(zip(*dist))[1])
+        only_distances = list(distDict.values())
         mean_dist = np.mean(only_distances)
         std_dist = np.std(only_distances)
         percentage_outliers = np.sum(only_distances > mean_dist + 3 * std_dist) \
@@ -114,28 +112,33 @@ class XmippProtScoreTransform(ProtTomoPicking):
         self._percentage_outliers = Float(percentage_outliers)
         self._store()
 
-    def createOutput(self, distanceScores):
+    def createOutput(self, distanceScoresDict):
 
         outSubtomos = SetOfSubTomograms.create(self._getPath(), template='submograms%s.sqlite')
         outSubtomos.copyInfo(self.second_subtomos)
-        self.scoresIndex = 0
-
-        def addScoreToSubtomogram(subtomo, row):
-
-            try:
-
-                score = distanceScores[self.scoresIndex][1]
-                distance = math.degrees(score)
-
-            except Exception as e:
-                self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
-                distance = -181
-
+        for subtomo, distance in distanceScoresDict.items():
             setattr(subtomo, self.SCORE_ATTR, Float(distance))
+            outSubtomos.append(subtomo)
 
-            self.scoresIndex += 1
 
-        outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
+        # self.scoresIndex = 0
+        #
+        # def addScoreToSubtomogram(subtomo, row):
+        #
+        #     try:
+        #
+        #         score = distanceScores[self.scoresIndex][1]
+        #         distance = math.degrees(score)
+        #
+        #     except Exception as e:
+        #         self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
+        #         distance = -181
+        #
+        #     setattr(subtomo, self.SCORE_ATTR, Float(distance))
+        #
+        #     self.scoresIndex += 1
+        #
+        # outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
 
         self._defineOutputs(**{ScoreTransformOutputs.Subtomograms.name: outSubtomos})
         self._defineSourceRelation(self.firstSubtomos, outSubtomos)
@@ -159,8 +162,10 @@ class XmippProtScoreTransform(ProtTomoPicking):
         return tr1, tr2
 
     def getMatchingCoordsFromSubtomos(self, minDistance=1):
-        coordDictList1 = {part.clone(): coord.getPosition(SCIPION) for part, coord in zip(self.first_subtomos, self.first_subtomos.getCoordinates3D())}
-        coordDictList2 = {part.clone(): coord.getPosition(SCIPION) for part, coord in zip(self.second_subtomos, self.second_subtomos.getCoordinates3D())}
+        coordDictList1 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
+                          zip(self.first_subtomos, self.first_subtomos.getCoordinates3D())}
+        coordDictList2 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
+                          zip(self.second_subtomos, self.second_subtomos.getCoordinates3D())}
         coordList1 = np.array(list(coordDictList1.values()))
         coordList2 = np.array(list(coordDictList2.values()))
         numel1 = len(coordList1)
@@ -190,8 +195,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
         finalList2 = [subtomos2[ind] for ind in finalIndices2[0]]
         return finalList1, finalList2
 
-    def getTransformMatrices(self):
-        subtomos1, subtomos2 = self.getMatchingCoordsFromSubtomos()
+    def getTransformMatrices(self, subtomos1, subtomos2):
         transforms1 = []
         transforms2 = []
         for part1, part2 in zip(subtomos1, subtomos2):
@@ -199,7 +203,6 @@ class XmippProtScoreTransform(ProtTomoPicking):
             transforms2.append(part2.getTransform().getMatrix())
 
         return transforms1, transforms2
-
 
     # --------------------------- INFO functions ---------------------------
     def _summary(self):
