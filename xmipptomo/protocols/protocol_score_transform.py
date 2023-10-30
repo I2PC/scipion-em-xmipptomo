@@ -117,7 +117,7 @@ class XmippProtScoreTransform(ProtTomoPicking):
         outSubtomos = SetOfSubTomograms.create(self._getPath(), template='submograms%s.sqlite')
         outSubtomos.copyInfo(self.second_subtomos)
         for subtomo, distance in distanceScoresDict.items():
-            setattr(subtomo, self.SCORE_ATTR, Float(distance))
+            setattr(subtomo, self.SCORE_ATTR, Float(math.degrees(distance)))
             outSubtomos.append(subtomo)
 
 
@@ -171,7 +171,6 @@ class XmippProtScoreTransform(ProtTomoPicking):
         numel1 = len(coordList1)
         numel2 = len(coordList2)
         if numel1 == numel2 or numel1 < numel2:
-
             distances = cdist(coordList1, coordList2)
         else:
             distances = cdist(coordList2, coordList1)
