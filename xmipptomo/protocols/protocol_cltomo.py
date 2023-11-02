@@ -30,41 +30,46 @@ from pyworkflow import BETA
 from pyworkflow.protocol import (IntParam, PointerParam, LEVEL_ADVANCED, BooleanParam, StringParam, FloatParam)
 from pyworkflow.utils import Environ
 from xmipp3 import Plugin
+from pwem.protocols import EMProtocol
+from tomo.protocols import ProtTomoBase
+from tomo.objects import SetOfSubTomograms, SetOfClassesSubTomograms
 from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
+OUTPUTATTRIBUTE ='SetOfClassesSubTomograms'
 
-class XmippProtCLTomo(ProtClassify3D):
+class XmippProtCLTomo(EMProtocol, ProtTomoBase):
     """ Averages a set of subtomograms taking into account the missing edge. """
 
     _label = 'cltomo'
     _devStatus = BETA
+    _possibleOutputs = {OUTPUTATTRIBUTE: SetOfClassesSubTomograms}
 
     # --------------------------- DEFINE param functions --------------------------------------------
     def _defineParams(self, form):
         form.addSection(label='General parameters')
-        form.addParam('inputVolumes', PointerParam, pointerClass="SetOfVolumes", label='Set of volumes',
-                      help="Set of volumes to align")
+        form.addParam('inputVolumes', PointerParam, pointerClass=SetOfSubTomograms, label='Subtomograms',
+                      help="Set of subtomograms to align")
         form.addParam('numberOfReferences', IntParam, label='Number of references', default=3,
                       help="How many references are computed at the end of the process")
         form.addParam('numberOfIterations', IntParam, label='Number of iterations', default=15,
                       expertLevel=LEVEL_ADVANCED, help="How many iterations at each of the Clustering levels")
-        form.addParam('generateAligned', BooleanParam, default=True, label='Generate aligned subvolumes',
+        form.addParam('generateAligned', BooleanParam, default=True, label='Generate aligned subtomograms',
                       help="If set to true, it will be created a new set of volumes with all of them aligned")
         form.addParam('align', BooleanParam, default=True, label="Align",
-                      help="Do not align if volumes are already aligned, only classify")
+                      help="Do not align if subtomograms are already aligned, only classify")
 
         form.addSection(label='Initial references')
         form.addParam('doGenerateInitial', BooleanParam, default=True, label='Generate initial volume',
                       help="Let CLTomo to automatically generate the initial references")
         form.addParam('numberOfReferences0', IntParam, label='Number of initial references', default=1,
                       condition="doGenerateInitial",
-                      help="How many initial volumes. If set to 1, all subvolumes are aligned to a single reference, " \
+                      help="How many initial subtomograms. If set to 1, all subtomograms are aligned to a single reference, " \
                            "and then they are classified")
         form.addParam('randomizeOrientation', BooleanParam, default=False, label='Randomize orientation',
                       condition="doGenerateInitial",
-                      help="Use this option if all the input volumes have the same missing wedge or if they have not been previously aligned.")
-        form.addParam('referenceList', PointerParam, pointerClass="SetOfVolumes", label='Set of initial volumes',
-                      condition="not doGenerateInitial", help="Set of initial volumes")
+                      help="Use this option if all the input subtomograms have the same missing wedge or if they have not been previously aligned.")
+        form.addParam('referenceList', PointerParam, pointerClass="SetOfVolumes", label='Set of initial subtomograms',
+                      condition="not doGenerateInitial", help="Set of initial subtomograms")
 
         form.addSection(label='Constraints')
         form.addParam('symmetry', StringParam, default='c1', label='Symmetry group',
@@ -134,7 +139,7 @@ class XmippProtCLTomo(ProtClassify3D):
         if levelFiles:
             levelFiles.sort()
             lastLevelFile = levelFiles[-1]
-            setOfClasses = self._createSetOfClassesVol()
+            setOfClasses = self._createSetOfClassesSubTomograms(self.inputVolumes.get())
             setOfClasses.setImages(self.inputVolumes.get())
             readSetOfClassesVol(setOfClasses, lastLevelFile)
             self._defineOutputs(outputClasses=setOfClasses)
@@ -154,9 +159,9 @@ class XmippProtCLTomo(ProtClassify3D):
         if self.doGenerateInitial.get():
             messages.append('Number of initial references: %d' % self.numberOfReferences0.get())
             if self.randomizeOrientation.get():
-                messages.append('Input subvolume orientations were randomized')
+                messages.append('Input subtomograms orientations were randomized')
         if not self.align:
-            messages.append('Input subvolumes were assumed to be already aligned')
+            messages.append('Input subtomograms were assumed to be already aligned')
         messages.append('Number of output references: %d' % self.numberOfReferences.get())
         return messages
 
@@ -164,7 +169,7 @@ class XmippProtCLTomo(ProtClassify3D):
         errors = []
         (Xdim1, Ydim1, Zdim1) = self.inputVolumes.get().getDimensions()
         if Xdim1 != Ydim1 or Ydim1 != Zdim1:
-            errors.append("Input subvolumes are not cubic")
+            errors.append("Input subtomograms are not cubic")
         N0 = -1
         if not self.doGenerateInitial.get():
             if not self.referenceList.hasValue():
@@ -172,9 +177,9 @@ class XmippProtCLTomo(ProtClassify3D):
             else:
                 (Xdim2, Ydim2, Zdim2) = self.referenceList.get().getDimensions()
                 if Xdim2 != Ydim2 or Ydim2 != Zdim2:
-                    errors.append("Reference subvolumes are not cubic")
+                    errors.append("Reference subtomograms are not cubic")
                 if Xdim1 != Xdim2:
-                    errors.append("Input and reference subvolumes are of different size")
+                    errors.append("Input and reference subtomograms are of different size")
         else:
             N0 = self.numberOfReferences0.get()
         if N0 > 0 and N0 > self.numberOfReferences.get():

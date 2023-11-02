@@ -23,12 +23,10 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import exists, join, split
+
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from tomo.protocols import ProtImportTomograms
-from xmipptomo.protocols import XmippProtResizeTomograms, XmippProtResizeTiltSeries
-from xmipptomo.protocols.protocol_crop_resize_base import XmippProtResizeBase
-import os
+from xmipptomo.protocols import XmippProtResizeTomograms
 
 
 class TestReSizeBase(BaseTest):
@@ -49,6 +47,8 @@ class TestReSizeBase(BaseTest):
 
 
 class TestReSizeTomograms(TestReSizeBase):
+    _objLabel = 'Resize tomos'
+
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
@@ -56,44 +56,40 @@ class TestReSizeTomograms(TestReSizeBase):
         cls.protImportTomos = cls.runImportTomograms(cls.tomos, 16.14)
 
     def testReSizeTomogramsSamplingRate(self):
-        Rrb = XmippProtResizeTomograms()
+        protResizeTomos = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
-                                    objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.Tomograms,
-                                    resizeOption = Rrb.RESIZE_SAMPLINGRATE,
-                                    resizeSamplingRate = 32.28)
+                                  objLabel=self._objLabel,
+                                  inputSet=self.protImportTomos.Tomograms,
+                                  resizeOption=protResizeTomos.RESIZE_SAMPLINGRATE,
+                                  resizeSamplingRate=32.28)
         self.launchProtocol(reSize)
         self.assertTrue(reSize)
         self.assertSetSize(reSize.outputSetOfTomograms, 2,
                            "resize has failed in the samplingrate option probably related with the use "
                            "of a SetOfTomograms (processing the second tomogram)")
 
-
     def testReSizeTomogramsFactor(self):
-        Rrb = XmippProtResizeTomograms()
+        protResizeTomos = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
-                                    objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.Tomograms,
-                                    resizeOption = Rrb.RESIZE_FACTOR,
-                                    resizeFactor = 0.5)
+                                  objLabel=self._objLabel,
+                                  inputSet=self.protImportTomos.Tomograms,
+                                  resizeOption=protResizeTomos.RESIZE_FACTOR,
+                                  resizeFactor=0.5)
         self.launchProtocol(reSize)
         self.assertTrue(reSize)
         self.assertSetSize(reSize.outputSetOfTomograms, 2,
                            "resize has failed in the Factor option probably related with the use "
                            "of a SetOfTomograms (processing the second tomogram)")
 
-
     def testReSizeTomogramsPiramid(self):
-        Rrb = XmippProtResizeTomograms()
+        protResizeTomos = XmippProtResizeTomograms()
         reSize = self.newProtocol(XmippProtResizeTomograms,
-                                    objLabel='Resize tomos',
-                                    inputSet=self.protImportTomos.Tomograms,
-                                    resizeOption = Rrb.RESIZE_PYRAMID,
-                                    resizeLevel = 0)
+                                  objLabel=self._objLabel,
+                                  inputSet=self.protImportTomos.Tomograms,
+                                  resizeOption=protResizeTomos.RESIZE_PYRAMID,
+                                  resizeLevel=0)
         self.launchProtocol(reSize)
         self.assertTrue(reSize)
         self.assertSetSize(reSize.outputSetOfTomograms, 2,
                            "Resize has failed in the pyramid option probably related with the use "
                            "of a SetOfTomograms (processing the second tomogram)")
-
-
