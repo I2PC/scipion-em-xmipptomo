@@ -124,7 +124,7 @@ class XmippTomoScoreCoordinates(BaseTest):
         #                 "There was a problem with score coordinates output")
         self.assertTrue(filteredCoords.getSize() < 16)
         self.assertTrue(filteredCoords.getBoxSize() == 64)
-        self.assertTrue(filteredCoords.getSamplingRate() == 2.0 * 6.87)
+        self.assertAlmostEqual(filteredCoords.getSamplingRate(), 2.0 * 6.87, delta=0.01)
 
         # Test Outlier based filtering
         filteredCoords = self._createProtScoreOutliers(protCoords)
@@ -132,7 +132,7 @@ class XmippTomoScoreCoordinates(BaseTest):
         #                 "There was a problem with score coordinates output")
         self.assertTrue(filteredCoords.getSize() == 11)
         self.assertTrue(filteredCoords.getBoxSize() == 64)
-        self.assertTrue(filteredCoords.getSamplingRate() == 2.0 * 6.87)
+        self.assertAlmostEqual(filteredCoords.getSamplingRate(), 2.0 * 6.87, delta=0.01)
 
 # class TestXmippTomoScoreTransform(BaseTest):
 #     """This class check if the protocol score_transform works properly."""
