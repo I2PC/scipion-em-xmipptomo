@@ -55,6 +55,14 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
 
     def _defineParams(self, form):
         form.addSection(label='Input')
+        form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
+                       label="Use GPU for execution",
+                       help="This protocol has both CPU and GPU implementation.\
+                                     Select the one you want to use.")
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="Add a list of GPU devices that can be used")
         form.addParam('inputCoordinates', params.PointerParam,
                       pointerClass='SetOfCoordinates3D',
                       label="Input 3D coordinates", important=True,
@@ -113,6 +121,7 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
             self.scoreOutliers[idn][1] = z_scores[idn]
 
     def detectCarbonCloseness(self, coordinates):
+        pwutils.makePath(self._getExtraPath('carbonMask'))
         self.scoreCarbon = []
         for tomoName in self.tomoNames:
             idt = self.tomo_vesicles[tomoName]["volId"]
@@ -123,9 +132,17 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
             tomo_md.write(inputTomoPathMetadataFname)
             coordList = self.generateCoordList(tomo, coordinates)
             self.writeTomoCoordinates(tomo, coordList, self._getTomoPos(projFile))
-            args = '-i %s -c %s -o %s -b %d' \
+            args = '-i %s -c %s -o %s -b %d --predictedMaskDir %s' \
                    % (inputTomoPathMetadataFname, self._getExtraPath('inputCoords'),
-                      self._getExtraPath('outputCoords'), coordinates.getBoxSize())
+                      self._getExtraPath('outputCoords'), coordinates.getBoxSize(),
+                      self._getExtraPath('carbonMask'))
+
+            if self.useGpu.get():
+                gpu_list = ','.join([str(elem) for elem in self.getGpuList()])
+                args += " -g %s" % gpu_list
+            else:
+                args += " -g -1"
+
             self.runJob('xmipp_deep_micrograph_cleaner', args, env=Plugin.getTensorFlowEnviron())
             baseName = pwutils.removeBaseExt(projFile)
             outFile = self._getExtraPath('outputCoords', baseName + ".pos")
@@ -158,12 +175,12 @@ class XmippProtScoreCoordinates(ProtTomoPicking):
                         newCoord.outlierScore = Float(scoreCoordOutlier)
                         outSet.append(newCoord)
                 elif not self.outliers.get() and self.carbon.get():
-                    if scoreCoordCarbon <= self.carbonThreshold.get():
+                    if scoreCoordCarbon >= self.carbonThreshold.get():
                         newCoord.carbonScore = Float(scoreCoordCarbon)
                         outSet.append(newCoord)
                 elif self.outliers.get() and self.carbon.get():
                     if self.outliersThreshold.get() >= scoreCoordOutlier and \
-                       scoreCoordCarbon <= self.carbonThreshold.get():
+                       scoreCoordCarbon >= self.carbonThreshold.get():
                         newCoord.outlierScore = Float(scoreCoordOutlier)
                         newCoord.carbonScore = Float(scoreCoordCarbon)
                         outSet.append(newCoord)
