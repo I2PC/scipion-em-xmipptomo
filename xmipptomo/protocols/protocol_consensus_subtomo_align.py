@@ -160,8 +160,8 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         maxDistThresholdPix = self.maxDistance.get() * sRate
         minDistances1 = indsAndDistances1[:, 1]
         minDistances2 = indsAndDistances2[:, 1]
-        finalIndices1 = np.where(minDistances1 >= minDistThresholdPix & minDistances1 <= maxDistThresholdPix)
-        finalIndices2 = np.where(minDistances2 >= minDistThresholdPix & minDistances2 <= maxDistThresholdPix)
+        finalIndices1 = minDistances1[(minDistances1 >= minDistThresholdPix) & (minDistances1 <= maxDistThresholdPix)]
+        finalIndices2 = minDistances2[(minDistances2 >= minDistThresholdPix) & (minDistances2 <= maxDistThresholdPix)]
 
         # Generate the final lists of coordinates objects
         subtomos1 = list(coordDictList1.keys())
