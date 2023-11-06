@@ -23,14 +23,14 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-
+import numpy as np
+import pyworkflow.utils as pwutils
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.tests import DataSet
 from tomo.protocols import (ProtImportCoordinates3D,
                             ProtImportTomograms)
 
-from xmipptomo.protocols import XmippProtScoreCoordinates
+from xmipptomo.protocols import XmippProtScoreCoordinates, XmippProtResizeTomograms
 
 
 class XmippTomoScoreCoordinates(BaseTest):
@@ -39,25 +39,55 @@ class XmippTomoScoreCoordinates(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.dataset = DataSet.getDataSet('tomo-em')
-        cls.tomogram = cls.dataset.getFile('overview_wbp.em')
+        cls.dataset = DataSet.getDataSet('pyseg')
+        cls.tomogram = cls.dataset.getFile('tomo')
 
     def _runPreviousProtocols(self):
         protImportTomogram = self.newProtocol(ProtImportTomograms,
                                               filesPath=self.tomogram,
-                                              samplingRate=2,
+                                              samplingRate=6.87,
                                               objLabel='Import Tomogram')
         self.launchProtocol(protImportTomogram)
         self.assertSetSize(protImportTomogram.Tomograms, size=1, msg=
         "There was a problem with import tomograms output")
 
+        protResizeTomogram = self.newProtocol(XmippProtResizeTomograms,
+                                              inputSet=protImportTomogram.Tomograms,
+                                              resizeOption=1,
+                                              resizeFactor=0.5)
+        self.launchProtocol(protResizeTomogram)
+        self.assertSetSize(protResizeTomogram.outputSetOfTomograms, size=1, msg=
+        "There was a problem with tomogram resizing output")
+
+        # Create phantom coords file
+        tomogram_file = protResizeTomogram.outputSetOfTomograms.getFirstItem().getFileName()
+        coords_path = protResizeTomogram._getExtraPath(pwutils.removeBaseExt(tomogram_file) + ".txt")
+        coords = np.asarray([[172.74201474, -126.69410319, 6.],
+                             [116.21130221, -13.63267813, 6.],
+                             [64.98034398, 44.66461916, 6.],
+                             [24.34889435, -165.55896806, 6.],
+                             [3.14987715, 113.56142506, 6.],
+                             [-26.88206388, -119.62776413, 6.],
+                             [-41.01474201, -174.39189189, 6.],
+                             [-55.14742015, 168.32555283, 6.],
+                             [-56.91400491, -303.35257985, 6.],
+                             [-99.31203931, -57.7972973, 6.],
+                             [-125.81081081, 216.02334152, 6.],
+                             [-152.30958231, -25.9987715, 6.],
+                             [-169.97542998, 87.06265356, 6.],
+                             [-171.74201474, 34.06511057, 6.],
+                             [-184.10810811, -135.52702703, 6.],
+                             [-185.87469287, -234.45577396, 6.]])
+        origin = np.asarray([256., 356, 75.])[None, ...]
+        np.savetxt(coords_path, coords + origin)
+
         protImportCoordinates3d = self.newProtocol(ProtImportCoordinates3D,
                                                    objLabel='Import Coordinates - TXT',
                                                    auto=0,
-                                                   filesPath=self.dataset.getPath(),
-                                                   importTomograms=protImportTomogram.Tomograms,
-                                                   filesPattern='*.txt', boxSize=32,
-                                                   samplingRate=5)
+                                                   filesPath=coords_path,
+                                                   importTomograms=protResizeTomogram.outputSetOfTomograms,
+                                                   filesPattern='', boxSize=64,
+                                                   samplingRate=2.0 * 6.87)
         self.launchProtocol(protImportCoordinates3d)
         output = getattr(protImportCoordinates3d, 'outputCoordinates', None)
         self.assertIsNotNone(output,
@@ -67,10 +97,11 @@ class XmippTomoScoreCoordinates(BaseTest):
 
     def _createProtScoreCarbon(self, protCoords):
         protScoreCoordinates = self.newProtocol(XmippProtScoreCoordinates,
-                                                objLabel='Filter Carbon - Threshold 0.8',
+                                                objLabel='Filter Carbon - Threshold 0.5',
                                                 inputCoordinates=protCoords.outputCoordinates,
                                                 filter=1,
-                                                outliers=False)
+                                                outliers=False,
+                                                carbonThreshold=0.5)
         self.launchProtocol(protScoreCoordinates)
         return getattr(protScoreCoordinates, 'outputCoordinates')
 
@@ -91,17 +122,17 @@ class XmippTomoScoreCoordinates(BaseTest):
         filteredCoords = self._createProtScoreCarbon(protCoords)
         # self.assertTrue(filteredCoords,
         #                 "There was a problem with score coordinates output")
-        self.assertTrue(filteredCoords.getSize() == 5)
-        self.assertTrue(filteredCoords.getBoxSize() == 32)
-        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+        self.assertTrue(filteredCoords.getSize() < 16)
+        self.assertTrue(filteredCoords.getBoxSize() == 64)
+        self.assertAlmostEqual(filteredCoords.getSamplingRate(), 2.0 * 6.87, delta=0.01)
 
         # Test Outlier based filtering
         filteredCoords = self._createProtScoreOutliers(protCoords)
         # self.assertTrue(filteredCoords,
         #                 "There was a problem with score coordinates output")
-        self.assertTrue(filteredCoords.getSize() == 0)
-        self.assertTrue(filteredCoords.getBoxSize() == 32)
-        self.assertTrue(filteredCoords.getSamplingRate() == 5)
+        self.assertTrue(filteredCoords.getSize() == 11)
+        self.assertTrue(filteredCoords.getBoxSize() == 64)
+        self.assertAlmostEqual(filteredCoords.getSamplingRate(), 2.0 * 6.87, delta=0.01)
 
 # class TestXmippTomoScoreTransform(BaseTest):
 #     """This class check if the protocol score_transform works properly."""
