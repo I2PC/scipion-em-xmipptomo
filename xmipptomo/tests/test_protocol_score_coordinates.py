@@ -97,7 +97,7 @@ class XmippTomoScoreCoordinates(BaseTest):
 
     def _createProtScoreCarbon(self, protCoords):
         protScoreCoordinates = self.newProtocol(XmippProtScoreCoordinates,
-                                                objLabel='Filter Carbon - Threshold 0.8',
+                                                objLabel='Filter Carbon - Threshold 0.5',
                                                 inputCoordinates=protCoords.outputCoordinates,
                                                 filter=1,
                                                 outliers=False,
