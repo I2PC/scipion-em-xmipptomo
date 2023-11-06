@@ -31,7 +31,7 @@ from scipy.spatial.distance import cdist
 
 from pyworkflow import BETA
 from pyworkflow.object import Float
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, LEVEL_ADVANCED
 from tomo.constants import SCIPION
 
 from tomo.protocols import ProtTomoPicking
@@ -74,6 +74,16 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         form.addParam('secondSubtomos', params.PointerParam,
                       pointerClass='SetOfSubTomograms',
                       label="Second Subtomograms to compare", important=True)
+        form.addParam('minDistance', params.IntParam,
+                      default=0,
+                      label='Min distance [Å]',
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Minimum distance to be considered the same particle [Å]')
+        form.addParam('maxDistance', params.IntParam,
+                      default=10,
+                      label='Max distance [Å]',
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Maximum distance to be considered different particles [Å]')
 
     # --------------------------- INSERT steps functions ---------------------------
     def _insertAllSteps(self):
@@ -87,7 +97,7 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         # Extract Transformation Matrices from input SubTomograms
         # first_matrices, second_matrices = self.getMatricesFromCommonItems()
         commonSet1, commonSet2 = self.getMatchingCoordsFromSubtomos()
-        first_matrices, second_matrices = self.getTransformMatrices(commonSet1, commonSet2)
+        first_matrices, second_matrices = self._getTransformMatrices(commonSet1, commonSet2)
 
         # Convert Trasnformation Matrices to Quaternions
         first_quaternions = listQuaternions(first_matrices)
@@ -113,55 +123,18 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         self._store()
 
     def createOutput(self, distanceScoresDict):
-
         outSubtomos = SetOfSubTomograms.create(self._getPath(), template='submograms%s.sqlite')
         outSubtomos.copyInfo(self.second_subtomos)
         for subtomo, distance in distanceScoresDict.items():
             setattr(subtomo, self.SCORE_ATTR, Float(math.degrees(distance)))
             outSubtomos.append(subtomo)
 
-
-        # self.scoresIndex = 0
-        #
-        # def addScoreToSubtomogram(subtomo, row):
-        #
-        #     try:
-        #
-        #         score = distanceScores[self.scoresIndex][1]
-        #         distance = math.degrees(score)
-        #
-        #     except Exception as e:
-        #         self.info("Can't find score for %s. Adding -181." % subtomo.getObjId())
-        #         distance = -181
-        #
-        #     setattr(subtomo, self.SCORE_ATTR, Float(distance))
-        #
-        #     self.scoresIndex += 1
-        #
-        # outSubtomos.copyItems(self.first_subtomos, updateItemCallback=addScoreToSubtomogram)
-
         self._defineOutputs(**{ScoreTransformOutputs.Subtomograms.name: outSubtomos})
         self._defineSourceRelation(self.firstSubtomos, outSubtomos)
         self._defineSourceRelation(self.secondSubtomos, outSubtomos)
 
     # --------------------------- UTILS functions ---------------------------
-    # def queryMatrices(self, subtomos):
-    #     matrices = [(subtomo.getObjId(), subtomo.getTransform().getMatrix())
-    #                 for subtomo in subtomos.iterItems()]
-    #     return matrices
-
-    def getMatricesFromCommonItems(self):
-        objIds1 = [str(item.getObjId()) for item in self.first_subtomos]  # Id list present in the first set
-        objIds2 = [str(item.getObjId()) for item in self.second_subtomos]  # The same for the second set
-        commonInds = set(objIds1) & set(objIds2)  # Get the Ids present in the intersection of both lists
-        whereCond = f'id IN ({",".join(commonInds)})'
-        # Get the transformation lists from both sets considering only the common ids and iterated following the same
-        # order
-        tr1 = [item.getTransform().getMatrix() for item in self.first_subtomos._getMapper().selectAll(where=whereCond)]
-        tr2 = [item.getTransform().getMatrix() for item in self.second_subtomos._getMapper().selectAll(where=whereCond)]
-        return tr1, tr2
-
-    def getMatchingCoordsFromSubtomos(self, minDistance=1):
+    def getMatchingCoordsFromSubtomos(self):
         coordDictList1 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
                           zip(self.first_subtomos, self.first_subtomos.getCoordinates3D())}
         coordDictList2 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
@@ -182,8 +155,13 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         indsAndDistances2 = np.column_stack((indices, minDistances))
 
         # Filter elements using the min distance value provided
-        finalIndices1 = np.where(indsAndDistances1[:, 1] < minDistance)
-        finalIndices2 = np.where(indsAndDistances2[:, 1] < minDistance)
+        sRate = self.first_subtomos.getSamplingRate()
+        minDistThresholdPix = self.minDistance.get() * sRate
+        maxDistThresholdPix = self.maxDistance.get() * sRate
+        minDistances1 = indsAndDistances1[:, 1]
+        minDistances2 = indsAndDistances2[:, 1]
+        finalIndices1 = np.where(minDistances1 >= minDistThresholdPix & minDistances1 <= maxDistThresholdPix)
+        finalIndices2 = np.where(minDistances2 >= minDistThresholdPix & minDistances2 <= maxDistThresholdPix)
 
         # Generate the final lists of coordinates objects
         subtomos1 = list(coordDictList1.keys())
@@ -194,7 +172,8 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         finalList2 = [subtomos2[ind] for ind in finalIndices2[0]]
         return finalList1, finalList2
 
-    def getTransformMatrices(self, subtomos1, subtomos2):
+    @staticmethod
+    def _getTransformMatrices(subtomos1, subtomos2):
         transforms1 = []
         transforms2 = []
         for part1, part2 in zip(subtomos1, subtomos2):
@@ -219,10 +198,16 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
 
     def _validate(self):
         validateMsgs = []
-        firstTransform = self.firstSubtomos.get().getFirstItem().getTransform()
-        secondTransform = self.secondSubtomos.get().getFirstItem().getTransform()
-
-        if firstTransform is None or secondTransform is None:
-            validateMsgs.append('Please provide subtomograms which have transformation matrices".')
-
+        firstSubtomos = self.firstSubtomos.get()
+        secondSubtomos = self.secondSubtomos.get()
+        firstSRate = firstSubtomos.getSamplingRate()
+        secondSRate = secondSubtomos.getSamplingRate()
+        sRateTol = 1e-4
+        if not firstSubtomos.hasAlignment3D():
+            validateMsgs.append('The first set of subtomograms provided does not contain aligned particles.')
+        if not secondSubtomos.hasAlignment3D():
+            validateMsgs.append('The second set of subtomograms provided does not contain aligned particles.')
+        if abs(firstSRate - secondSRate) >= sRateTol:
+            validateMsgs.append('The sampling rate of both sets of subtomograms is expected to be the same within '
+                                'tolerance %.4f: %.4f != %.4f' % (sRateTol, firstSRate, secondSRate))
         return validateMsgs
