@@ -160,16 +160,15 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
         maxDistThresholdPix = self.maxDistance.get() * sRate
         minDistances1 = indsAndDistances1[:, 1]
         minDistances2 = indsAndDistances2[:, 1]
-        finalIndices1 = minDistances1[(minDistances1 >= minDistThresholdPix) & (minDistances1 <= maxDistThresholdPix)]
-        finalIndices2 = minDistances2[(minDistances2 >= minDistThresholdPix) & (minDistances2 <= maxDistThresholdPix)]
+        finalIndices1 = (minDistances1 >= minDistThresholdPix) & (minDistances1 <= maxDistThresholdPix)
+        finalIndices2 = (minDistances2 >= minDistThresholdPix) & (minDistances2 <= maxDistThresholdPix)
 
-        # Generate the final lists of coordinates objects
+        # Generate the final lists of subtomograms objects
         subtomos1 = list(coordDictList1.keys())
         subtomos2 = list(coordDictList2.keys())
-        # [0] in the comprehensions below is because the previous calls to np.where() returns a 1-element tuple
-        # containing the desired list of indices
-        finalList1 = [subtomos1[ind] for ind in finalIndices1[0]]
-        finalList2 = [subtomos2[ind] for ind in finalIndices2[0]]
+        # Index them properly
+        finalList1 = np.array(subtomos1)[finalIndices1]
+        finalList2 = np.array(subtomos2)[finalIndices2]
         return finalList1, finalList2
 
     @staticmethod
