@@ -101,7 +101,6 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Hard coded Acquisition
         acq = TomoAcquisition(angleMin=-60, angleMax=60, step=3,
-                              angleAxis1=90, angleAxis2=None,
                               accumDose=0, tiltAxisAngle=90,
                               voltage=300, amplitudeContrast= 0.1,
                               sphericalAberration=2.0, magnification=20000,

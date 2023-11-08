@@ -28,8 +28,8 @@ import subprocess, os
 import pyworkflow.utils as pwutils
 
 _logo = "xmipp_logo.png"
-_references = ['delaRosaTrevin2013']
-__version__ = "3.23.03.6" #X.YY.MM.sv
+_references = ['delaRosaTrevin2013', 'Jimenez2022']
+__version__ = "3.23.07.0" #X.YY.MM.sv
         # X.Y.M = version of the xmipp release associated.
         # sv = Set this to ".0" on each xmipp  release.
         # For not release version (hotfix) increase it --> ".1", ".2", ...
@@ -39,7 +39,7 @@ class Plugin(xmipp3.Plugin):
     @classmethod
     def getTensorFlowEnviron(cls):
         """ Create the needed environment for XmippTomo programs. """
-        environ = pwutils.Environ(os.environ)
+        environ = xmipp3.Plugin.getEnviron()
         environ.update({
             "TF_FORCE_GPU_ALLOW_GROWTH": "'true'"
         }, position=pwutils.Environ.BEGIN)

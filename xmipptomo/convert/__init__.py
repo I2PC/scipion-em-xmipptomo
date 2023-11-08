@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
-# *  BCU, Centro Nacional de Biotecnologia, CSIC
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -25,24 +24,4 @@
 # *
 # **************************************************************************
 
-from pyworkflow.tests import DataSet
-
-DataSet(name='monotomo',
-        folder='monotomo',
-        files={'even1': 'even_tomogram_rx1.mrc',
-               'even2': 'even_tomogram_rx2.mrc',
-               'odd1': 'even_tomogram_rx1.mrc',
-               'odd2': 'even_tomogram_rx2.mrc',
-               })
-
-DataSet(name='deepMisaliTomo',
-        folder='monotomo',
-        files={
-            'tomo1': 'even_tomogram_rx1.mrc'
-        })
-
-DataSet(name='pyseg',
-        folder='pyseg',
-        files={
-            'tomo': 'Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED.mrc'
-        })
+from .convert import *

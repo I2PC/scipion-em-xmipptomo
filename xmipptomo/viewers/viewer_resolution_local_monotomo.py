@@ -44,8 +44,7 @@ from xmipp3.viewers.plotter import XmippPlotter
 
 from xmipptomo.protocols.protocol_resolution_local_monotomo import (XmippProtMonoTomo,
                                                            TOMOGRAM_RESOLUTION_FILE, FULL_TOMOGRAM_FILE,
-                                                           HISTOGRAM_RESOLUTION_FILE, TOMOGRAMFOLDER,
-                                                            MRCEXT, XMDEXT)
+                                                           HISTOGRAM_RESOLUTION_FILE, MRCEXT, XMDEXT)
 
 
 class XmippMonoTomoViewer(LocalResolutionViewer):
