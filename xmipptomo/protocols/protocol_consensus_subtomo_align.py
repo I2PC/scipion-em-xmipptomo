@@ -139,36 +139,28 @@ class XmippProtSubtomoAlignConsensus(ProtTomoPicking):
                           zip(self.first_subtomos, self.first_subtomos.getCoordinates3D())}
         coordDictList2 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
                           zip(self.second_subtomos, self.second_subtomos.getCoordinates3D())}
+        subtomos1 = list(coordDictList1.keys())
+        subtomos2 = list(coordDictList2.keys())
         coordList1 = np.array(list(coordDictList1.values()))
         coordList2 = np.array(list(coordDictList2.values()))
+        # Coords are in pixels, so the threshold must be, too
+        sRate = self.first_subtomos.getSamplingRate()
+        minDistThresholdPix = self.minDistance.get() * sRate
+        maxDistThresholdPix = self.maxDistance.get() * sRate
         numel1 = len(coordList1)
         numel2 = len(coordList2)
         if numel1 == numel2 or numel1 < numel2:
             distances = cdist(coordList1, coordList2)
         else:
             distances = cdist(coordList2, coordList1)
-
         indices = np.argmin(distances, axis=1)  # Indices of min distance
-        # m x 2 array, being the min distance indices the first column and the min distance value the second
-        minDistances = np.min(distances, axis=1)
-        indsAndDistances1 = np.column_stack((range(len(indices)), minDistances))
-        indsAndDistances2 = np.column_stack((indices, minDistances))
-
-        # Filter elements using the min distance value provided
-        sRate = self.first_subtomos.getSamplingRate()
-        minDistThresholdPix = self.minDistance.get() * sRate
-        maxDistThresholdPix = self.maxDistance.get() * sRate
-        minDistances1 = indsAndDistances1[:, 1]
-        minDistances2 = indsAndDistances2[:, 1]
-        finalIndices1 = (minDistances1 >= minDistThresholdPix) & (minDistances1 <= maxDistThresholdPix)
-        finalIndices2 = (minDistances2 >= minDistThresholdPix) & (minDistances2 <= maxDistThresholdPix)
-
-        # Generate the final lists of subtomograms objects
-        subtomos1 = list(coordDictList1.keys())
-        subtomos2 = list(coordDictList2.keys())
-        # Index them properly
-        finalList1 = np.array(subtomos1)[finalIndices1]
-        finalList2 = np.array(subtomos2)[finalIndices2]
+        minDist = np.min(distances, axis=1)  # Min distance values
+        # Apply threshold to the results
+        filterInd = np.logical_and(minDistThresholdPix <= minDist, minDist <= maxDistThresholdPix)
+        finalIndices = indices[filterInd]
+        # Index the introduced sets properly
+        finalList1 = np.array(subtomos1)[finalIndices]
+        finalList2 = np.array(subtomos2)[finalIndices]
         return finalList1, finalList2
 
     @staticmethod
