@@ -100,7 +100,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help="Your system may have several GPUs installed, "
                              " choose the one you'd like to use(default: 0)."
                         )
-        form.addParallelSection(threads=1, mpi=1)
+        form.addParallelSection(threads=8, mpi=1)
 
         form.addSection(label='Main')
         form.addParam('inputSets', params.MultiPointerParam,
