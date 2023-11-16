@@ -555,36 +555,24 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         Consensuates the BSSR from the different inputs according to
         a selected method.
 
-        Methods:
-          - biggest: max value amongst the pickers
-          - smallest: min value amongst the pickers
-          - mean: average value amongst the pickers
-          - first: first in the list
+        The criteria is: use the biggest samplingrate available so that the
+        images do not need to be upsampled, only downsampled.
         """
 
         # Fetch the different box sizes from pickers
         assert self.pickerMD is not None
 
-        # if self.valueConsType ==  self.VALUE_CONS_BIG:
-        #     # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmax()]
-        #     index = self.pickerMD.idxmax()['boxsize']
-        # elif self.valueConsType == self.VALUE_CONS_SMALL:
-        #     # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
-        #     index = self.pickerMD.idxmin()['boxsize']
-        # elif self.valueConsType == self.VALUE_CONS_MEAN:
-        #     raise NotImplemented
-        # elif self.valueConsType == self.VALUE_CONS_FIRST:
-        #     index = 0
+        # Old method: smallest boxsize
+        # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
 
-        # index = self.pickerMD.idxmin()['boxsize']
-        # result = self.pickerMD.loc[index]
-        result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
+        # New method: biggest sampling rate
+        result = self.pickerMD.iloc[self.pickerMD['samplingrate'].astype(float).argmax()]
         
         print("Determined box size: " + str(result['boxsize']))
         print("Determined sampling rate (A/px): " + str(result['samplingrate']))
         
         self.consBoxSize = Integer(result['boxsize'])
-        self.consSampRate = Float(result['samplingrate'])  
+        self.consSampRate = Float(result['samplingrate'])
 
     # BLOCK 2 - Program - consensuate coordinates
     def coordConsensusStep(self):
