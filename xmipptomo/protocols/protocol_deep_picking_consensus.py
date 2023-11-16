@@ -184,10 +184,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             % tuple(self.FORM_MODEL_TRAIN_TYPELIST_LABELS))
         form.addParam('skipTraining', params.BooleanParam,
             default = False,
-            condition = 'modelInitialization != %s'%self.MODEL_TRAIN_NEW,
+            condition = 'modelInitialization == %s'%self.MODEL_TRAIN_PRETRAIN,
             label = 'Skip training step',
             help = ' When set to *Yes*, the volumes will be directly fed to the model, '
             ' If set to *No*, you must provide a training set of volumes.'
+        )
+        form.addParam('modelFile', params.FileParam,
+            condition = 'modelInitialization == %s'%self.MODEL_TRAIN_PRETRAIN,
+            label = 'Saved model file',
+            help = 'Select the H5 format filename of the trained neural network. Note that '
+            'the architecture must have been compiled using this same protocol.'
         )
         form.addParam('trainingBatch', params.IntParam, default='32',
                 label = 'Training batch size',
@@ -946,6 +952,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         errors = []
         errors += self._validateParallelProcessing()
         errors += self._validateNrOfPickersNeeded()
+        errors += self._validateExistingModel()
         return errors
 
     def _validateParallelProcessing(self):
@@ -955,7 +962,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         if nGpus < 1:
             errors.append("A GPU is needed for this protocol to run.")
         if nMPI != 1:
-            errors.append("Multiprocessing not yet supported. Set MPI parameter to 1")
+            errors.append("Multiprocessing not yet supported. Set MPI parameter to 1 and use Threads instead.")
         return errors
     
     def _validateNrOfPickersNeeded(self):
@@ -966,6 +973,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             errors.append("Check the required nr of pickers, it is superior than the amount of pickers given as input!")
         return errors
     
+    def _validateExistingModel(self):
+        execMode = self.modelInitialization.get()
+        errors = []
+        if execMode == self.MODEL_TRAIN_PRETRAIN:
+            inFile = self.modelFile.get()
+            if not os.path.isfile(inFile):
+                errors.append("Can not access provided trained model file. Check route and permissions.")
+        return errors
+        
     #--------------- FILENAMES functions -------------------
 
     def _getOutputPath(self, *args):
