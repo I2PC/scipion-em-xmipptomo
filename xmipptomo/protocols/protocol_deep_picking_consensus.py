@@ -2,7 +2,7 @@
 # *
 # * Authors:    Mikel Iceta Tena (miceta@cnb.csic.es)
 # *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# * Unidad de Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -417,7 +417,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
 
         # GENERATE THE NEEDED TABLES TO START ---------------------------------
         # Combined table of untreated data
-        colnames = ['pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate']
+        colnames = ['pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate', 'ts_id']
         self.untreated = pd.DataFrame(index=range(self.totalROIs),columns=colnames)
 
         # Pickers data table
@@ -456,9 +456,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 self.untreated.loc[globalIndex, 'samplingrate'] = srate
                 self.untreated.loc[globalIndex, 'ts_id'] = ts_id
                 globalIndex += 1
-        
-        # Content of the self.untreated DF now
-        # pick_id','x', 'y', 'z', 'tomo_id', 'boxsize', 'samplingrate'
 
         # Get different tomogram names
         self.uniqueTomoIDs = self.untreated['tomo_id'].unique()
