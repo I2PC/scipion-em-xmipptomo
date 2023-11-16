@@ -186,21 +186,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                         help = 'Select pickings that are presumed to be negative e.g. hand-picked noise.'  
         )
 
-
-        # form.addSection(label='Preprocess')        
-        # group_coords.addParam('coordConsensusType', params.EnumParam, 
-        #               choices = self.FORM_COORD_CONS_TYPELIST_LABELS,
-        #               default = self.COORD_CONS_FIRST,
-        #               label = 'Representant choosing method',
-        #               help = 'When assimilating all the pickings related to the'
-        #               ' same ROI... *%s* will choose the number of the first '
-        #               'element in the list, while *%s* will calculate a mean and '
-        #               'later force the resize of all subtomograms to match it.' 
-        #               % tuple(self.FORM_COORD_CONS_TYPELIST_LABELS)
-        # )
-
-        # group_bssr = form.addGroup('Box size and Sampling Rate consensus')
-
         # group_bssr.addParam('valueConsensusType', params.EnumParam,
         #               choices = self.FORM_VALUE_CONS_TYPELIST_LABELS,
         #               default = self.VALUE_CONS_SMALL,
@@ -209,14 +194,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         #               'more than one: *%s*, *%s*, *%s* or *%s*.'
         #               % tuple(self.FORM_VALUE_CONS_TYPELIST_LABELS)
         # )
-
-        # group_noise = form.addGroup('Noise picking algorithm')
-        # group_noise.addParam('fracNoise', params.FloatParam, default=0.9,
-        #               label="Amount of noise picked for negative input",
-        #               help='Controls how much noise is picked and given '
-        #               'to the NN as negative input during training. It is'
-        #               ' expressed in [0..1] - fraction of the positive amount'
-        #               ' of coordinates found on input')
         
         
         form.addSection(label='Training')
