@@ -423,6 +423,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # Generate the table that joins tomo_id and ts_id
         interm : pd.DataFrame = self.untreated[['tomo_id', 'ts_id']]
         self.uniqueTomoIDsWithTsId = interm.drop_duplicates()
+        self.uniqueTsIds = self.uniqueTomoIDsWithTsId['ts_id'].unique()
 
         # Generate per tomogram dataframes and write to XMD
         for name in self.uniqueTomoIDs:
@@ -933,6 +934,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         
 
     #--------------- INFO functions -------------------------
+    def _summary(self):
+        summary = []
+        summary.append("- Executing using %d Threads and %d GPUs" % self.numberOfThreads, len(self.getGpuList()))
+        summary.append("- Using %d unique tomograms coming from %d tilt series." % self.uniqueTomoIDs,self.uniqueTsIds)
+        summary.append("- Found %d different pickers at input with %d ROIs" % self.nr_pickers, self.totalROIs)
+        # summary.append("- Coordinates Consensus removed KKQLO duplicates")
+        return summary
 
     #--------------- UTILS functions -------------------------
 
