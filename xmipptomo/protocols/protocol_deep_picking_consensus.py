@@ -71,7 +71,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     _label      = 'deep consensus picking 3D'
     _devStatus  = BETA
     _conda_env = 'xmipp_DLTK_v1.0'
-    _stepsCheckSecs  = 5 # Scipion steps check interval (in seconds)
+    _stepsCheckSecs  = 30 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
     # Protocol-specific options/switches/etc
@@ -79,31 +79,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     # Form options: NETWORK MODEL
     MODEL_TRAIN_NEW         = 0
     MODEL_TRAIN_PRETRAIN    = 1
-    MODEL_TRAIN_PREVRUN     = 2
-    FORM_MODEL_TRAIN_TYPELIST_LABELS = ["From scratch", "Existing model"] #, "Previous run"]
+    FORM_MODEL_TRAIN_TYPELIST_LABELS = ["From scratch", "Existing model"]
     FORM_MODEL_TRAIN_TYPELIST        = [MODEL_TRAIN_NEW, MODEL_TRAIN_PRETRAIN]
-
-    # Form options: additional data
-    ADD_DATA_TRAIN_NEW      = 0
-    ADD_DATA_TRAIN_PRECOMP  = 1
-    ADD_DATA_TRAIN_CUST     = 2
-    ADD_DATA_TRAIN_TYPELIST_LABELS  = ["None", "Precompiled", "Custom"]
-    ADD_DATA_TRAIN_TYPELIST         = [ADD_DATA_TRAIN_NEW, ADD_DATA_TRAIN_PRECOMP, ADD_DATA_TRAIN_CUST]
-
-    # Form options: Coordinates consensus representant election
-    COORD_CONS_FIRST    = 0
-    COORD_CONS_CENTROID = 1
-    FORM_COORD_CONS_TYPELIST_LABELS = ["First found", "Calculate centroid"]
-    FORM_COORD_CONS_TYPELIST        = [COORD_CONS_FIRST, COORD_CONS_CENTROID]
-
-    # Form options: Values consensus
-    VALUE_CONS_FIRST    = 0
-    VALUE_CONS_BIG      = 1
-    VALUE_CONS_SMALL    = 2
-    VALUE_CONS_MEAN     = 3
-    FORM_VALUE_CONS_TYPELIST_LABELS = ["First found", "Biggest", "Smallest", "Mean value"]
-    FORM_VALUE_CONS_TYPELIST        = [VALUE_CONS_FIRST, VALUE_CONS_BIG, VALUE_CONS_SMALL, VALUE_CONS_MEAN]
-
 
     #--------------- DEFINE param functions ---------------
 
