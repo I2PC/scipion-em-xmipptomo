@@ -39,7 +39,7 @@ class Plugin(xmipp3.Plugin):
     @classmethod
     def getTensorFlowEnviron(cls):
         """ Create the needed environment for XmippTomo programs. """
-        environ = pwutils.Environ(os.environ)
+        environ = xmipp3.Plugin.getEnviron()
         environ.update({
             "TF_FORCE_GPU_ALLOW_GROWTH": "'true'"
         }, position=pwutils.Environ.BEGIN)
