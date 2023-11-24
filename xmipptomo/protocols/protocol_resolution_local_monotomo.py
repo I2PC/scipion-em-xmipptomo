@@ -72,13 +72,26 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
+        form.addParam('useAssociatedOddEven', BooleanParam,
+                      default=True,
+                      label="Are odd-even associated to the Tomograms?",
+                      help=" .")
+        form.addParam('tomo', PointerParam,
+                      pointerClass='SetOfTomograms',
+                      condition='useAssociatedOddEven',
+                      label='Tomograms',
+                      important=True,
+                      help='Set of tomograms reconstructed from the even frames of the tilt'
+                           'series movies.')
         form.addParam('oddTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Odd tomogram", important=True,
+                      condition='not useAssociatedOddEven',
                       help='Select the odd tomogram for determining the '
                            'local resolution tomogram.')
 
         form.addParam('evenTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Even Tomogram", important=True,
+                      condition='not useAssociatedOddEven',
                       help='Select the even tomogram for determining the  '
                            'local resolution tomogram.')
 
@@ -116,14 +129,21 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     def _insertAllSteps(self):
         self.min_res_init = Float(self.minRes.get())
         self.max_res_init = Float(self.maxRes.get())
-        for tom_odd, tom_even in zip(self.oddTomograms.get(), self.evenTomograms.get()):
-            if tom_odd.getObjId() == tom_even.getObjId():
-                tomId = tom_odd.getObjId()
-                #self._insertFunctionStep('convertInputStep')
-                self._insertFunctionStep(self.resolutionMonoTomoStep, self.oddTomograms.get(), self.evenTomograms.get(), tomId)
+
+        if not self.useAssociatedOddEven.get():
+            for tom_odd, tom_even in zip(self.oddTomograms.get(), self.evenTomograms.get()):
+                if tom_odd.getObjId() == tom_even.getObjId():
+                    tomId = tom_odd.getObjId()
+                    # self._insertFunctionStep('convertInputStep')
+                    self._insertFunctionStep(self.resolutionMonoTomoStep, tomId)
+                    self._insertFunctionStep(self.createHistrogram, tomId)
+        else:
+            for tom in self.tomo.get():
+                tomId = tom.getObjId()
+                # self._insertFunctionStep('convertInputStep')
+                self._insertFunctionStep(self.resolutionMonoTomoStep, tomId)
                 self._insertFunctionStep(self.createHistrogram, tomId)
         self._insertFunctionStep('createOutputStep')
-
 
     def convertInputStep(self):
         """
@@ -137,24 +157,30 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         if (extVol2 == '.mrc') or (extVol2 == '.map'):
             self.vol2Fn = self.vol2Fn + ':mrc'
 
-
-    def resolutionMonoTomoStep(self, oddTomos, evenTomos, tomId):
+    def resolutionMonoTomoStep(self, tomId):
         '''
         This function estimates the local resolution from the oddTomo and the evenTomo.
         The output is generated in pseudo streaming. It is not a full streaming due to
         the input is not updated during the execution.
         '''
-        self.vol1Fn = oddTomos[tomId].getFileName()
-        self.vol2Fn = evenTomos[tomId].getFileName()
 
-        ts = self.oddTomograms.get()[tomId]
+        if not self.useAssociatedOddEven.get():
+            self.vol1Fn = self.oddTomograms.get()[tomId].getFileName()
+            self.vol2Fn = self.evenTomograms.get()[tomId].getFileName()
+            ts = self.oddTomograms.get()[tomId]
+
+        else:
+            ts = self.tomo.get()[tomId]
+            self.vol1Fn, self.vol2Fn = ts.getHalfMaps().split(',')
+
         tsId = ts.getTsId()
+        sampling = ts.getSamplingRate()
 
-        #Defining the output folder
+        # Defining the output folder
         tomoPath = self._getExtraPath(tsId)
         os.mkdir(tomoPath)
 
-        #Defining outfiles
+        # Defining outfiles
         outputlocalResTomoFn = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
         fullTomogramName = self.createOutputPath(FULL_TOMOGRAM_FILE, tsId, MRCEXT)
 
@@ -170,7 +196,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         params += ' --meanVol %s' % fullTomogramName
         if self.useMask.get():
             params += ' --mask %s' % self._getFileName(BINARY_MASK)
-        params += ' --sampling_rate %f' % self.oddTomograms.get().getSamplingRate()
+        params += ' --sampling_rate %f' % sampling
         params += ' --minRes %f' % self.minRes.get()
         params += ' --maxRes %f' % self.maxRes.get()
         params += ' --step %f' % freq_step
@@ -182,7 +208,10 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         outputLocalResolutionSetOfTomograms = self.getOutputLocalResolutionSetOfTomograms()
 
         newTomogram = Tomogram()
-        tomo = self.oddTomograms.get()[tomId]
+        if not self.useAssociatedOddEven.get():
+            tomo = self.oddTomograms.get()[tomId]
+        else:
+            tomo = self.tomo.get()[tomId]
         newTomogram.copyInfo(tomo)
         newTomogram.copyAttributes(tomo, '_origin')
 
@@ -201,15 +230,18 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         the output will be tomogram_5.mrc
         '''
         tomoPath = self._getExtraPath(str(tomId))
-        fnPath = os.path.join(tomoPath, filename+str(tomId)+ext)
+        fnPath = os.path.join(tomoPath, filename + str(tomId) + ext)
         return fnPath
 
     def createHistrogram(self, tomId):
         '''
         The histogram of local resolution values of the output tomogram is computed
         '''
-        print(tomId)
-        ts = self.oddTomograms.get()[tomId]
+
+        if not self.useAssociatedOddEven.get():
+            ts = self.oddTomograms.get()[tomId]
+        else:
+            ts = self.tomo.get()[tomId]
         tsId = ts.getTsId()
         fnLocRes = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)
         fnHist = self.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tsId, XMDEXT)
@@ -225,7 +257,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
             params += ' --mask binary_file %s' % self._getFileName(BINARY_MASK)
 
         params += ' --steps %f' % range_res
-        params += ' --range %f %f' % (m, M-freq_step)
+        params += ' --range %f %f' % (m, M - freq_step)
         params += ' -o %s' % fnHist
 
         self.runJob('xmipp_image_histogram', params)
@@ -249,12 +281,20 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
             self.outputLocalResolutionSetOfTomograms.enableAppend()
         else:
             outputLocalResolutionSetOfTomograms = self._createSetOfTomograms(suffix='LocalResolution')
-            outputLocalResolutionSetOfTomograms.copyInfo(self.oddTomograms.get())
-            samplingRate = self.oddTomograms.get().getSamplingRate()
+            if not self.useAssociatedOddEven.get():
+                outputLocalResolutionSetOfTomograms.copyInfo(self.oddTomograms.get())
+                samplingRate = self.oddTomograms.get().getSamplingRate()
+            else:
+                outputLocalResolutionSetOfTomograms.copyInfo(self.tomo.get())
+                samplingRate = self.tomo.get().getSamplingRate()
             outputLocalResolutionSetOfTomograms.setSamplingRate(samplingRate)
             outputLocalResolutionSetOfTomograms.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputLocalResolutionSetOfTomograms=outputLocalResolutionSetOfTomograms)
-            self._defineSourceRelation(self.oddTomograms, outputLocalResolutionSetOfTomograms)
+            if not self.useAssociatedOddEven.get():
+                self._defineSourceRelation(self.evenTomograms, outputLocalResolutionSetOfTomograms)
+                self._defineSourceRelation(self.oddTomograms, outputLocalResolutionSetOfTomograms)
+            else:
+                self._defineSourceRelation(self.tomo, outputLocalResolutionSetOfTomograms)
         return self.outputLocalResolutionSetOfTomograms
 
     def createOutputStep(self):
