@@ -135,14 +135,13 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
                 if tom_odd.getObjId() == tom_even.getObjId():
                     tomId = tom_odd.getObjId()
                     # self._insertFunctionStep('convertInputStep')
-                    self._insertFunctionStep(self.resolutionMonoTomoStep, tomId, oddTomos=self.oddTomograms.get(),
-                                             evenTomos=self.evenTomograms.get())
+                    self._insertFunctionStep(self.resolutionMonoTomoStep, tomId)
                     self._insertFunctionStep(self.createHistrogram, tomId)
         else:
             for tom in self.tomo.get():
                 tomId = tom.getObjId()
                 # self._insertFunctionStep('convertInputStep')
-                self._insertFunctionStep(self.resolutionMonoTomoStep, tomId, inputTomos=self.tomo.get())
+                self._insertFunctionStep(self.resolutionMonoTomoStep, tomId)
                 self._insertFunctionStep(self.createHistrogram, tomId)
         self._insertFunctionStep('createOutputStep')
 
@@ -158,7 +157,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         if (extVol2 == '.mrc') or (extVol2 == '.map'):
             self.vol2Fn = self.vol2Fn + ':mrc'
 
-    def resolutionMonoTomoStep(self, tomId, inputTomos=None, oddTomos=None, evenTomos=None):
+    def resolutionMonoTomoStep(self, tomId):
         '''
         This function estimates the local resolution from the oddTomo and the evenTomo.
         The output is generated in pseudo streaming. It is not a full streaming due to
@@ -166,8 +165,8 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         '''
 
         if not self.useAssociatedOddEven.get():
-            self.vol1Fn = oddTomos[tomId].getFileName()
-            self.vol2Fn = evenTomos[tomId].getFileName()
+            self.vol1Fn = self.oddTomograms.get()[tomId].getFileName()
+            self.vol2Fn = self.evenTomograms.get()[tomId].getFileName()
             ts = self.oddTomograms.get()[tomId]
 
         else:

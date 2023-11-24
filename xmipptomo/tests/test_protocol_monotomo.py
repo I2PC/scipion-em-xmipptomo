@@ -58,6 +58,7 @@ class TestMonoTomo(TestMonoTomoBase):
     def testMonoTomo(self):
         MonoTomo = self.newProtocol(XmippProtMonoTomo,
                                     objLabel='two halves monotomo',
+                                    useAssociatedOddEven=False,
                                     oddTomograms=self.protImportHalf1.Tomograms,
                                     evenTomograms=self.protImportHalf2.Tomograms,
                                     useMask=False,
