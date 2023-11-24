@@ -72,26 +72,26 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     def _defineParams(self, form):
         form.addSection(label='Input')
 
-        form.addParam('useIndependentOddEven', BooleanParam,
+        form.addParam('useAssociatedOddEven', BooleanParam,
                       default=True,
                       label="Are odd-even associated to the Tomograms?",
                       help=" .")
         form.addParam('tomo', PointerParam,
                       pointerClass='SetOfTomograms',
-                      condition='not useIndependentOddEven',
+                      condition='useAssociatedOddEven',
                       label='Tomograms',
                       important=True,
                       help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
         form.addParam('oddTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Odd tomogram", important=True,
-                      condition='useIndependentOddEven',
+                      condition='not useAssociatedOddEven',
                       help='Select the odd tomogram for determining the '
                            'local resolution tomogram.')
 
         form.addParam('evenTomograms', PointerParam, pointerClass='SetOfTomograms',
                       label="Even Tomogram", important=True,
-                      condition='useIndependentOddEven',
+                      condition='not useAssociatedOddEven',
                       help='Select the even tomogram for determining the  '
                            'local resolution tomogram.')
 
@@ -130,7 +130,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         self.min_res_init = Float(self.minRes.get())
         self.max_res_init = Float(self.maxRes.get())
 
-        if self.useIndependentOddEven.get():
+        if not self.useAssociatedOddEven.get():
             for tom_odd, tom_even in zip(self.oddTomograms.get(), self.evenTomograms.get()):
                 if tom_odd.getObjId() == tom_even.getObjId():
                     tomId = tom_odd.getObjId()
@@ -165,7 +165,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         the input is not updated during the execution.
         '''
 
-        if self.useIndependentOddEven.get():
+        if not self.useAssociatedOddEven.get():
             self.vol1Fn = oddTomos[tomId].getFileName()
             self.vol2Fn = evenTomos[tomId].getFileName()
             ts = self.oddTomograms.get()[tomId]
@@ -209,7 +209,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         outputLocalResolutionSetOfTomograms = self.getOutputLocalResolutionSetOfTomograms()
 
         newTomogram = Tomogram()
-        if self.useIndependentOddEven.get():
+        if not self.useAssociatedOddEven.get():
             tomo = self.oddTomograms.get()[tomId]
         else:
             tomo = self.tomo.get()[tomId]
@@ -239,7 +239,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
         The histogram of local resolution values of the output tomogram is computed
         '''
 
-        if self.useIndependentOddEven.get():
+        if not self.useAssociatedOddEven.get():
             ts = self.oddTomograms.get()[tomId]
         else:
             ts = self.tomo.get()[tomId]
@@ -282,7 +282,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
             self.outputLocalResolutionSetOfTomograms.enableAppend()
         else:
             outputLocalResolutionSetOfTomograms = self._createSetOfTomograms(suffix='LocalResolution')
-            if self.useIndependentOddEven.get():
+            if not self.useAssociatedOddEven.get():
                 outputLocalResolutionSetOfTomograms.copyInfo(self.oddTomograms.get())
                 samplingRate = self.oddTomograms.get().getSamplingRate()
             else:
@@ -291,7 +291,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
             outputLocalResolutionSetOfTomograms.setSamplingRate(samplingRate)
             outputLocalResolutionSetOfTomograms.setStreamState(Set.STREAM_OPEN)
             self._defineOutputs(outputLocalResolutionSetOfTomograms=outputLocalResolutionSetOfTomograms)
-            if self.useIndependentOddEven.get():
+            if not self.useAssociatedOddEven.get():
                 self._defineSourceRelation(self.evenTomograms, outputLocalResolutionSetOfTomograms)
                 self._defineSourceRelation(self.oddTomograms, outputLocalResolutionSetOfTomograms)
             else:
