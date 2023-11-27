@@ -6,7 +6,7 @@
       - project_subtomograms: Added angles from Tilt Series
       - deep_misalignment_detection: Update deep misalignment detection with new version of subtomo extraction and fiducial size options
       - subtraction_subtomo: Improved implementation with MPI and md convert
-      - cltomo:
+      - cltomo: Updated with tomo objects
       - resolution_local_monotomo: Allowing odd-even associated to the full tomogram
    - Protocls fixed
       - extract_particlestacks: Dose fixes
