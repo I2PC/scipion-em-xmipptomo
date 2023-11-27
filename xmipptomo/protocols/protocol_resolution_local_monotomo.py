@@ -41,6 +41,7 @@ from pwem.protocols import EMProtocol
 
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Tomogram
+from pyworkflow import BETA, UPDATED, NEW, PROD
 
 MONOTOMO_METHOD_URL = 'http://github.com/I2PC/scipion/wiki/XmippProtMonoTomo'
 TOMOGRAM_RESOLUTION_FILE = 'localResolutionTomogram_'
@@ -62,7 +63,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     """
     _label = 'local Resolution MonoTomo'
     _lastUpdateVersion = VERSION_2_0
-
+    _devStatus = UPDATED
     def __init__(self, **args):
         ProtAnalysis3D.__init__(self, **args)
         self.min_res_init = Float()
