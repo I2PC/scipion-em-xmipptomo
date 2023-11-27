@@ -1,6 +1,21 @@
 ## V3.23.11
-   - New protocols
-   - Protocols updated 
+   - Protocols updated
+      - applyAlignmentTS
+      - extract_particlesstacks: Added angles from Tilt Series
+      - extract_subtomos: Keeping directions in extract subtomos
+      - project_subtomograms: Added angles from Tilt Series
+      - deep_misalignment_detection: Update deep misalignment detection with new version of subtomo extraction and fiducial size options
+      - subtraction_subtomo: Improved implementation with MPI and md convert
+      - cltomo:
+      - resolution_local_monotomo: Allowing odd-even associated to the full tomogram
+   - Protocls fixed
+      - extract_particlestacks: Dose fixes
+      - deep_misalignment_detection:  Recover deleted methods
+      - dose_filter: Dose validation fixed
+      - score_coordinates: 
+   - More xmippTomo
+      - Fixed calculateRotationAngleAndShiftsFromTM
+      - Test refactoring
 
 ## V3.23.07
    - New protocols
