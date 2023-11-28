@@ -140,23 +140,34 @@ def tiltSeriesParticleToXmd(tsParticle):
 
 
 def readXmippMetadataEnabledTiltImages(xmdPath):
-    """ This method takes an Xmipp metadata (xmd) file containing the enabled images from a tilt series and retrieves a
-     matrix containing the enable info and the tilt image location. """
+    """ This method takes a Xmipp metadata (xmd) file containing the enabled images from a tilt series and retrieves a
+     matrix containing the enable label and the tilt image location. """
 
     enableInfoList = []
 
-    with open(xmdPath) as f:
-        enableInfoText = f.read().splitlines()
+    mdEnable = md.MetaData(xmdPath)
 
-    for line in enableInfoText[6:]:
-        # Split enable and location
-        vectorLine = line.split()
+    for objId in mdEnable:
+        imageName = mdEnable.getValue(lib.MDL_IMAGE, objId)
+        enable = mdEnable.getValue(lib.MDL_ENABLED, objId)
+        imgNumber, imgPath = imageName.split("@")
 
-        # Split location in index and path
-        locationInfo = vectorLine[1].split("@")
-        enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
+        enableInfoList.append([enable, imgNumber, imgPath])
 
     return enableInfoList
+
+    # with open(xmdPath) as f:
+    #     enableInfoText = f.read().splitlines()
+    #
+    # for line in enableInfoText[6:]:
+    #     # Split enable and location
+    #     vectorLine = line.split()
+    #
+    #     # Split location in index and path
+    #     locationInfo = vectorLine[1].split("@")
+    #     enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
+    #
+    # return enableInfoList
 
 
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
@@ -415,7 +426,7 @@ def readResidualStatisticsXmdFile(xmdFilePath):
     return statisticsInfoTable
 
 
-def calculateAverageRotationAngleFromTM(ts):
+def calculateAveraationAngleFromTM(ts):
     """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
     avgRotationAngle = 0
 
