@@ -40,3 +40,9 @@ DataSet(name='deepMisaliTomo',
         files={
             'tomo1': 'even_tomogram_rx1.mrc'
         })
+
+DataSet(name='pyseg',
+        folder='pyseg',
+        files={
+            'tomo': 'Pertuzumab_1_defocus_25um_tomo_7_aliSIRT_EED.mrc'
+        })

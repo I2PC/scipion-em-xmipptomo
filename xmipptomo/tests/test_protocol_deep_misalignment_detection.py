@@ -24,7 +24,9 @@
 # *
 # *****************************************************************************
 
-from pyworkflow.tests import *
+import os
+
+from pyworkflow.tests import setupTestProject, DataSet, BaseTest
 from tomo.protocols.protocol_import_tomograms import ProtImportTomograms
 from xmipptomo.protocols.protocol_peak_high_contrast import XmippProtPeakHighContrast
 from xmipptomo.protocols.protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignment
