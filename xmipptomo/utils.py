@@ -426,7 +426,7 @@ def readResidualStatisticsXmdFile(xmdFilePath):
     return statisticsInfoTable
 
 
-def calculateAveraationAngleFromTM(ts):
+def calculateAverageRotationAngleFromTM(ts):
     """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
     avgRotationAngle = 0
 
