@@ -40,7 +40,7 @@ import xmipptomo.utils as utils
 import emtable
 
 METADATA_INPUT_COORDINATES = "fiducialCoordinates.xmd"
-VRESMOD_FILE_NAME = "vResMod.xmd"
+VRESMOD_FILE_NAME_EXT = "_vResMod.xmd"
 
 
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
@@ -247,7 +247,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         lm = self.inputSetOfLandmarkModels.getLandmarkModelFromTsId(tsId)
 
         lmInfoTable = lm.retrieveInfoTable()
-        resModFilePath = os.path.join(extraPrefix, VRESMOD_FILE_NAME)
+        resModFilePath = os.path.join(extraPrefix, (tsId + VRESMOD_FILE_NAME_EXT))
 
         mdlm = lib.MetaData()
 
@@ -287,7 +287,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
                 'tlt': angleFilePath,
                 'inputCoord': os.path.join(extraPrefix, METADATA_INPUT_COORDINATES),
-                'o': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
+                'o': os.path.join(extraPrefix, (tsId + VRESMOD_FILE_NAME_EXT)),
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrSDHCC': self.thrSDHCC.get(),
@@ -319,7 +319,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             paramsDetectMisali = {
                 'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
-                'inputResInfo': os.path.join(extraPrefix, VRESMOD_FILE_NAME),
+                'inputResInfo': os.path.join(extraPrefix, (tsId + VRESMOD_FILE_NAME_EXT)),
                 'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
@@ -372,7 +372,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                        applyTSTransformation=Boolean(True))
             lm.setTiltSeries(newTs)
 
-            vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, VRESMOD_FILE_NAME))
+            vcmInfoList = self.parseVCMFile(vcmFilePath=os.path.join(extraPrefix, (tsId + VRESMOD_FILE_NAME_EXT)))
 
             for lmInfo in vcmInfoList:
                 lm.addLandmark(xCoor=lmInfo[0],
