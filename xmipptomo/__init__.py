@@ -29,7 +29,7 @@ import pyworkflow.utils as pwutils
 
 _logo = "xmipp_logo.png"
 _references = ['delaRosaTrevin2013', 'Jimenez2022']
-__version__ = "3.23.07.0" #X.YY.MM.sv
+__version__ = "3.23.11.0" #X.YY.MM.sv
         # X.Y.M = version of the xmipp release associated.
         # sv = Set this to ".0" on each xmipp  release.
         # For not release version (hotfix) increase it --> ".1", ".2", ...
