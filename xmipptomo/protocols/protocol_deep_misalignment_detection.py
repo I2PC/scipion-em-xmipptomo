@@ -137,17 +137,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                            'ranged between (0, 1).')
 
         # Advanced parameters
-        form.addParam('modelPick',
-                      EnumParam,
-                      choices=['strict', 'loose'],
-                      default=0,
-                      display=EnumParam.DISPLAY_HLIST,
-                      expertLevel=LEVEL_ADVANCED,
-                      label='Model for weak misalignment estimation',
-                      help='Choose model for weak misalignment estimation. By default, strict model is picked in '
-                           'order to avoid false positives. In case loose model is chosen, less good aligned '
-                           'tomograms are lost. As a tradeoff, the number of false positives will increase.')
-
         form.addParam('misalignmentCriteria',
                       EnumParam,
                       choices=['mean', 'votes'],
@@ -225,13 +214,11 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         # Check if no coordinates have been extracted in the previous step
         if os.path.exists(subtomoExtractedXmdFilePath):
             paramsMisaliPrediction = {
-                'modelPick': self.modelPick.get(),
                 'subtomoFilePath': subtomoFilePath,
                 'g': self.getGpuList()[0],
             }
 
-            argsMisaliPrediction = "--modelPick %(modelPick)d " \
-                                   "--subtomoFilePath %(subtomoFilePath)s " \
+            argsMisaliPrediction = "--subtomoFilePath %(subtomoFilePath)s " \
                                    "-g %(g)s "
 
             # Set misalignment threshold
