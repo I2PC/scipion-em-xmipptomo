@@ -72,7 +72,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries, SetOfLandmarkModels',
                       important=True,
-                      label='Input set of tilt-series')
+                      label='Input set of tilt-series',
+                      help='Input set of tilt-series or landmark models:\n'
+                           '- Tilt-series: landmarks are detected in the tilt-series to posteriorly calculate the '
+                           'residual vectors and finally analyze them for misalignment detection.\n'
+                           '- Landmark models: calculated residuals by the alignment algorithm are directly analyze to '
+                           'detect misalignment.')
 
         form.addParam('inputSetOfCoordinates',
                       params.PointerParam,
@@ -105,7 +110,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
                            'coordinate projection and the detected fiducial.')
 
-        # Advanced parameters
         form.addParam('targetLMsize',
                       params.FloatParam,
                       default=8,
