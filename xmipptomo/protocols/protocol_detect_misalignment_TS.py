@@ -156,7 +156,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             self.inputSetOfLandmarkModels = self.inputSet.get()
             self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries()
 
-            for ts in self.inputSetOfTiltSeries:
+            for lm in self.inputSetOfLandmarkModels:
+                lmTsId = lm.getTsId()
+                ts = self.inputSetOfTiltSeries.getTiltSeriesFromTsId(lmTsId)
                 tsObjId = ts.getObjId()
 
                 cisID = self._insertFunctionStep(self.convertInputStep,
