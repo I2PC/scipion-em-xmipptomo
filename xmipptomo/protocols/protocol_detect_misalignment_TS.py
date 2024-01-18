@@ -93,6 +93,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       label='Fiducial size (nm)',
                       help='Fiducial size in nanometers (nm).')
 
+        form.addParam('maxMisaliImages',
+                      params.IntParam,
+                      default=3,
+                      label='Max. misaligned images',
+                      help='Maximum number of tilt-images that might present misalignment to keep series as aligned. '
+                           'Default value is 3, meaning that if 3 or less tilt-images present misalignment they are '
+                           'annotated but the tilt-series is not classified as misaligned as a whole.')
+
         # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
@@ -357,15 +365,16 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.generateAlignmentReportDictionary(enableInfoList, tsId)
 
-            # Generate output sets of aligned and misaligned tilt series
-            aligned = True
+            # Check number of locally misaligned tilt images
+            misaliTi = 0
 
-            # Check if some tilt image presents misalignment
             for line in enableInfoList:
                 if float(line[0]) != 1:
-                    aligned = False
-                    break
+                    misaliTi += 1
 
+            aligned = True if misaliTi <= self.maxMisaliImages.get() else False
+
+            # Generate output sets of aligned and misaligned tilt series
             newTs = tomoObj.TiltSeries(tsId=tsId)
             newTs.copyInfo(ts)
 
