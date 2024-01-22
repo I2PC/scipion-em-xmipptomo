@@ -47,6 +47,8 @@ from .protocol_reconstruct_tomograms import XmippProtReconstructTomograms
 from .protocol_resizeTS import XmippProtResizeTiltSeries
 from .protocol_resize_tomograms import XmippProtResizeTomograms
 from .protocol_resolution_local_monotomo import XmippProtMonoTomo
+from .protocol_resolution_local_subtomos import XmippProtMonoTomoSubtomos
+from .protocol_segment_morphology import XTomoProtMorphology
 from .protocol_roiIJ import XmippProtRoiIJ
 from .protocol_score_coordinates import XmippProtScoreCoordinates
 from .protocol_score_transform import XmippProtScoreTransform

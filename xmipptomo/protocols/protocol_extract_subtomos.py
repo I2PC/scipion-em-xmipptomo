@@ -116,13 +116,13 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
         """
             Returns the filename of a metadata with the coordinates.
         """
+        #TODO: duplicated, merge to utils
         mdCoor = lib.MetaData()
 
         tsid = tomo.getTsId()
 
         for item in self.coords.get().iterCoordinates(volume=tomo):
             coord = item
-            transform = Transform(matrix=item.getMatrix(convention=MATRIX_CONVERSION.XMIPP))
 
             if coord.getTomoId() == tsid:
                 nRow = md.Row()
@@ -132,11 +132,11 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
                 nRow.setValue(lib.MDL_ZCOOR, int(coord.getZ(const.BOTTOM_LEFT_CORNER)))
                 nRow.setValue(lib.MDL_PARTICLE_ID, int(coord.getObjId()))
 
-                alignmentToRow(transform, nRow, ALIGN_PROJ)
+                #alignmentToRow(transform, nRow, ALIGN_PROJ)
                 nRow.addToMd(mdCoor)
 
-                newCoord = item.clone()
-                newCoord.setVolume(coord.getVolume())
+                #newCoord = item.clone()
+                #newCoord.setVolume(coord.getVolume())
 
         fnCoor = os.path.join(tomoPath, "%s.xmd" % tsid)
         mdCoor.write(fnCoor)
@@ -162,7 +162,7 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
             This function executes xmipp_tomo_extract_subtomos. To do that
             1) It defines the set of tomograms to be used (self.getTomograms)
             2) A folder where the subtomograms will be stored is created. The name of this folder is the tsId
-            3) Lanches the xmipp_tomo_extract_subtomos
+            3) Launches the xmipp_tomo_extract_subtomos
 
         """
 
@@ -176,7 +176,8 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
         # Defining the output folder
         tomoPath = self._getExtraPath(tsId)
-        os.mkdir(tomoPath)
+        if not os.path.exists(tomoPath):
+            os.mkdir(tomoPath)
 
         tomoFn = tomo.getFileName()
 
@@ -226,32 +227,33 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
 
     def writeSetOfSubtomograms(self, tsId, outputSubTomogramsSet, sampling, scaleFactor):
         fnSubtomos = os.path.join(self._getExtraPath(tsId), tsId + '_extracted.xmd')
+        if os.path.exists(fnSubtomos):
 
-        mdsubtomos = lib.MetaData(fnSubtomos)
-        import numpy as np
+            mdsubtomos = lib.MetaData(fnSubtomos)
+            import numpy as np
 
-        coords = self.coords.get()
+            coords = self.coords.get()
 
-        for row in md.iterRows(mdsubtomos):
-            subtomo = SubTomogram()
-            idx = row.getValue(md.MDL_PARTICLE_ID)
-            fn = row.getValue(md.MDL_IMAGE)
-            subtomo.setLocation(os.path.join(self._getExtraPath(tsId), fn))
-            subtomo.setSamplingRate(sampling)
-            coord = coords[idx]
-            subtomo.setCoordinate3D(coord)
-            subtomo.setVolName(tsId)
-            trMatrix = coord.getMatrix()
-            transform = Transform()
-            if scaleFactor != 1:
-                shifts = np.array([trMatrix[0, 3], trMatrix[1, 3], trMatrix[2, 3]])
-                scaledShifts = scaleFactor * shifts
-                trMatrix[0, 3] = scaledShifts[0]
-                trMatrix[1, 3] = scaledShifts[1]
-                trMatrix[2, 3] = scaledShifts[2]
-            transform.setMatrix(trMatrix)
-            subtomo.setTransform(transform, convention=const.TR_SCIPION)
-            outputSubTomogramsSet.append(subtomo)
+            for row in md.iterRows(mdsubtomos):
+                subtomo = SubTomogram()
+                idx = row.getValue(md.MDL_PARTICLE_ID)
+                fn = row.getValue(md.MDL_IMAGE)
+                subtomo.setLocation(os.path.join(self._getExtraPath(tsId), fn))
+                subtomo.setSamplingRate(sampling)
+                coord = coords[idx]
+                subtomo.setCoordinate3D(coord)
+                subtomo.setVolName(tsId)
+                trMatrix = coord.getMatrix()
+                transform = Transform()
+                if scaleFactor != 1:
+                    shifts = np.array([trMatrix[0, 3], trMatrix[1, 3], trMatrix[2, 3]])
+                    scaledShifts = scaleFactor * shifts
+                    trMatrix[0, 3] = scaledShifts[0]
+                    trMatrix[1, 3] = scaledShifts[1]
+                    trMatrix[2, 3] = scaledShifts[2]
+                transform.setMatrix(trMatrix)
+                subtomo.setTransform(transform, convention=const.TR_SCIPION)
+                outputSubTomogramsSet.append(subtomo)
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
