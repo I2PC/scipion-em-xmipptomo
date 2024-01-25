@@ -43,6 +43,8 @@ import tomo.objects as tomoObj
 SCIPION_IMPORT = 0
 FIXED_DOSE = 1
 
+EXT_MRCS = '.mrcs'
+
 
 class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
     """
@@ -115,7 +117,7 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
         mdDose.write(fnMd)
 
         params = ' -i %s '          % fnMd
-        params += ' -o %s '         % (os.path.join(extraPrefix, os.path.splitext(os.path.basename(ts.getFileName()))[0]  + '.mrcs'))
+        params += ' -o %s '         % (os.path.join(extraPrefix, os.path.splitext(os.path.basename(ts.getFileName()))[0]  + EXT_MRCS))
         params += ' --sampling %s ' % self.inputSetOfTiltSeries.get().getSamplingRate()
         params += ' --voltage %f  ' % ts.getAcquisition().getVoltage()
 

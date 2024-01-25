@@ -472,7 +472,7 @@ class XmippProtReconstructInitVol(EMProtocol, ProtTomoBase, xmipp3.XmippProtocol
         return self.inputStacks.get().getFirstItem().getBoxSize()
 
     def trainDatabaseStep(self, iteration: int):
-        #TODO: Change resolution and freqDig when will be updated
+        #4: Change resolution and freqDig when will be updated
 
         maxFrequencyDig, maxPsi, maxShift, _, _ = self.getAlignmentInfo(iteration)
 

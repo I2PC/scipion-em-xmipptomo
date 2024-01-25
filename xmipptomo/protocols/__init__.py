@@ -35,7 +35,6 @@ from .protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignmen
 from .protocol_dose_filter import XmippProtDoseFilter
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
-from .protocol_denoising_confidence import XmippProtConfTomo
 from .protocol_extract_particlestacks import XmippProtExtractParticleStacks
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
 from .protocol_flexalign import XmippProtTsFlexAlign

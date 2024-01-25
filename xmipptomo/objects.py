@@ -88,6 +88,8 @@ class TiltParticle(TiltImage):
 
         return s
 
+#micId
+#classId
 
 class TiltSeriesParticle(TiltSeries):
     ITEM_TYPE = TiltParticle
