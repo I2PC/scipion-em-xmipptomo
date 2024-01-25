@@ -40,7 +40,6 @@ from .protocol_extract_subtomos import XmippProtExtractSubtomos
 from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_peak_high_contrast import XmippProtPeakHighContrast
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
-from .protocol_phantom_tilt_series import XmippProtPhantomTiltSeries
 from .protocol_phantom_tomo import XmippProtPhantomTomo
 #from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_reconstruct_initialVol import XmippProtReconstructInitVol
