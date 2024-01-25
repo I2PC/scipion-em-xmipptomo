@@ -24,7 +24,9 @@
 # *
 # *****************************************************************************
 
-from pyworkflow.tests import *
+import os
+
+from pyworkflow.tests import setupTestProject, DataSet, BaseTest
 from tomo.protocols.protocol_import_tomograms import ProtImportTomograms
 from xmipptomo.protocols.protocol_peak_high_contrast import XmippProtPeakHighContrast
 from xmipptomo.protocols.protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignment
@@ -67,7 +69,7 @@ class TestDeepMisaligmentDetectionBase(BaseTest):
         return cls.protPHC
 
     @classmethod
-    def _runDeepMisaliDetection(cls, inputSoC, tomoSource, inputSetOfT, misaliThrBool, misaliThr, modelPick,
+    def _runDeepMisaliDetection(cls, inputSoC, tomoSource, inputSetOfT, misaliThrBool, misaliThr,
                                 misalignmentCriteria):
         cls.protDMD = cls.newProtocol(XmippProtDeepDetectMisalignment,
                                       inputSetOfCoordinates=inputSoC,
@@ -75,7 +77,6 @@ class TestDeepMisaligmentDetectionBase(BaseTest):
                                       inputSetOfTomograms=inputSetOfT,
                                       misaliThrBool=misaliThrBool,
                                       misaliThr=misaliThr,
-                                      modelPick=modelPick,
                                       misalignmentCriteria=misalignmentCriteria)
 
         cls.launchProtocol(cls.protDMD)
@@ -120,8 +121,7 @@ class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
 
         cls.tomoSource = 0
         cls.misaliThrBool = 1
-        cls.misaliThr = 0.45
-        cls.modelPick = 0
+        cls.misaliThr = 0.33
         cls.misalignmentCriteria = 0
 
         cls.protDMD = cls._runDeepMisaliDetection(inputSoC=cls.protPHC.outputSetOfCoordinates3D,
@@ -129,7 +129,6 @@ class TestDeepMisaligmentDetection(TestDeepMisaligmentDetectionBase):
                                                   inputSetOfT=None,
                                                   misaliThrBool=cls.misaliThrBool,
                                                   misaliThr=cls.misaliThr,
-                                                  modelPick=cls.modelPick,
                                                   misalignmentCriteria=cls.misalignmentCriteria)
 
 

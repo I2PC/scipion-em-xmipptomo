@@ -28,8 +28,9 @@ import os
 from pwem.emlib import MetaData, MDL_MAX, MDL_MIN
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.object import Set
-from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED
+from pyworkflow.object import Set, Float
+from pyworkflow.protocol import PointerParam, EnumParam, FloatParam, BooleanParam, LEVEL_ADVANCED, StringParam, \
+    GPU_LIST, USE_GPU
 from tomo.objects import SetOfCoordinates3D, SetOfTomograms, Coordinate3D, SubTomogram, SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 from tomo import constants
@@ -37,8 +38,8 @@ from xmipp3 import XmippProtocol
 from xmipptomo import utils
 
 COORDINATES_FILE_NAME = 'subtomo_coords.xmd'
-BOX_SIZE = 32
-TARGET_SAMPLING_RATE = 6.25
+COORDINATES_EXTRACTED_FILE_NAME = 'subtomo_coords_extracted.xmd'
+TARGET_BOX_SIZE = 32
 
 
 class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
@@ -65,6 +66,22 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
+        form.addHidden(USE_GPU,
+                       BooleanParam,
+                       default=True,
+                       label="Use GPU for execution",
+                       help="This protocol has both CPU and GPU implementation. "
+                            "Select the one you want to use.")
+
+        form.addHidden(GPU_LIST,
+                       StringParam,
+                       default='0',
+                       expertLevel=LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="GPU ID. To pick the best available one set 0. "
+                            "For a specific GPU set its number ID "
+                            "(starting from 1).")
+
         form.addSection(label='Input')
 
         form.addParam('inputSetOfCoordinates',
@@ -95,6 +112,12 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                       help='Tomograms from which extract the fiducials (gold beads) at the specified coordinates '
                            'locations.')
 
+        form.addParam('fiducialSize',
+                      FloatParam,
+                      default=10,
+                      label='Fiducial size (nm)',
+                      help='Peaked gold bead size in nanometers.')
+
         form.addParam('misaliThrBool',
                       BooleanParam,
                       default=True,
@@ -114,17 +137,6 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                            'ranged between (0, 1).')
 
         # Advanced parameters
-        form.addParam('modelPick',
-                      EnumParam,
-                      choices=['strict', 'loose'],
-                      default=0,
-                      display=EnumParam.DISPLAY_HLIST,
-                      expertLevel=LEVEL_ADVANCED,
-                      label='Model for weak misalignment estimation',
-                      help='Choose model for weak misalignment estimation. By default, strict model is picked in '
-                           'order to avoid false positives. In case loose model is chosen, less good aligned '
-                           'tomograms are lost. As a tradeoff, the number of false positives will increase.')
-
         form.addParam('misalignmentCriteria',
                       EnumParam,
                       choices=['mean', 'votes'],
@@ -140,6 +152,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
         self.tomoDict = self.getTomoDict()
+
+        # Target sampling that fits the fiducial in 16 px (half od the box size to feed the network).
+        self.targetSamplingRate = self.fiducialSize.get() / 1.6
 
         for key in self.tomoDict.keys():
             tomo = self.tomoDict[key]
@@ -167,13 +182,15 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         outputPath = self._getExtraPath(os.path.join(tomo.getTsId()))
         tomoFn = tomo.getFileName()
 
+        dsFactor = self.targetSamplingRate / tomo.getSamplingRate()
+
         paramsExtractSubtomos = {
             'tomogram': tomoFn,
             'coordinates': coordFilePath,
-            'boxsize': BOX_SIZE,
+            'boxsize': TARGET_BOX_SIZE,
             'threads': 1,  # ***
             'outputPath': outputPath,
-            'downsample': TARGET_SAMPLING_RATE / tomo.getSamplingRate(),
+            'downsample': dsFactor,
         }
 
         argsExtractSubtomos = "--tomogram %(tomogram)s " \
@@ -181,7 +198,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                               "--boxsize %(boxsize)d " \
                               "--threads %(threads)d " \
                               "-o %(outputPath)s " \
-                              "--downsample %(downsample)f "
+                              "--downsample %(downsample)f " \
+                              "--normalize " \
+                              "--fixedBoxSize "
 
         self.runJob('xmipp_tomo_extract_subtomograms', argsExtractSubtomos % paramsExtractSubtomos)
 
@@ -189,28 +208,35 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         tomo = self.tomoDict[key]
 
         subtomoFilePath = self._getExtraPath(os.path.join(tomo.getTsId()), COORDINATES_FILE_NAME)
+        subtomoExtractedXmdFilePath = self._getExtraPath(os.path.join(tomo.getTsId()),
+                                                         COORDINATES_EXTRACTED_FILE_NAME)
 
-        paramsMisaliPrediction = {
-            'modelPick': self.modelPick.get(),
-            'subtomoFilePath': subtomoFilePath
-        }
+        # Check if no coordinates have been extracted in the previous step
+        if os.path.exists(subtomoExtractedXmdFilePath):
+            paramsMisaliPrediction = {
+                'subtomoFilePath': subtomoFilePath,
+                'g': self.getGpuList()[0],
+            }
 
-        argsMisaliPrediction = "--modelPick %(modelPick)d " \
-                               "--subtomoFilePath %(subtomoFilePath)s "
+            argsMisaliPrediction = "--subtomoFilePath %(subtomoFilePath)s " \
+                                   "-g %(g)s "
 
-        # Set misalignment threshold
-        if self.misaliThrBool.get():
-            paramsMisaliPrediction['misaliThr'] = self.misaliThr.get()
+            # Set misalignment threshold
+            if self.misaliThrBool.get():
+                paramsMisaliPrediction['misaliThr'] = self.misaliThr.get()
 
-            argsMisaliPrediction += "--misaliThr %(misaliThr)f "
+                argsMisaliPrediction += "--misaliThr %(misaliThr)f "
 
-        # Set misalignment criteria
-        if self.misalignmentCriteria.get() == 1:
-            argsMisaliPrediction += "--misalignmentCriteriaVotes "
+            # Set misalignment criteria
+            if self.misalignmentCriteria.get() == 1:
+                argsMisaliPrediction += "--misalignmentCriteriaVotes "
 
-        self.runJob('xmipp_deep_misalignment_detection',
-                    argsMisaliPrediction % paramsMisaliPrediction,
-                    env=self.getCondaEnv())
+            self.runJob('xmipp_deep_misalignment_detection',
+                        argsMisaliPrediction % paramsMisaliPrediction,
+                        env=self.getCondaEnv())
+        else:
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + " IMPOSSIBLE TO STUDY " +
+                      "MISALIGNMENT!")
 
     def createOutputStep(self, key, coordFilePath):
         tomo = self.tomoDict[key]
@@ -229,10 +255,10 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             firstPredictionArray, secondPredictionArray = self.readPredictionArrays(outputSubtomoXmdFilePath)
             overallPrediction, predictionAverage = self.readTomoScores(outputTomoXmdFilePath)
 
-            print("For volume id " + str(tsId) + " obtained prediction from " + str(len(subtomoPathList)) +
-                  " subtomos is " + str(overallPrediction))
+            self.info("For volume id " + str(tsId) + " obtained prediction from " + str(len(subtomoPathList)) +
+                      " subtomos is " + str(overallPrediction))
 
-            tomo._misaliScore = predictionAverage
+            tomo._misaliScore = Float(predictionAverage)
             self.addTomoToOutput(tomo=tomo, overallPrediction=overallPrediction)
 
             for i, subtomoPath in enumerate(subtomoPathList):
@@ -246,18 +272,18 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
                 subtomogram = SubTomogram()
                 subtomogram.setLocation(subtomoPath)
                 subtomogram.setCoordinate3D(newCoord3D)
-                subtomogram.setSamplingRate(TARGET_SAMPLING_RATE)
+                subtomogram.setSamplingRate(self.targetSamplingRate)
                 subtomogram.setVolName(tomo.getTsId())
-                subtomogram._strongMisaliScore = firstPredictionArray[i]
-                subtomogram._weakMisaliScore = secondPredictionArray[i]
+                subtomogram._strongMisaliScore = Float(firstPredictionArray[i])
+                subtomogram._weakMisaliScore = Float(secondPredictionArray[i])
 
                 self.outputSubtomos.append(subtomogram)
-                self.outputSubtomos.write()
-                self._store()
+            self.outputSubtomos.write()
+            self._store()
 
         else:
-            print("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + "IMPOSSIBLE TO STUDY " +
-                  "MISALIGNMENT!")
+            self.info("WARNING: NO SUBTOMOGRAM ESTRACTED FOR TOMOGRAM " + tomo.getTsId() + " IMPOSSIBLE TO STUDY " +
+                      "MISALIGNMENT!")
 
     def closeOutputSetsStep(self):
         if self.alignedTomograms:
@@ -272,8 +298,9 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             self.strongMisalignedTomograms.setStreamState(Set.STREAM_CLOSED)
             self.strongMisalignedTomograms.write()
 
-        self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
-        self.outputSubtomos.write()
+        if self.outputSubtomos:
+            self.outputSubtomos.setStreamState(Set.STREAM_CLOSED)
+            self.outputSubtomos.write()
 
         self._store()
 
@@ -293,23 +320,34 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
         return tomoDict
 
     def addTomoToOutput(self, tomo, overallPrediction):
-        if overallPrediction == 1:  # Strong misali
-            self.getOutputSetOfStrongMisalignedTomograms()
-            self.strongMisalignedTomograms.append(tomo)
-            self.strongMisalignedTomograms.write()
-            self._store()
+        self.info("Adding tomogram %s to set %d" % (tomo.getObjId(), overallPrediction))
 
-        elif overallPrediction == 2:  # Weak misali
-            self.getOutputSetOfWeakMisalignedTomograms()
-            self.weakMisalignedTomograms.append(tomo)
-            self.weakMisalignedTomograms.write()
-            self._store()
+        try:
+            if overallPrediction == 1:  # Strong misali
+                self.getOutputSetOfStrongMisalignedTomograms()
+                self.strongMisalignedTomograms.append(tomo)
+                self.strongMisalignedTomograms.write()
+                self._store()
 
-        elif overallPrediction == 3:  # Ali
-            self.getOutputSetOfAlignedTomograms()
-            self.alignedTomograms.append(tomo)
-            self.alignedTomograms.write()
-            self._store()
+            elif overallPrediction == 2:  # Weak misali
+                self.getOutputSetOfWeakMisalignedTomograms()
+                self.weakMisalignedTomograms.append(tomo)
+                self.weakMisalignedTomograms.write()
+                self._store()
+
+            elif overallPrediction == 3:  # Ali
+                self.getOutputSetOfAlignedTomograms()
+                self.alignedTomograms.append(tomo)
+                self.alignedTomograms.write()
+                self._store()
+
+        except Exception as e:
+            if "UNIQUE" in str(e):
+                self.info("Error adding tomogram %s to set %d. It might be already added to set (duplicated id)" %
+                          (tomo.getObjId(), overallPrediction))
+            else:
+                self.error("Error adding tomogram %s to set %d." % (tomo.getObjId(), overallPrediction))
+                self.error(str(e))
 
     @staticmethod
     def readPredictionArrays(outputSubtomoXmdFilePath):
@@ -392,7 +430,7 @@ class XmippProtDeepDetectMisalignment(EMProtocol, ProtTomoBase, XmippProtocol):
             outputSubtomos = self._createSetOfSubTomograms(suffix="FS")
 
             outputSubtomos.copyInfo(self.isot)
-            outputSubtomos.setSamplingRate(TARGET_SAMPLING_RATE)
+            outputSubtomos.setSamplingRate(self.targetSamplingRate)
 
             outputSubtomos.setStreamState(Set.STREAM_OPEN)
 
