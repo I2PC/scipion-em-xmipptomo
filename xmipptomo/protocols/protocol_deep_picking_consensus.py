@@ -275,6 +275,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     
     def _insertAllSteps(self):
         self._insertFunctionStep(self.preProcessStep)
+        # self._insertFunctionStep(self.generateGoldStep)
+        self._insertFunctionStep(self.fixDimensionStep)
         self._insertFunctionStep(self.coordConsensusStep)
         self._insertFunctionStep(self.prepareNNStep)
         if not bool(self.skipTraining.get()):
@@ -317,6 +319,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.totalROIsNegative : Integer = sum(map(len, self.inputSetsOf3DCoordinatesNegative))
         self.haveNegative : Boolean = len(self.inputSetsOf3DCoordinatesNegative) > 0
         self.nr_pickersNeg : Integer = len(self.inputSetsOf3DCoordinatesNegative)
+        # Total input sources
+        self.nr_pickersTotal = self.nr_pickersNeg + self.nr_pickersPos + self.nr_pickers
         # Get fraction for noise picking
         # self.noiseFrac = float(self.fracNoise.get())
         self.noiseFrac = Float(0.9)
@@ -381,7 +385,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.untreated = pd.DataFrame(index=range(self.totalROIs),columns=colnames)
 
         # Pickers data table
-        colnames_md = ['boxsize', 'samplingrate']
+        colnames_md = ['boxsize', 'samplingrate', 'factor']
         self.pickerMD = pd.DataFrame(index=range(self.nr_pickers), columns=colnames_md)
 
         # START ENTERING THE DATA INTO THE RAW DATA TABLE ---------------------
@@ -397,6 +401,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             # Assign the corresponding line
             self.pickerMD.loc[pick_id, 'boxsize'] = bsize
             self.pickerMD.loc[pick_id, 'samplingrate'] = srate
+            self.pickerMD.loc[pick_id, 'factor'] = 1.0
 
             # For each individual coordinate in this particular set...
             coordinate : Coordinate3D
@@ -446,6 +451,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 # Assign the corresponding line
                 self.pickerMDPos.loc[pick_id, 'boxsize'] = bsize
                 self.pickerMDPos.loc[pick_id, 'samplingrate'] = srate
+                self.pickerMDPos.loc[pick_id, 'factor'] = 1.0
 
                 # For each individual coordinate in this particular set...
                 coordinate : Coordinate3D
@@ -483,6 +489,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 # Assign the corresponding line
                 self.pickerMDNeg.loc[pick_id, 'boxsize'] = bsize
                 self.pickerMDNeg.loc[pick_id, 'samplingrate'] = srate
+                self.pickerMDNeg.loc[pick_id, 'factor'] = 1.0
 
                 # For each individual coordinate in this particular set...
                 coordinate : Coordinate3D
@@ -505,20 +512,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
                 singleTomoDf : pd.DataFrame = self.untreatedNeg[self.untreatedNeg['tomo_id'] == name]
                 savedfile = self._getAllLieCoordsFilename(self._stripTomoFilename(name))
                 self.writeCoords(savedfile, singleTomoDf)
-        
-        # Print sizes before doing the consensus
-        summary = ""
-        summary += " Total ROIs: %d." % self.totalROIs
-        summary += " Pos prelabeled ROIs: %d." % self.totalROIsPositive
-        summary += " Neg prelabeled ROIs: %d." % self.totalROIsNegative
-        print(summary)
-        print("\nPICKER SUMMARY")
-        print(self.pickerMD)
-        print("")
+
+        self.pickerMDTotal = pd.concat([self.pickerMD, self.pickerMDNeg, self.pickerMDPos], axis=0)
     
         # Do the box size consensus
         self.BSSRConsensusStep()
 
+    
         # Ahora tengo: un fichero por cada tomogram_id con todos sus pickings, asi como consenso en tamannos
         # End block
         # END STEP
@@ -561,19 +561,25 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         """
 
         # Fetch the different box sizes from pickers
-        assert self.pickerMD is not None
+        assert self.pickerMDTotal is not None
 
         # Old method: smallest boxsize
         # result = self.pickerMD.iloc[self.pickerMD['boxsize'].astype(int).argmin()]
 
         # New method: biggest sampling rate
-        result = self.pickerMD.iloc[self.pickerMD['samplingrate'].astype(float).argmax()]
+        result = self.pickerMDTotal.iloc[self.pickerMDTotal['samplingrate'].astype(float).argmax()]
         
         print("Determined box size: " + str(result['boxsize']))
         print("Determined sampling rate (A/px): " + str(result['samplingrate']))
         
         self.consBoxSize = Integer(result['boxsize'])
         self.consSampRate = Float(result['samplingrate'])
+
+        # Calculate the ratios for later resizing for different SR scenarios
+        for i in range(self.nr_pickersTotal):
+            self.pickerMDTotal.loc[i, 'factor'] = self.pickerMDTotal.loc[i, 'samplingrate'] / self.consSampRate
+
+        print(self.pickerMDTotal)
 
     # BLOCK 2 - Program - consensuate coordinates
     def coordConsensusStep(self):
@@ -636,7 +642,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         args += ' --output ' + outPath
         print('\nHanding over to Xmipp program for noise picking')
         self.runJob(program, args)                   
-  
+
+    def fixDimensionStep(self):
+        
+        # TODO:
+        # Usar la tabla de PickerMD para sacar las correspondencias de TSID y tomograma
+        #   Es decir, de forma iterativa buscar desde el mejor tomograma (resolucion wise) para cual existen todas las entradas
+        # problema: quizas no haya para todas las tsid un tomograma con la misma res
+        # solucion: ir buscando de mejor a peor si están todos los tomogramas available en ese samplingrate
+
+        for tomo in self.uniqueTomoIDs:
+            pass    
     # BLOCK 2 - Prepare the material needed by the NN
     def prepareNNStep(self):
         """
@@ -651,20 +667,22 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # This protocol executes on the Xmipp program side
         # Tengo: carpetas
         # Necesito: extraer
-        for tomoPath in self.uniqueTomoIDs:
-            tomoName = self._stripTomoFilename(tomoPath)
+        for tomogram in self.uniqueTomoIDs:
+            originalTomoName = self._stripTomoFilename(tomogram)
+            tomoName = originalTomoName
+            # tomoName = self.tomoAssignationTable[self.tomoAssignationTable['original'] == tomoName]
             if not self.trainSkip:
                 howManyPositive = howManyCoords(self._getPosCoordsFilename(tomoName))
                 # Generate the bad examples for later extraction
                 self.noisePick(tomoPath, self._getConsCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName), howManyPositive)
                 # Actually extract the bad examples
-                self.tomogramExtract(tomoPath, self._getNegCoordsFilename(tomoName), self._getNegSubtomogramPath())
+                self.tomogramExtract(tomoPath, self._getNegCoordsScaledFilename(tomoName), self._getNegSubtomogramPath())
             # Extract the known good examples
             if self.isTherePositive(tomoName):
-                self.tomogramExtract(tomoPath, self._getPosCoordsFilename(tomoName), self._getPosSubtomogramPath())
+                self.tomogramExtract(tomoPath, self._getPosCoordsScaledFilename(tomoName), self._getPosSubtomogramPath())
             # Extract the doubt subtomograms
             if self.isThereDoubt(tomoName):
-                self.tomogramExtract(tomoPath, self._getDoubtCoordsFilename(tomoName), self._getDoubtSubtomogramPath())
+                self.tomogramExtract(tomoPath, self._getDoubtCoordsScaledFilename(tomoName), self._getDoubtSubtomogramPath())
         # Tengo: todo extraido
         # Necesito: combinar todos en un solo XMD
 
@@ -893,8 +911,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         tomoDict = {}
-        # TODO: This is assuming that all pickers pick same tomograms. CACADEVACA
-        # TODO: Future: fill a dictionary with unique combinations of tsId-volume
         setOfCoords : SetOfCoordinates3D
         outTomos : SetOfTomograms
         for setOfCoords in self.inputSetsOf3DCoordinates:
@@ -923,6 +939,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             c.setX(self.scoredDf_filtered_dedup['x'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setY(self.scoredDf_filtered_dedup['y'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setZ(self.scoredDf_filtered_dedup['z'][ind], tconst.BOTTOM_LEFT_CORNER)
+            # TODO: assign escore
             coordinates.append(c)
         
         name = self.OUTPUT_PREFIX + suffix
@@ -1010,6 +1027,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _getDoubtCoordsFilename(self, tomo_name: str):
         return self._getCoordConsensusPath(tomo_name+"_cons_doubt.xmd")
     
+    def _getPosCoordsScaledFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_cons_pos_scl.xmd")
+    
+    def _getNegCoordsScaledFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_cons_neg_scl.xmd")
+    
+    def _getDoubtCoordsScaledFilename(self, tomo_name: str):
+        return self._getCoordConsensusPath(tomo_name+"_cons_doubt_scl.xmd")
+    
     def _getConsCoordsFilename(self, tomo_name:str):
         return self._getCoordConsensusPath(tomo_name+"_cons_all.xmd")
     
@@ -1047,6 +1073,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         res = query.iloc[0][1]
         return res
     
+    # OTHER UTILITIES
+    
     def isTherePositive(self, tomoName):
         return os.path.exists(self._getPosCoordsFilename(tomoName))
 
@@ -1054,7 +1082,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return os.path.exists(self._getDoubtCoordsFilename(tomoName))
 
     def dedup(self, df: pd.DataFrame) -> pd.DataFrame:
-        # TODO: CULO
         # Calculate the threshold for assimilation
         thold = int(int(self.consBoxSize)/2)
         # Create a dataframe with same columns but no data
