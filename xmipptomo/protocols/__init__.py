@@ -30,6 +30,7 @@ from .protocol_apply_alignment_subtomo import XmippProtApplyTransformSubtomo
 from .protocol_applyAlignmentTS import XmippProtApplyTransformationMatrixTS
 from .protocol_cltomo import XmippProtCLTomo
 from .protocol_connected_components import XmippProtConnectedComponents
+from .protocol_consensus_subtomo_alignment import XmippProtConsensusSubtomoAlignnment
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignment
 from .protocol_dose_filter import XmippProtDoseFilter

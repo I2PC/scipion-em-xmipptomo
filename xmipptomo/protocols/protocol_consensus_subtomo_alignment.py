@@ -1,6 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:    Jose Luis Vilas (jlvilas@cnb.csic.es)
+# * Authors:    David Herreros Calero (dherreros@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -20,249 +20,185 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'coss@cnb.csic.es'
+# *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import enum
+import math
 
-import os
+import numpy as np
+from scipy.spatial.distance import cdist
 
 from pyworkflow import BETA
-from pyworkflow.protocol.params import FloatParam, BooleanParam, PointerParam, EnumParam, LEVEL_ADVANCED
+from pyworkflow.object import Float
+from pyworkflow.protocol import params, LEVEL_ADVANCED
+from tomo.constants import SCIPION
 
-from tomo import constants
-from tomo.protocols import ProtTomoBase
+from tomo.protocols import ProtTomoPicking
 from tomo.objects import SetOfSubTomograms
 
-import pyworkflow.utils.path as path
-from pyworkflow.object import Set, Float
-from pwem.protocols import EMProtocol
-import pwem.emlib as emlib
-import pwem.emlib.metadata as md
-
-from xmipptomo import utils
-
-#TODO: Check if remove
-METADATA_COORDINATES_STATS = 'coordinateStats_'
-METADATA_INPUT_COORDINATES = "inputCoordinates"
-XMD_EXT = '.xmd'
-OUTPUT_XMD_COORS = 'outCoors.xmd'
+from pwem.convert.transformations import listQuaternions, quaternion_distance
 
 
-class XmippProtConsensusSubtomoAlignnment(EMProtocol, ProtTomoBase):
-    ''' Filter coordinate by map both given a mask or a resolucion map from a tomogram'''
+class ScoreTransformOutputs(enum.Enum):
+    Subtomograms = SetOfSubTomograms
 
-    _label = 'consensus subtomo alignment'
+
+class XmippProtConsensusSubtomoAlignnment(ProtTomoPicking):
+    """Protocol to score a series of alignments stored in a SetOfSubtomograms by
+    quaternion distance analysis.
+
+    xmipp_alignmentDistance ranges from 0º to 180º. Therefore, a 0º distance is the best and means alignment is the same.
+    The lower the score the more similar is the alignment.
+    """
+
+    _label = 'subtomo alignment consensus'
     _devStatus = BETA
+    _possibleOutputs = ScoreTransformOutputs
+    SCORE_ATTR = "xmipp_alignmentDistance"
 
     def __init__(self, **args):
-        EMProtocol.__init__(self, **args)
-        ProtTomoBase.__init__(self)
+        ProtTomoPicking.__init__(self, **args)
+        # self.stepsExecutionMode = STEPS_PARALLEL
+        self._percentage_outliers = None
+        self.scoresIndex = None
+        self._mean_dist = None
+        self.first_subtomos = None
+        self.second_subtomos = None
 
     def _defineParams(self, form):
         form.addSection(label='Input')
+        form.addParam('firstSubtomos', params.PointerParam,
+                      pointerClass='SetOfSubTomograms',
+                      label="First Subtomograms to compare", important=True)
+        form.addParam('secondSubtomos', params.PointerParam,
+                      pointerClass='SetOfSubTomograms',
+                      label="Second Subtomograms to compare", important=True)
+        form.addParam('minDistance', params.IntParam,
+                      default=0,
+                      label='Min distance [Å]',
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Minimum distance to be considered the same particle [Å]')
+        form.addParam('maxDistance', params.IntParam,
+                      default=10,
+                      label='Max distance [Å]',
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Maximum distance to be considered different particles [Å]')
 
-        form.addParam('inputSubtomosSet1',
-                      PointerParam,
-                      pointerClass='SetOfSubtomograms',
-                      label="Subtomograms Set 1",
-                      important=True,
-                      help='Select the set of subtomograms that has been aligned agains a reference')
-
-        form.addParam('inputSubtomosSet2',
-                      PointerParam,
-                      pointerClass='SetOfSubtomograms',
-                      label="Subtomograms Set 2",
-                      important=True,
-                      help='Select the set of subtomograms that has been aligned agains a reference')
-
-        form.addParam('inputSetOfTomograms',
-                      PointerParam,
-                      pointerClass='SetOfTomograms',
-                      label="Input Tomogram",
-                      important=True,
-                      help='Select the Set Of Tomograms to be used. The coordinates'
-                           'make references to their corresponding tomograms, then, the'
-                           'statistics of the the enviroment of each coordinates will'
-                           'be calculated. Thus it is possible to associate a mean, and'
-                           'a standard deviation to each coordinate.')
-
-        form.addParam('radius',
-                      FloatParam,
-                      default=50,
-                      label="Radius",
-                      help='Radius of the ball with center at the coordinate')
-
-        form.addParam('filterOption',
-                      EnumParam,
-                      choices=['No Filter', 'Average', 'Standard Deviation'],
-                      default=self.NO_FILTER,
-                      label="Filter option",
-                      isplay=EnumParam.DISPLAY_COMBO,
-                      help='Select an option to filter the coordinates: \n '
-                           '_Average_: Filter by Average value. \n'
-                           '_StandardDeviation_: Filter by Standard deviation value.')
-
-        form.addParam('averageFilter',
-                      FloatParam,
-                      allowsNull=True,
-                      condition='filterOption==%d' % self.FILTER_AVERAGE,
-                      label="Average",
-                      help='Average value as threshold')
-
-        form.addParam('stdFilter',
-                      FloatParam,
-                      allowsNull=True,
-                      condition='filterOption==%d' % self.FILTER_STD,
-                      label="std",
-                      help='std value as threshold')
-
-        form.addParam('thresholdDirection',
-                      BooleanParam,
-                      condition='filterOption',
-                      label="keep greater than the threshold",
-                      help='Set true if you want to keep values greater than the threshold. And set false'
-                           'if the values lesser than the threshold will be discarded')
-
-    # --------------------------- INSERT steps functions ----------------------
+    # --------------------------- INSERT steps functions ---------------------------
     def _insertAllSteps(self):
-        self.tomos = self.inputCoordinates.get().getPrecedents()
+        # For convenience
+        self.first_subtomos = self.firstSubtomos.get()
+        self.second_subtomos = self.secondSubtomos.get()
+        self._insertFunctionStep(self.scoreTransformStep)
 
-        for tomo in self.inputCoordinates.get().getPrecedents():
-            tomoId = tomo.getObjId()
-            self._insertFunctionStep(self.generateSideInfo, tomoId)
-            self._insertFunctionStep(self.calculatingStatisticsStep, tomoId)
-        self._insertFunctionStep(self.createOutputStep)
-        self._insertFunctionStep(self.closeOutputSets)
+    # --------------------------- STEPS functions ---------------------------
+    def scoreTransformStep(self):
+        # Extract Transformation Matrices from input SubTomograms
+        # first_matrices, second_matrices = self.getMatricesFromCommonItems()
+        commonSet1, commonSet2 = self.getMatchingCoordsFromSubtomos()
+        first_matrices, second_matrices = self._getTransformMatrices(commonSet1, commonSet2)
 
-    # --------------------------- STEPS functions ----------------------------
-    def generateSideInfo(self, tomoId):
-        """ Generates side information and input files to feed the Xmipp filter coordinates algorithm """
+        # Convert Trasnformation Matrices to Quaternions
+        first_quaternions = listQuaternions(first_matrices)
+        second_quaternions = listQuaternions(second_matrices)
 
-        extraPrefix = self._getExtraPath(str(tomoId))
-        path.makePath(extraPrefix)
+        # Compute distance matrix from quaternions --> dict {subtomo: min_quaternion_distance}
+        distDict = {subtomo: min(quaternion_distance(t1, t2), quaternion_distance(t1, -t2))
+                    for subtomo, t1, t2 in zip(commonSet1, first_quaternions, second_quaternions)}
 
-        utils.writeOutputCoordinates3dXmdFile(self.inputCoordinates.get(),
-                                              os.path.join(self._getExtraPath(str(tomoId)),
-                                                           METADATA_INPUT_COORDINATES + XMD_EXT),
-                                              tomoId)
+        # Crete the output here. Continuation is not possible since "dist" is needed.
+        self.createOutput(distDict)
 
-    def calculatingStatisticsStep(self, tomId):
-        """ Given a tomogram and a set of coordinates, a ball around is considered and
-         the statistic of the tomogram inside the ball with center at the coordiante
-         are calculated and generated in a metadata """
+        # Save summary to use it in the protocol Info
+        only_distances = list(distDict.values())
+        mean_dist = np.mean(only_distances)
+        std_dist = np.std(only_distances)
+        percentage_outliers = np.sum(only_distances > mean_dist + 3 * std_dist) \
+                              + np.sum(only_distances < mean_dist - 3 * std_dist)
+        percentage_outliers = 100 * percentage_outliers / len(only_distances)
 
-        fnOut = METADATA_COORDINATES_STATS + str(tomId) + XMD_EXT
-        fnInCoord = self._getExtraPath(os.path.join(str(tomId), METADATA_INPUT_COORDINATES + XMD_EXT))
-
-        params = ' --inTomo %s' % self.retrieveMap(tomId).getFileName()
-        params += ' --coordinates %s' % fnInCoord
-        params += ' --radius %f' % self.radius.get()
-        params += ' -o %s' % self._getExtraPath(os.path.join(str(tomId), fnOut))
-
-        self.runJob('xmipp_tomo_filter_coordinates', params)
-
-    def createOutputStep(self):
-        """ Generates a Xmipp metadata file (.xmd) containing the statistical information associated to
-        the each coordinate with information extracted from the resolution map. """
-
-        self.getOutputSetOfCoordinates3D()
-
-        outputMdFile = self._getExtraPath(OUTPUT_XMD_COORS)
-
-        for tomo in self.tomos:
-            tomoId = tomo.getObjId()
-            inputMdFileName = METADATA_COORDINATES_STATS + str(tomoId) + XMD_EXT
-            inputMdFile = self._getExtraPath(os.path.join(str(tomoId), inputMdFileName))
-
-            mdCoor = md.MetaData()
-
-            tom_fn = self.retrieveMap(tomoId).getFileName()
-            x_pos, y_pos, z_pos, avg, std = utils.readXmdStatisticsFile(inputMdFile)
-
-            for i in range(len(x_pos)):
-                avg_i = avg[i]
-                std_i = std[i]
-
-                if (self.filterOption == self.NO_FILTER) or \
-                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() > avg_i) or \
-                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_AVERAGE and self.averageFilter.get() < avg_i) or \
-                   (not self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() > std_i) or \
-                   (self.thresholdDirection.get() and self.filterOption == self.FILTER_STD and self.stdFilter.get() < std_i):
-
-                    # Fill metadata
-                    mdRow = md.Row()
-                    mdRow.setValue(emlib.MDL_IMAGE, tom_fn)
-                    mdRow.setValue(emlib.MDL_AVG, avg_i)
-                    mdRow.setValue(emlib.MDL_STDDEV, std_i)
-                    mdRow.setValue(emlib.MDL_XCOOR, x_pos[i])
-                    mdRow.setValue(emlib.MDL_YCOOR, y_pos[i])
-                    mdRow.setValue(emlib.MDL_ZCOOR, z_pos[i])
-                    mdRow.writeToMd(mdCoor, mdCoor.addObject())
-
-                    # Create output object
-                    newCoord3D = Coordinate3D()
-                    newCoord3D.setVolume(tomo)
-                    newCoord3D.setX(x_pos[i], constants.BOTTOM_LEFT_CORNER)
-                    newCoord3D.setY(y_pos[i], constants.BOTTOM_LEFT_CORNER)
-                    newCoord3D.setZ(z_pos[i], constants.BOTTOM_LEFT_CORNER)
-
-                    newCoord3D._resAvg = Float(avg_i)
-                    newCoord3D._resStd = Float(std_i)
-
-                    newCoord3D.setVolId(tomoId)
-                    self.outputSetOfCoordinates3D.append(newCoord3D)
-                    self.outputSetOfCoordinates3D.update(newCoord3D)
-
-            mdCoor.write(outputMdFile)
-
-            self.outputSetOfCoordinates3D.write()
-            self._store()
-
-    def closeOutputSets(self):
-        if hasattr(self, "outputSetOfCoordinates3D"):
-            self.outputSetOfCoordinates3D.setStreamState(Set.STREAM_CLOSED)
-
+        self._mean_dist = Float(mean_dist)
+        self._percentage_outliers = Float(percentage_outliers)
         self._store()
 
-    # --------------------------- UTILS functions --------------------------------------------
-    def retrieveMap(self, tomoId):
-        """ This method return a the given mask/resolution map from the input set given the correspondent tomoId. """
+    def createOutput(self, distanceScoresDict):
+        outSubtomos = SetOfSubTomograms.create(self._getPath(), template='submograms%s.sqlite')
+        outSubtomos.copyInfo(self.second_subtomos)
+        for subtomo, distance in distanceScoresDict.items():
+            setattr(subtomo, self.SCORE_ATTR, Float(math.degrees(distance)))
+            outSubtomos.append(subtomo)
 
-        found = False
+        self._defineOutputs(**{ScoreTransformOutputs.Subtomograms.name: outSubtomos})
+        self._defineSourceRelation(self.firstSubtomos, outSubtomos)
+        self._defineSourceRelation(self.secondSubtomos, outSubtomos)
 
-        for tomo in self.inputSetOfTomograms.get():
-            if tomo.getObjId() == tomoId:
-                found = True
-                return tomo
-
-        if not found:
-            raise Exception("Not map found in input set with tomoId with value" + tomoId)
-
-    def getOutputSetOfCoordinates3D(self):
-        if hasattr(self, "outputSetOfCoordinates3D"):
-            self.outputSetOfCoordinates3D.enableAppend()
-
+    # --------------------------- UTILS functions ---------------------------
+    def getMatchingCoordsFromSubtomos(self):
+        coordDictList1 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
+                          zip(self.first_subtomos, self.first_subtomos.getCoordinates3D())}
+        coordDictList2 = {part.clone(): coord.getPosition(SCIPION) for part, coord in
+                          zip(self.second_subtomos, self.second_subtomos.getCoordinates3D())}
+        subtomos1 = list(coordDictList1.keys())
+        subtomos2 = list(coordDictList2.keys())
+        coordList1 = np.array(list(coordDictList1.values()))
+        coordList2 = np.array(list(coordDictList2.values()))
+        # Coords are in pixels, so the threshold must be, too
+        sRate = self.first_subtomos.getSamplingRate()
+        minDistThresholdPix = self.minDistance.get() * sRate
+        maxDistThresholdPix = self.maxDistance.get() * sRate
+        numel1 = len(coordList1)
+        numel2 = len(coordList2)
+        if numel1 == numel2 or numel1 < numel2:
+            distances = cdist(coordList1, coordList2)
         else:
-            outputSetOfCoordinates3D = self._createSetOfCoordinates3D(volSet=self.inputSetOfTomograms.get(),
-                                                                      suffix='_filtered')
+            distances = cdist(coordList2, coordList1)
+        indices = np.argmin(distances, axis=1)  # Indices of min distance
+        minDist = np.min(distances, axis=1)  # Min distance values
+        # Apply threshold to the results
+        filterInd = np.logical_and(minDistThresholdPix <= minDist, minDist <= maxDistThresholdPix)
+        finalIndices = indices[filterInd]
+        # Index the introduced sets properly
+        finalList1 = np.array(subtomos1)[finalIndices]
+        finalList2 = np.array(subtomos2)[finalIndices]
+        return finalList1, finalList2
 
-            outputSetOfCoordinates3D.setSamplingRate(self.inputSetOfTomograms.get().getSamplingRate())
-            outputSetOfCoordinates3D.setPrecedents(self.inputSetOfTomograms.get())
+    @staticmethod
+    def _getTransformMatrices(subtomos1, subtomos2):
+        transforms1 = []
+        transforms2 = []
+        for part1, part2 in zip(subtomos1, subtomos2):
+            transforms1.append(part1.getTransform().getMatrix())
+            transforms2.append(part2.getTransform().getMatrix())
 
-            outputSetOfCoordinates3D.setStreamState(Set.STREAM_OPEN)
+        return transforms1, transforms2
 
-            self._defineOutputs(outputSetOfCoordinates3D=outputSetOfCoordinates3D)
-            self._defineSourceRelation(self.inputSetOfTomograms.get(), outputSetOfCoordinates3D)
-
-        return self.outputSetOfCoordinates3D
-
-    # --------------------------- INFO functions ------------------------------
-    def _methods(self):
-        messages = []
-
-        return messages
-
+    # --------------------------- INFO functions ---------------------------
     def _summary(self):
         summary = []
 
+        if self.getOutputsSize() >= 1:
+
+            summary.append('Mean distance between the two sets: %.2f\n' % self._mean_dist)
+            summary.append('Estimated percentage of outliers: %.2f%%\n' % self._percentage_outliers)
+
+        else:
+            summary.append('Output not ready yet')
+
         return summary
+
+    def _validate(self):
+        validateMsgs = []
+        firstSubtomos = self.firstSubtomos.get()
+        secondSubtomos = self.secondSubtomos.get()
+        firstSRate = firstSubtomos.getSamplingRate()
+        secondSRate = secondSubtomos.getSamplingRate()
+        sRateTol = 1e-4
+        if not firstSubtomos.hasAlignment3D():
+            validateMsgs.append('The first set of subtomograms provided does not contain aligned particles.')
+        if not secondSubtomos.hasAlignment3D():
+            validateMsgs.append('The second set of subtomograms provided does not contain aligned particles.')
+        if abs(firstSRate - secondSRate) >= sRateTol:
+            validateMsgs.append('The sampling rate of both sets of subtomograms is expected to be the same within '
+                                'tolerance %.4f: %.4f != %.4f' % (sRateTol, firstSRate, secondSRate))
+        return validateMsgs
