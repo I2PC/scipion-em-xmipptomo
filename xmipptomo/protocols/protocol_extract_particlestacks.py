@@ -29,15 +29,22 @@ import glob
 from pwem.emlib import lib
 from pwem.objects import Transform, ImageDim
 from pwem.protocols import EMProtocol
+from pyworkflow.object import Set
 from pwem import ALIGN_PROJ
 import pwem.emlib.metadata as md
+
+import pwem.emlib.image.image_handler as ih
+from pwem.objects.data import CTFModel, Transform
+import numpy as np
+
 
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, IntParam, BooleanParam
 
 from tomo.objects import SetOfCTFTomoSeries, SetOfTiltSeries, SetOfCoordinates3D, TomoAcquisition, MATRIX_CONVERSION
-from ..objects import SetOfTiltSeriesParticle, TiltSeriesParticle
+from ..objects import SetOfTiltSeriesParticle, TiltSeriesParticle, TiltParticle
 from ..utils import writeMdTiltSeries, calculateRotationAngleAndShiftsFromTM, getCTFfromId
+
 import tomo.constants as const
 
 from tomo.protocols import ProtTomoBase
@@ -46,17 +53,13 @@ from xmipp3.convert import alignmentToRow, readSetOfParticles
 COORD_BASE_FN = 'coords'
 EXT_XMD = '.xmd'
 
-# Tomogram type constants for particle extraction
-OUTPUTATTRIBUTE = 'TiltSeriesParticle'
-
-
 class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
     """
     Extract a set of particle stacks from a set of tilt series given a set of coordinates in the tomogram.
     """
     _label = 'extract particle stacks'
     _devStatus = BETA
-    _possibleOutputs = {OUTPUTATTRIBUTE: SetOfTiltSeriesParticle}
+
     lines = []
     tomoFiles = []
     listofTsId = []
@@ -86,8 +89,7 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
         form.addParam('ctfTomoSeries', PointerParam, pointerClass=SetOfCTFTomoSeries,
                       condition='setCTFinfo',
                       label='Set Of CTFs ', help='Set of CTF associated to the used tilt series. Please'
-                                                 'tae into accourt the alignment information XXXXX',
-                      important=True)
+                                                 'take into accourt the alignment information XXXXX')
 
         form.addParam('boxSize', IntParam,
                       label='Box size',
@@ -225,38 +227,33 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
             else:
                 ti = tsList[idxTS]
                 ctfti = ctfList[idxCTF]
-                transform = ti.getTransform()
-                if transform is None:
-                    rot = 0
-                    Sx = 0
-                    Sy = 0
-                else:
-                    rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(ti)
+
+                rot, Sx, Sy = calculateRotationAngleAndShiftsFromTM(ti)
+                nRow = md.Row()
 
                 tiIndex = ti.getLocation()[0]
                 fn = str(tiIndex) + "@" + ti.getFileName()
-                nRow = md.Row()
-                nRow.setValue(lib.MDL_IMAGE, fn)
-
+                tilt = ti.getTiltAngle()
                 defU = ctfti.getDefocusU()
                 defV = ctfti.getDefocusV()
                 defAng = ctfti.getDefocusAngle()
+                print(defAng)
+                nRow.setValue(lib.MDL_IMAGE, fn)
                 nRow.setValue(lib.MDL_CTF_DEFOCUSU, defU)
                 nRow.setValue(lib.MDL_CTF_DEFOCUSV, defV)
                 nRow.setValue(lib.MDL_CTF_DEFOCUS_ANGLE, defAng)
-
                 nRow.setValue(lib.MDL_TSID, tsId)
-                tilt = ti.getTiltAngle()
                 nRow.setValue(lib.MDL_ANGLE_TILT, tilt)
                 nRow.setValue(lib.MDL_ANGLE_ROT, rot)
                 nRow.setValue(lib.MDL_SHIFT_X, Sx)
                 nRow.setValue(lib.MDL_SHIFT_Y, Sy)
                 nRow.setValue(lib.MDL_DOSE, dose)
                 nRow.addToMd(mdts)
-
+        print(warningStr)
         fnts = os.path.join(tomoPath, "%s_ts.xmd" % tsId)
 
         mdts.write(fnts)
+
         return fnts
 
     def extractStackStep(self, objId):
@@ -269,15 +266,18 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
 
         tsId = ts.getTsId()
         tomoPath = self._getExtraPath(tsId)
-        os.mkdir(tomoPath)
+        if not os.path.exists(tomoPath):
+            os.mkdir(tomoPath)
 
         tomoFn = ts.getFileName()
-
         fnCoords = self.writeMdCoordinates(ts, tomoPath)
+
         if self.setCTFinfo:
+            print('setting CTF info')
             fnTs = self.writeMdTiltSeriesWithCTF(ts, tomoPath)
         else:
-            fnTs = writeMdTiltSeries(ts, tomoPath, fnXmd=tsId + '_ts.xmd')
+            print('CTF info will not be set')
+            fnTs = writeMdTiltSeries(ts, tomoPath)
 
         params = ' --tiltseries %s' % fnTs
         params += ' --coordinates %s' % fnCoords
@@ -300,56 +300,142 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
 
         self.tomoFiles.append(tomoFn)
 
+
     def createOutputStep(self):
-        """
-            This function creates the output of the protocol
-        """
-        ts = self.tiltseries.get()
-        firstItem = ts.getFirstItem()
-        acquisitonInfo = firstItem.getAcquisition()
-        print(acquisitonInfo)
-        # TODO: Check the sampling if the tomograms are different than the picked ones
-        # TODO: Check the sampling rate if a downsampling option is implemented
-        outputSet = None
+        """Generate output filtered tilt series"""
+        inputTs = self.tiltseries.get()
+        sampling = inputTs.getSamplingRate()
+        outputSetOfTiltSeries = self._createSetOfTiltSeriesParticle()
+        outputSetOfTiltSeries.setSamplingRate(sampling)
+        boxsize = self.boxSize.get()
 
-        self.outputParticleStackSet = SetOfTiltSeriesParticle.create(self._getPath())
-        self.outputParticleStackSet.setSamplingRate(ts.getSamplingRate())
-        bs = self.boxSize.get()
-        self.outputParticleStackSet.setDim(ImageDim(bs, bs, bs))
-        self.outputParticleStackSet.setAnglesCount(ts.getAnglesCount())
-        if acquisitonInfo:
-            acquisition = TomoAcquisition()
-            acquisition.setAngleMin(acquisitonInfo.getAngleMin())
-            acquisition.setAngleMax(acquisitonInfo.getAngleMax())
-            acquisition.setStep(acquisitonInfo.getStep())
-            self.outputParticleStackSet.setAcquisition(acquisition)
+        acquisitionInfo = inputTs.getAcquisition()
 
-        counter = 0
+        outputSetOfTiltSeries.enableAppend()
 
-        for item in ts.iterItems():
-            for ind, tomoFile in enumerate(self.tomoFiles):
-                if os.path.basename(tomoFile) == os.path.basename(item.getFileName()):
-                    tsId = item.getTsId()
-                    outputSet, counter = self.readSetOfParticleStack(tomoFile,
-                                                                     self.outputParticleStackSet,
-                                                                     counter, tsId)
+        newidx = 0
 
-        self._defineOutputs(**{OUTPUTATTRIBUTE: outputSet})
-        self._defineSourceRelation(self.coords, outputSet)
+        for ts in inputTs:
+            tsId = ts.getTsId()
+            dictionary = self.getTiltSeriesParticles(tsId)
+            outRegex = os.path.join(self._getExtraPath(tsId), tsId + '-*.mrcs')
+            subtomoFileList = sorted(glob.glob(outRegex))
+
+            for idx, subtomoFile in enumerate(subtomoFileList):
+                tsParticle = TiltSeriesParticle(tsId='ts' + str(newidx))
+                tsParticle.setTsId('ts' + str(newidx))
+                tsParticle.setObjId(newidx)
+                tsParticle.setAcquisition(acquisitionInfo)
+
+                particlekey = 'tsp' + str(idx)
+                nangles = len(dictionary[particlekey]['tilt'])
+                tsParticle.setAnglesCount(nangles)
+                tsParticle.setBoxSize(boxsize)
+
+                tsParticle.setOriginalTs(tsId)
+                outputSetOfTiltSeries.append(tsParticle)
+
+                for itti in range(0, nangles):
+                    tp = TiltParticle()
+                    tp.setObjId(itti)
+                    tp.setTsId(tsId)
+                    tp.setSamplingRate(sampling)
+                    tp.setLocation(itti+1 , subtomoFile)
+                    #fn = dictionary[particlekey]['filename'][itti].split('@')
+                    #print('fn %i %i', fn[0], itti)
+                    #tp.setLocation(int(fn[0]), fn[1])
+
+
+
+                    tp.setTiltAngle(dictionary[particlekey]['tilt'][itti])
+
+                    ctfmodel = CTFModel()
+                    ctfmodel.setDefocusU(dictionary[particlekey]['defU'][itti])
+                    ctfmodel.setDefocusV(dictionary[particlekey]['defV'][itti])
+                    ctfmodel.setDefocusAngle(dictionary[particlekey]['defAng'][itti])
+
+                    c = np.cos(np.deg2rad(dictionary[particlekey]['rot'][itti]))
+                    s = np.sin(np.deg2rad(dictionary[particlekey]['rot'][itti]))
+                    tp.setTransform(Transform(matrix=np.array([[c, -s, dictionary[particlekey]['shiftX'][itti]],
+                                                               [s, c, dictionary[particlekey]['shiftY'][itti]], [0, 0, 1]])))
+                    tp.setCTF(ctfmodel)
+                    dictionary[particlekey]['dose'] = []
+                    tsParticle.append(tp)
+
+                outputSetOfTiltSeries.update(tsParticle)
+                outputSetOfTiltSeries.write()
+                newidx += 1
+
+        outputSetOfTiltSeries.write()
+        self._store()
+
+        self._defineOutputs(outputSetOfTiltSeries=outputSetOfTiltSeries)
+        self._defineSourceRelation(self.tiltseries, outputSetOfTiltSeries)
 
         if self.asSPAparticles:
-            fn = self._getExtraPath('allparticles.xmd')
-            outputSet = self._createSetOfParticles()
-            outputSet.setAcquisition(acquisitonInfo)
-            self.createMdWithall2DTiltParticles(fn)
-            #TODO set dose per particle
-            readSetOfParticles(fn, outputSet)
-            outputSet.setSamplingRate(self.tiltseries.get().getSamplingRate())
-            outputSet.write()
+            self.outputSPAparticles(acquisitionInfo)
 
-            self._defineOutputs(outputParticles=outputSet)
-            self._defineSourceRelation(self.coords, outputSet)
-            self._defineSourceRelation(self.tiltseries, outputSet)
+    def getOutputSetOfTiltSeries(self):
+        sampling = self.tiltseries.get().getSamplingRate()
+        if hasattr(self, "outputSetOfTiltSeriesParticle"):
+            self.outputSetOfTiltSeries.enableAppend()
+        else:
+            outputSetOfTiltSeries = self._createSetOfTiltSeries()
+            outputSetOfTiltSeries.copyInfo(self.tiltseries.get())
+            outputSetOfTiltSeries.setDim(self.tiltseries.get().getDim())
+            outputSetOfTiltSeries.setSamplingRate(sampling)
+            self._defineOutputs(outputSetOfTiltSeriesParticle=outputSetOfTiltSeries)
+            self._defineSourceRelation(self.tiltseries, outputSetOfTiltSeries)
+        return self.outputSetOfTiltSeries
+
+    def getTiltSeriesParticles(self, tsId):
+
+        fnts = os.path.join(self._getExtraPath(tsId), "%s.xmd" % tsId)
+        dictionary = {}
+        keyBaseParticle = 'tsp'
+
+        if os.path.isfile(fnts):
+            for i, row in enumerate(md.iterRows(fnts)):
+                fn = row.getValue(lib.MDL_IMAGE)
+                pId = row.getValue(lib.MDL_PARTICLE_ID)
+                defU = row.getValue(lib.MDL_CTF_DEFOCUSU)
+                defV = row.getValue(lib.MDL_CTF_DEFOCUSV)
+                defAng = row.getValue(lib.MDL_CTF_DEFOCUS_ANGLE)
+                tsId = row.getValue(lib.MDL_TSID)
+                tilt = row.getValue(lib.MDL_ANGLE_TILT)
+                rot = row.getValue(lib.MDL_ANGLE_ROT)
+                sx = row.getValue(lib.MDL_SHIFT_X)
+                sy = row.getValue(lib.MDL_SHIFT_Y)
+                dose = row.getValue(lib.MDL_DOSE)
+
+                keyparticle = keyBaseParticle + str(pId)
+                if keyparticle not in dictionary:
+                    dictionary[keyparticle] = {}
+                    dictionary[keyparticle]['filename'] = []
+                    dictionary[keyparticle]['tsId'] = []
+                    dictionary[keyparticle]['defU'] = []
+                    dictionary[keyparticle]['defV'] = []
+                    dictionary[keyparticle]['defAng'] = []
+                    dictionary[keyparticle]['tilt'] = []
+                    dictionary[keyparticle]['rot'] = []
+                    dictionary[keyparticle]['shiftX'] = []
+                    dictionary[keyparticle]['shiftY'] = []
+                    dictionary[keyparticle]['dose'] = []
+
+                dictionary[keyparticle]['filename'].append(fn)
+                dictionary[keyparticle]['tsId'].append(tsId)
+                dictionary[keyparticle]['defU'].append(defU)
+                dictionary[keyparticle]['defV'].append(defV)
+                dictionary[keyparticle]['defAng'].append(defAng)
+                dictionary[keyparticle]['tilt'].append(tilt)
+                dictionary[keyparticle]['rot'].append(rot)
+                dictionary[keyparticle]['shiftX'].append(sx)
+                dictionary[keyparticle]['shiftY'].append(sy)
+                dictionary[keyparticle]['dose'].append(dose)
+
+
+        return dictionary
+
 
     def createMdWithall2DTiltParticles(self, fn):
 
@@ -389,30 +475,20 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
                     rowglobal.addToMd(mdAllParticles)
         mdAllParticles.write(fn)
 
+    def outputSPAparticles(self, acquisitonInfo):
 
-    def readSetOfParticleStack(self, tomoFile, outputTsParticlesSet, counter, tsId):
-        """
-            This function set the corresponing attributes to each tilt series particle. Coordinates and transformation matrix
-            The output is the set of tilt series particle
-        """
-        self.info("Registering tilt series particle for %s" % tomoFile)
+        fn = self._getExtraPath('allparticles.xmd')
+        outputSet = self._createSetOfParticles()
+        outputSet.setAcquisition(acquisitonInfo)
+        self.createMdWithall2DTiltParticles(fn)
+        # TODO set dose per particle
+        readSetOfParticles(fn, outputSet)
+        outputSet.setSamplingRate(self.tiltseries.get().getSamplingRate())
+        outputSet.write()
 
-        outRegex = os.path.join(self._getExtraPath(tsId), tsId + '-*.mrcs')
-        print('.............................')
-        print(self._getExtraPath(tsId), tsId + '-*.mrc')
-        subtomoFileList = sorted(glob.glob(outRegex))
-        print(subtomoFileList)
-
-        for idx, subtomoFile in enumerate(subtomoFileList):
-            self.debug("Registering tilt series particle %s - %s" % (counter, subtomoFile))
-
-            tsparticle = TiltSeriesParticle()
-            tsparticle.cleanObjId()
-            tsparticle.setLocation(subtomoFile)
-            tsparticle.setVolName(tsId)
-            outputTsParticlesSet.append(tsparticle)
-            counter += 1
-        return outputTsParticlesSet, counter
+        self._defineOutputs(outputParticles=outputSet)
+        self._defineSourceRelation(self.coords, outputSet)
+        self._defineSourceRelation(self.tiltseries, outputSet)
 
     # --------------------------- INFO functions ------------------------------
     def _methods(self):
@@ -423,8 +499,9 @@ class XmippProtExtractParticleStacks(EMProtocol, ProtTomoBase):
     def _validate(self):
         validateMsgs = []
 
-        if self.setCTFinfo and not self.ctfTomoSeries.get():
-            validateMsgs.append("A set of CTF must be provided. \n")
+        if self.setCTFinfo:
+            if not self.ctfTomoSeries.get():
+                validateMsgs.append("A set of CTF must be provided. \n")
 
         firstTomo = self.coords.get().getPrecedents().getFirstItem()
         tomoDims = firstTomo.getDimensions()

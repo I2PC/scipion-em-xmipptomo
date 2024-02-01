@@ -30,6 +30,7 @@ from pyworkflow import BETA
 from pyworkflow.object import Set
 import pyworkflow.protocol.params as params
 import pyworkflow.utils.path as path
+from pyworkflow.utils import getExt
 
 import pwem.emlib.metadata as md
 import pwem.emlib as emlib
@@ -41,6 +42,8 @@ import tomo.objects as tomoObj
 
 SCIPION_IMPORT = 0
 FIXED_DOSE = 1
+
+EXT_MRCS = '.mrcs'
 
 
 class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
@@ -61,13 +64,14 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries',
                       important=True,
-                      label='Input set of tilt-series to be filtered.')
+                      label='Input set of tilt-series to be filtered by dose.')
 
+        #TODO: Use it
         form.addParam('initialDose',
                       params.FloatParam,
                       default=0.0,
                       expertLevel=params.LEVEL_ADVANCED,
-                      label='Initial dose (e/sq A)',
+                      label='Initial dose (e/A^2)',
                       help='Dose applied before any of the images in the input file were taken; this value will be '
                            'added to all the prior dose values, however they were obtained.')
 
@@ -88,17 +92,20 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
         extraPrefix = self._getExtraPath(tsId)
         tmpPrefix = self._getTmpPath(tsId)
 
-        path.makePath(tmpPrefix)
-        path.makePath(extraPrefix)
+        if not os.path.exists(tmpPrefix):
+            os.mkdir(tmpPrefix)
+        if not os.path.exists(extraPrefix):
+            os.mkdir(extraPrefix)
 
-        firstItem = ts.getFirstItem()
-
-        fnMd = 'image_and_dose.xmd'
+        fnMd = self._getExtraPath(tsId, 'image_and_dose.xmd')
         mdDose = md.MetaData()
         idx = 1
         for ti in ts:
             doseValue = ti.getAcquisition().getAccumDose()
             fn = ti.getFileName()
+            ext = getExt(fn)
+            if ext == '.mrc' or ext == '.map':
+                fn = fn+':mrcs'
             strimg = str(idx) + '@' + fn
             idx = idx + 1
 
@@ -110,9 +117,9 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
         mdDose.write(fnMd)
 
         params = ' -i %s '          % fnMd
-        params += ' -o %s '         % (os.path.join(extraPrefix, os.path.splitext(os.path.basename(ts.getFileName()))[0]  + '.mrcs'))
-        params += ' --sampling %s' % self.inputSetOfTiltSeries.get().getSamplingRate()
-        params += ' --voltage %f '  % ts.getAcquisition().getVoltage()
+        params += ' -o %s '         % (os.path.join(extraPrefix, os.path.splitext(os.path.basename(ts.getFileName()))[0]  + EXT_MRCS))
+        params += ' --sampling %s ' % self.inputSetOfTiltSeries.get().getSamplingRate()
+        params += ' --voltage %f  ' % ts.getAcquisition().getVoltage()
 
         self.runJob('xmipp_tomo_tiltseries_dose_filter', params)
 
@@ -136,7 +143,6 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
             newTi = tomoObj.TiltImage()
             newTi.copyInfo(tiltImage, copyId=True, copyTM=True)
             newTi.setAcquisition(tiltImage.getAcquisition())
-
 
             #To be reviewed in hunting day
             pathTi = os.path.join(extraPrefix, os.path.splitext(os.path.basename(ts.getFileName()))[0] + '.mrcs')
@@ -170,6 +176,11 @@ class XmippProtDoseFilter(ProtTomoImportFiles, EMProtocol, ProtTomoBase):
         self._store()
 
     # --------------------------- INFO functions ----------------------------
+    def _validate(self):
+        validateMsgs = []
+
+        return validateMsgs
+
     def _summary(self):
         summary = []
         if not hasattr(self, 'outputInterpolatedSetOfTiltSeries'):
