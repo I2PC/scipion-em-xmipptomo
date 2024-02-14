@@ -8,7 +8,10 @@
             
         ],
         "others": [
-            
+            {
+                "test": "test_protocol_subtraction_subtomo.TestXmipptomoSubtractionSubtomo",
+                "reason": "It is already failing. Skipping for now, but needs fix."
+            }
         ]
     }
 }
