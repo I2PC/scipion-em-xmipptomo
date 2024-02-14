@@ -1,0 +1,14 @@
+{
+    "datasets": ["tomo-em", "monotomo", "deepMisaliTomo", "nma", "pyseg"],
+    "skippable": {
+        "gpu": [
+            
+        ],
+        "dependencies": [
+            
+        ],
+        "others": [
+            
+        ]
+    }
+}
