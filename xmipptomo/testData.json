@@ -17,7 +17,7 @@
                 "reason": "It is already failing. Skipping for now, but needs fix"
             },
             {
-                "test": "tests.test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
+                "test": "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
                 "reason": "Dependency with test test_protocol_extract_subtomos.TestXmippProtExtractSubtomos causes concurrency issues"
             }
         ]
