@@ -23,11 +23,13 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import multiprocessing
+
 from pyworkflow.tests import BaseTest, setupTestProject
 from tomo.protocols.protocol_import_coordinates import IMPORT_FROM_EMAN
 import tomo.protocols
 
-from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo
+from xmipptomo.protocols.protocol_cltomo import XmippProtCLTomo, DEFAULT_MPI
 from xmipptomo.protocols.protocol_extract_subtomos import XmippProtExtractSubtomos
 
 ## Tomogram type constants for particle extraction
@@ -93,7 +95,8 @@ class TestXmippProtCLtomo(TestXmippProtCLTomoBase):
 
     def _runXmippCLtomo(self):
         protTomoExtraction = self._runImportCoordinatesAndTomograms()
-        protCLTomo = self.newProtocol(XmippProtCLTomo, inputVolumes=protTomoExtraction.Subtomograms)
+        nMPI = min(multiprocessing.cpu_count(), DEFAULT_MPI)
+        protCLTomo = self.newProtocol(XmippProtCLTomo, inputVolumes=protTomoExtraction.Subtomograms, mpi=nMPI)
 
         self.launchProtocol(protCLTomo)
 
