@@ -159,6 +159,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                                  tsObjId,
                                                  prerequisites=[crvID])
 
+                # TODO: call this function only in TS is aligned
                 dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
                                                   tsObjId,
                                                   prerequisites=[dmsID])
@@ -383,14 +384,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'o': os.path.join(extraPrefix,
                                   firstItem.parseFileName(suffix='_subtleMisalignmentReport', extension='.xmd')),
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
-                'shfitTol': self.subtleMisalignmentTolerance.get(),
+                'shiftTol': self.subtleMisalignmentTolerance.get(),
             }
 
             argsDetectMisali = "-i %(i)s " \
                                "--tlt %(tlt)s " \
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
-                               "--shfitTol %(shfitTol).2f "
+                               "--shiftTol %(shiftTol).2f "
 
             self.runJob('xmipp_tomo_tiltseries_detect_misalignment_corr', argsDetectMisali % paramsDetectMisali)
 
