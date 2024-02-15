@@ -17,9 +17,19 @@
                 "reason": "It is already failing. Skipping for now, but needs fix"
             },
             {
+                "test": "test_protocol_monotomo.TestMonoTomo",
+                "reason": "Uses too much RAM and crashes the GitHub action's worker. Cannot be tested on free workers (test)"
+            },
+            {
                 "test": "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
-                "reason": "Dependency with test test_protocol_extract_subtomos.TestXmippProtExtractSubtomos causes concurrency issues"
+                "reason": "Dependency with test test_protocol_extract_subtomos.TestXmippProtExtractSubtomos causes concurrency issues. Needs proper implementation in test script file"
             }
         ]
-    }
+    },
+    "test-dependencies": [
+        {
+            "test": "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
+            "dependencies": ["test_protocol_extract_subtomos.TestXmippProtExtractSubtomos"]
+        }
+    ]
 }
