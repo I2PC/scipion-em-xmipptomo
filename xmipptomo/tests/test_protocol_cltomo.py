@@ -95,7 +95,7 @@ class TestXmippProtCLtomo(TestXmippProtCLTomoBase):
 
     def _runXmippCLtomo(self):
         protTomoExtraction = self._runImportCoordinatesAndTomograms()
-        nMPI = min(multiprocessing.cpu_count(), DEFAULT_MPI)
+        nMPI = min(multiprocessing.cpu_count() - 1, DEFAULT_MPI)
         protCLTomo = self.newProtocol(XmippProtCLTomo, inputVolumes=protTomoExtraction.Subtomograms, mpi=nMPI)
 
         self.launchProtocol(protCLTomo)
