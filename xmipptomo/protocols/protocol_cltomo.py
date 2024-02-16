@@ -131,6 +131,7 @@ class XmippProtCLTomo(EMProtocol, ProtTomoBase):
         if not self.align:
             params += " --dontAlign"
 
+        print("NUMBER OF MPI ---------- :", self.numberOfMpi.get())
         self.runJob('xmipp_mpi_classify_CLTomo', '%d %s' % (self.numberOfMpi.get(), params),
                     env=self.getCLTomoEnviron(), numberOfMpi=1)
 
