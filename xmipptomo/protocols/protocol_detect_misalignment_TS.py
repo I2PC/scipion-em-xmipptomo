@@ -134,6 +134,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'on the tilt series.',
                       expertLevel=params.LEVEL_ADVANCED)
 
+        form.addParallelSection(threads=4, mpi=1)
+
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
         self.alignmentReport = List([])
