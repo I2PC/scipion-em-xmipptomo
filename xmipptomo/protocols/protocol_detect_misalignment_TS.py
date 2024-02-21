@@ -238,11 +238,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
             ts.applyTransform(outputTsFileName)
 
-        if modeTs:
-            """Generate angle file"""
-            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-            utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
+        """Generate angle file"""
+        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+        utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
+        if modeTs:
             """Generate 3D coordinates metadata"""
             sots_soc = self.inputSetOfCoordinates.get().getSetOfTiltSeries()
             ts_soc = sots_soc.getTiltSeriesFromTsId(tsId)
