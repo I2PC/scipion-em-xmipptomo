@@ -31,9 +31,6 @@
         ]
     },
     "test-dependencies": [
-        {
-            "test": "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
-            "dependencies": ["test_protocol_extract_subtomos.TestXmippProtExtractSubtomos"]
-        }
+        "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms": ["test_protocol_extract_subtomos.TestXmippProtExtractSubtomos"]
     ]
 }
