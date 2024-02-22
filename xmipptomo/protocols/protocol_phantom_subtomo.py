@@ -291,17 +291,17 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                     rotErr = rot + np.random.normal(0, self.sigma.get())
                     tiltErr = tilt + np.random.normal(0, self.sigma.get())
             else:
-                rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-                tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-                psi = np.random.randint(self.psimin.get(), self.psimax.get())
+                rot = np.random.Generator.integers(self.rotmin.get(), self.rotmax.get())
+                tilt = np.random.Generator.integers(self.tiltmin.get(), self.tiltmax.get())
+                psi = np.random.Generator.integers(self.psimin.get(), self.psimax.get())
                 rotErr = rot
                 tiltErr = tilt
 
         if self.applyShift:
             # Shifts
-            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
-            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
-            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
+            shiftX = np.random.Generator.integers(self.xmin.get(), self.xmax.get())
+            shiftY = np.random.Generator.integers(self.ymin.get(), self.ymax.get())
+            shiftZ = np.random.Generator.integers(self.zmin.get(), self.zmax.get())
 
 
         self.runJob("xmipp_transform_geometry",
@@ -413,9 +413,9 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             coor = Coordinate3D()
             coor.setVolume(tomo)
             tomoDim = tomo.getDim()
-            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
-            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
-            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            coor.setX(np.random.Generator.integers(tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(np.random.Generator.integers(tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(np.random.Generator.integers(tomoDim[2]), const.BOTTOM_LEFT_CORNER)
 
             self.coordsSet.append(coor)
             self.coordsSet.setBoxSize(subtomo.getDim()[0])
