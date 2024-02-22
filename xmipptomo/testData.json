@@ -27,10 +27,6 @@
             {
                 "test": "test_protocol_monotomo.TestMonoTomo",
                 "reason": "Uses too much RAM and crashes the GitHub action's worker. Cannot be tested on free workers"
-            },
-            {
-                "test": "test_protocol_project_subtomograms.TestXmippProtProjectSubtomograms",
-                "reason": "Dependency with test test_protocol_extract_subtomos.TestXmippProtExtractSubtomos causes concurrency issues. Needs proper implementation in test script file"
             }
         ]
     },
