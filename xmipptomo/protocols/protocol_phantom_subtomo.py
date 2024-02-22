@@ -291,17 +291,19 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                     rotErr = rot + np.random.normal(0, self.sigma.get())
                     tiltErr = tilt + np.random.normal(0, self.sigma.get())
             else:
-                rot = np.random.Generator.integers(self.rotmin.get(), self.rotmax.get())
-                tilt = np.random.Generator.integers(self.tiltmin.get(), self.tiltmax.get())
-                psi = np.random.Generator.integers(self.psimin.get(), self.psimax.get())
+                rng = np.random.default_rng()
+                rot = rng.integers(self.rotmin.get(), self.rotmax.get())
+                tilt = rng.integers(self.tiltmin.get(), self.tiltmax.get())
+                psi = rng.integers(self.psimin.get(), self.psimax.get())
                 rotErr = rot
                 tiltErr = tilt
 
         if self.applyShift:
             # Shifts
-            shiftX = np.random.Generator.integers(self.xmin.get(), self.xmax.get())
-            shiftY = np.random.Generator.integers(self.ymin.get(), self.ymax.get())
-            shiftZ = np.random.Generator.integers(self.zmin.get(), self.zmax.get())
+            rng = np.random.default_rng()
+            shiftX = rng.integers(self.xmin.get(), self.xmax.get())
+            shiftY = rng.integers(self.ymin.get(), self.ymax.get())
+            shiftZ = rng.integers(self.zmin.get(), self.zmax.get())
 
 
         self.runJob("xmipp_transform_geometry",
@@ -413,9 +415,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             coor = Coordinate3D()
             coor.setVolume(tomo)
             tomoDim = tomo.getDim()
-            coor.setX(np.random.Generator.integers(tomoDim[0]), const.BOTTOM_LEFT_CORNER)
-            coor.setY(np.random.Generator.integers(tomoDim[1]), const.BOTTOM_LEFT_CORNER)
-            coor.setZ(np.random.Generator.integers(tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            rng = np.random.default_rng()
+            coor.setX(rng.integers(tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(rng.integers(tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(rng.integers(tomoDim[2]), const.BOTTOM_LEFT_CORNER)
 
             self.coordsSet.append(coor)
             self.coordsSet.setBoxSize(subtomo.getDim()[0])
