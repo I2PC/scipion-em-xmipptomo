@@ -134,6 +134,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'on the tilt series.',
                       expertLevel=params.LEVEL_ADVANCED)
 
+        form.addParam('subtleMisaliToggle',
+                      params.BooleanParam,
+                      default=True,
+                      label='Subtle misalignment analysis',
+                      display=params.EnumParam.DISPLAY_HLIST,
+                      help='Run local alignment to detect subtle misalignment. This analysis detects lower alignment '
+                           'errors but it requires some computational extra load.',
+                      expertLevel=params.LEVEL_ADVANCED)
+
         form.addParallelSection(threads=4, mpi=1)
 
     # -------------------------- INSERT steps functions ---------------------
@@ -162,15 +171,22 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                                  prerequisites=[crvID])
 
                 # TODO: call this function only in TS is aligned
-                dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
-                                                  tsObjId,
-                                                  prerequisites=[dmsID])
+                if self.subtleMisaliToggle.get():
+                    dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
+                                                      tsObjId,
+                                                      prerequisites=[dmsID])
 
-                gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                 tsObjId,
-                                                 prerequisites=[dsmsID])
+                    gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                     tsObjId,
+                                                     prerequisites=[dsmsID])
 
-                allcossId.append(gosID)
+                    allcossId.append(gosID)
+                else:
+                    gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                     tsObjId,
+                                                     prerequisites=[dmsID])
+
+                    allcossId.append(gosID)
 
             self._insertFunctionStep(self.closeOutputSetsStep,
                                      prerequisites=allcossId)
@@ -197,13 +213,23 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                                  tsObjId,
                                                  prerequisites=[grfID])
 
-                dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
-                                                  tsObjId,
-                                                  prerequisites=[dmsID])
+                # TODO: call this function only in TS is aligned
+                if self.subtleMisaliToggle.get():
+                    dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
+                                                      tsObjId,
+                                                      prerequisites=[dmsID])
 
-                gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                 tsObjId,
-                                                 prerequisites=[dsmsID])
+                    gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                     tsObjId,
+                                                     prerequisites=[dsmsID])
+
+                    allcossId.append(gosID)
+                else:
+                    gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                     tsObjId,
+                                                     prerequisites=[dmsID])
+
+                    allcossId.append(gosID)
 
                 allcossId.append(gosID)
 
@@ -420,7 +446,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             aligned = True if misaliTi <= self.maxMisaliImages.get() else False
 
             # If tilt-series is still aligned search for subtle misalignment
-            if aligned:
+            # TODO: call this function only in TS is aligned
+            if aligned and self.subtleMisaliToggle.get():
                 xmdEnableTiltImages = os.path.join(
                     extraPrefix,
                     firstItem.parseFileName(suffix='_subtleMisalignmentReport', extension='.xmd'))
