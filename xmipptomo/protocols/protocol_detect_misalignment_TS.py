@@ -61,6 +61,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         # Global variable to check if coordinates have been input for a specific tilt-series
         self.check = True
 
+        # Global varibale to keep the quality of the tilt-series under study.
+        # If the tilt series is not aligned the detection of subtle misalignment is avoided
+        self.aligned = True
+
         self.inputSetOfTiltSeries = None
         self.inputSetOfLandmarkModels = None
 
@@ -391,8 +395,25 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
+            # Detect if tilt-series presents misalignment. If not subtle misalignment detection will be executed
+            xmdEnableTiltImages = os.path.join(extraPrefix,
+                                               firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
+
+            enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
+
+            self.generateAlignmentReportDictionary(enableInfoList, tsId)
+
+            # Check number of locally misaligned tilt images
+            misaliTi = 0
+
+            for line in enableInfoList:
+                if float(line[0]) != 1:
+                    misaliTi += 1
+
+            self.aligned = True if misaliTi <= self.maxMisaliImages.get() else False
+
     def detectSubtleMisalignment(self, tsObjId):
-        if self.check:
+        if self.check and self.aligned:
             ts = self.inputSetOfTiltSeries[tsObjId]
             tsId = ts.getTsId()
 
@@ -429,25 +450,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             firstItem = ts.getFirstItem()
 
-            xmdEnableTiltImages = os.path.join(extraPrefix,
-                                               firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
-
-            enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
-
-            self.generateAlignmentReportDictionary(enableInfoList, tsId)
-
-            # Check number of locally misaligned tilt images
-            misaliTi = 0
-
-            for line in enableInfoList:
-                if float(line[0]) != 1:
-                    misaliTi += 1
-
-            aligned = True if misaliTi <= self.maxMisaliImages.get() else False
-
             # If tilt-series is still aligned search for subtle misalignment
             # TODO: call this function only in TS is aligned
-            if aligned and self.subtleMisaliToggle.get():
+            if self.aligned and self.subtleMisaliToggle.get():
                 xmdEnableTiltImages = os.path.join(
                     extraPrefix,
                     firstItem.parseFileName(suffix='_subtleMisalignmentReport', extension='.xmd'))
@@ -461,7 +466,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                     if float(line[0]) != 1:
                         misaliTi += 1
 
-                aligned = True if misaliTi <= self.maxMisaliImages.get() else False
+                self.aligned = True if misaliTi <= self.maxMisaliImages.get() else False
 
             # Generate output sets of aligned and misaligned tilt series
             newTs = tomoObj.TiltSeries(tsId=tsId)
@@ -486,7 +491,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                xResid=lmInfo[4],
                                yResid=lmInfo[5])
 
-            if aligned:
+            if self.aligned:
                 self.getOutputSetOfTiltSeries()
                 self.outputSetOfTiltSeries.append(newTs)
 
@@ -508,7 +513,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             newTs.write(properties=False)
 
-            if aligned:
+            if self.aligned:
                 self.outputSetOfTiltSeries.update(newTs)
                 self.outputSetOfTiltSeries.write()
             else:
