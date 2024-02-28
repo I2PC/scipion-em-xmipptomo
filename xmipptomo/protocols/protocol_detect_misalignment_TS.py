@@ -244,10 +244,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         if modeTs:
             """Generate 3D coordinates metadata"""
-            sots_soc = self.inputSetOfCoordinates.get().getSetOfTiltSeries()
-            ts_soc = sots_soc.getTiltSeriesFromTsId(tsId)
-
-            xDim, yDim, _ = ts_soc.getFirstItem().getDimensions()
+            xDim, yDim, _ = ts.getFirstItem().getDimensions()
 
             if firstItem.hasTransform():
                 if swap:

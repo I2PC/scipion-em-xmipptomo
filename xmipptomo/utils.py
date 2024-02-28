@@ -329,8 +329,8 @@ def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, t
 
     if tsId is None:
         for coord in soc:
-            coordinatesInfo.append([(coord.getX()/sr)-halfX,
-                                    (coord.getY()/sr)-halfY,
+            coordinatesInfo.append([(coord.getX()/sr)+halfX,
+                                    (coord.getY()/sr)+halfY,
                                     (coord.getZ()/sr)])
     else:
         for coord in soc:
