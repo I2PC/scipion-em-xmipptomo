@@ -4,6 +4,7 @@
 .pydevproject
 .classpath
 .idea
+.vscode
 
 #### Python
 build/
