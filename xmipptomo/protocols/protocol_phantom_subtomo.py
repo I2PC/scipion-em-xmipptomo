@@ -507,4 +507,3 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             if self.mwfilter.get():
                 methods.append("Missing wedge applied between +-%d along Y axis." % self.mwangle.get())
             return methods
-
