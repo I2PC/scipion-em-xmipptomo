@@ -1,6 +1,7 @@
 # **************************************************************************
 # *
 # * Authors:    Mikel Iceta Tena (miceta@cnb.csic.es)
+# *             Jose Luis Vilas (jlvilas@cnb.csic.es)
 # *
 # * Unidad de Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -23,6 +24,9 @@
 # *  e-mail address 'coss@cnb.csic.es'
 # *
 # * Initial release: september 2023
+# * v 0.2 - January 2024
+# *     * Complete refactor, now Pandas is not needed
+# *     * Support for irregular sets (different nº of tomos, different Srate, different BSize)
 # **************************************************************************
 
 """
@@ -33,8 +37,8 @@ import os
 # Tomo-specific
 import tomo.constants as tconst
 from tomo.protocols import ProtTomoPicking
+from xmipp3 import XmippProtocol
 from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomogram
-
 
 # Needed for the GUI definition and pyworkflow objects
 from pyworkflow.protocol import params, LEVEL_ADVANCED
@@ -44,10 +48,11 @@ import pyworkflow.utils as pwutils
 # Data and objects management
 import numpy as np
 from pyworkflow.object import Integer, Float, Boolean, List, Dict
+from pwem.protocols import EMProtocol
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
 
-class XmippProtPickingConsensusTomo(ProtTomoPicking):
+class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     """ 
         This protocol receives a set of coordinates representing 3D particles
         that come from different picking sources. It then trains a model and
@@ -67,7 +72,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     _label      = 'deep consensus picking 3D'
     _devStatus  = BETA
     _conda_env = 'xmipp_DLTK_v1.0'
-    _stepsCheckSecs  = 30 # Scipion steps check interval (in seconds)
+    _stepsCheckSecs  = 60 # Scipion steps check interval (in seconds)
     _possibleOutputs = {'output3DCoordinates' : SetOfCoordinates3D}
 
     # Protocol-specific options/switches/etc
@@ -237,31 +242,32 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         
     #--------------- INSERT steps functions ----------------
     def _insertAllSteps(self):
-        # Initial 2 steps generate the structures and load the unique ids and such
-        self._insertFunctionStep(self.readInputStep)
-        self._insertFunctionStep(self.initializeDataStructuresStep)
-        self._insertFunctionStep(self.fixDimensionStep)
-        self._insertFunctionStep(self.coordConsensusStep)
+        self._insertFunctionStep(self.readInputsStep) # Serial because of nature
+        self._insertFunctionStep(self.initializeDataStructuresStep) # Serial because of nature
+        self._insertFunctionStep(self.doBSSRConsensusStep) # Serial because of nature
+        self._insertFunctionStep(self.calculateScalingFactorsStep)
+        self._insertFunctionStep(self.generateScaledCoordinatesStep)  # Parallelizable
+        self._insertFunctionStep(self.writeScaledCoordinatesStep) # Serial because of nature
+        # self._insertFunctionStep(self.coordConsensusStep)
         # Serial para todos estos for the moment
-        self._insertFunctionStep(self.prepareNNStep)
-        self._insertFunctionStep(self.processTrainStep)
-        self._insertFunctionStep(self.processScoreStep)
-        self._insertFunctionStep(self.postProcessStep)
-        self._insertFunctionStep(self.createOutputStep)
+        # self._insertFunctionStep(self.prepareNNStep)
+        # self._insertFunctionStep(self.processTrainStep)
+        # self._insertFunctionStep(self.processScoreStep)
+        # self._insertFunctionStep(self.postProcessStep)
+        # self._insertFunctionStep(self.createOutputStep)
 
     #--------------- STEPS functions -----------------------
 
-    # BLOCK 1 - 1: Obtain the needed parameters from the input form
-    def readInputStep(self) -> None:
+    def readInputsStep(self) -> None:
         """
         Reads the input form, establishes some hardcoded parameters.
         Uses Scipion datatypes for DB persistence.
         """
 
-         # Sets of coordinates
-        self.inputSetsOf3DCoordinates : List = [item.get() for item in self.inputSets]
-        self.inputSetsOf3DCoordinatesPositive : List = [item.get() for item in self.positiveInputSets]
-        self.inputSetsOf3DCoordinatesNegative : List = [item.get() for item in self.negativeInputSets]
+        # Sets of coordinates
+        self.inputSetsOf3DCoordinates : List = List([item.get() for item in self.inputSets])
+        self.inputSetsOf3DCoordinatesPositive : List = List([item.get() for item in self.positiveInputSets])
+        self.inputSetsOf3DCoordinatesNegative : List = List([item.get() for item in self.negativeInputSets])
 
         # Pickers
         self.nr_pickers : Integer = len(self.inputSetsOf3DCoordinates)
@@ -298,219 +304,147 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         self.augment = Boolean(self.forceDataAugment.get())
         self.batchSize = Integer(self.trainingBatch.get())
         self.nr_pickers_needed = Integer(self.neededNumberOfPickers.get())
-        self.outScoreThreshold = Float(self.classThreshold.get())
 
-        # Generate internal protocol folders
-        # folders = [ self._getPickedPerTomoPath() ]
-        # folders.append(self._getCoordConsensusPath())
-        # folders.append(self._getDatasetPath())
-        # folders.append(self._getPosSubtomogramPath())
-        # folders.append(self._getNegSubtomogramPath())
-        # folders.append(self._getDoubtSubtomogramPath())
-        # folders.append(self._getNnPath())
-        # folders.append(self._getOutputPath())
-
-        # for f in folders:
-        #     pwutils.makePath(f)
-
-    # BLOCK 1 - 2: Organise picking information into dictionaries
     def initializeDataStructuresStep(self) -> None:
         """
         Organises all of the data into a structured object
         """
 
-        """
-        Dictionary contains
-          - picker_id : Integer - arbitrary number
-          - picker_sr : Float - samplingrate
-          - picker_bs : Integer - boxsize
-          - picker_ts : List<String> - list of tsids
-          - picker_coords : set<Coordinate3D> - coordinates per se
-        """
-
-        # Generate an empty pwem list
-        self.inputsMD = List()
-        self.inputMDPos = List()
-        self.inputMDNeg = List()
-        self.allTomoIds = List()
-        self.allUniqueTomoIds = List()
-        self.commonUniqueTomoIds = List()
+        # Populated in this function
+        self.allTsIds = List() # Dedup list of all TSID found in the inputs
+        self.allTsIds_raw = List() # Duplicated list of all TSID found in all pickers
+        self.allTsIds_common = List() # Contains the intersection of all TSID in the input pickers
+        self.allTsIds_filedicts = Dict() # Contains dict(key:tsID , value: dict(key:samplingrate, value: filename))
+        
+        # Populated in later functions
         self.consBoxSize = Integer()
         self.consSampRate = Float()
+        self.inputScalingFactors = List()
 
-        # Iterate over input sets
+        """
+        allTsIds_filedicts dictionary of dictionaries
+        You can see if a ts tsId is available as a sr samplingrate with -> self.allTsIds_filedicts[tsId][sr]
+        { "IS_202009" : {"8.0": "file1.mrc", "13.0": "file2.mrc"},
+        "IS_202012" : {"8.0": "filex.mrc", "10.0": "filey.mrc"}
+        }
+        """
         inputSet : SetOfCoordinates3D
-        index = 0
-        # For each input picker...
         for inputSet in self.inputSetsOf3DCoordinates:
-            # Add its information to a dictionary
-            elem = Dict()
-            elem["picker_id"] = index
-            elem["picker_sr"] = inputSet.getSamplingRate() # Float
-            elem["picker_bs"] = inputSet.getBoxSize() # Integer
-            elem["picker_ts"] = self.getUniqueTomoIdsInSet(inputSet) # List
-            # elem["picker_tomos"] = self.getUniqueTomosInSet(inputSet) # List
-            elem["picker_coords"] = [coord for coord in inputSet.iterCoordinates()]
-            # Populate the list of nonunique all Tomogram precedents
-            self.allTomoIds.append(elem["picker_ts"])
-            # Add the dictionary to the list of dictionaries
-            self.inputsMD.append(elem)
-            index += 1
+            # What Ts are found here?
+            pickerTsAndFiles = self.getUniqueTsWithFilesInSet(inputSet)
+            self.allTsIds_raw.append(list(pickerTsAndFiles.keys()))
 
-        # Generate a list of unique Tomograms precedents
-        self.allUniqueTomoIds = list(set(self.allTomoIds))
-        # Intersect with itself, adding also first array to avoid slicing and making a copy
-        self.commonUniqueTomoIds = list(set(self.allTomoIds[0]).intersection(*self.allTomoIds))
+            # Incorporate file as a representative of this SampRate
+            for key in pickerTsAndFiles.keys():
+                # Generate the list if first time with this tsId
+                if key not in self.allTsIds_filedicts.keys(): 
+                    self.allTsIds_filedicts[key] = Dict() 
+                
+                sr = inputSet.getSamplingRate()
+                self.allTsIds_filedicts[key][sr] = pickerTsAndFiles[key]
 
-        # TODO: Remove after testing maybe?
+        # Flatten list with method for strings list and deduplicate with list(set()) method
+        self.allTsIds_raw = sum(self.allTsIds_raw, [])
+        self.allTsIds = list(set(self.allTsIds_raw))
+        self.allTsIds_common = list(set(tsId for tsId in self.allTsIds if self.allTsIds_raw.count(tsId) == len(self.inputSetsOf3DCoordinates)))
+
+        # Debug print the TSID+available SRs
+        print("ALL TomoID availability")
+        for key in self.allTsIds_filedicts.keys():
+            myList = list(self.allTsIds_filedicts[key].keys())
+            print(f"TS ID {key} has these candidates: {myList}.")
+
         # Print the sets to console output
-        print("All Tomo Ids")
-        print(self.allTomoIds)
-        print("All UNIQUE Tomo Ids")
-        print(self.allUniqueTomoIds)
-        print("All UNIQUE COMMON Tomo Ids")
-        print(self.commonUniqueTomoIds)
+            # TODO: put this in the summary page
+        print(f"Total unique tomograms: {len(self.allTsIds)} in {len(self.inputSetsOf3DCoordinates)} pickers")
+        print(f"Tomograms found in all pickers: {len(self.allTsIds_common)}")
 
-        # With all information loaded, now we search for the biggest SR
-        allSRs = [picker["picker_sr"] for picker in self.inputsMD]
-        if len(set(allSRs)) == 1:
-            print("All sampling rates are equal: %fA/px2" % allSRs[0])
-            self.consSampRate = allSRs[0]
-        else: 
-            self.consSampRate = max(allSRs)
-            print("Not all SR were equal, chose %fA/px" % self.consSampRate)
-
-        # From all of these, who has the greatest number of tomograms...?
-        contestants = [item for item in self.inputsMD if item["picker_sr" == self.consSampRate]]
-        assert len(contestants > 0)
-        self.chosenPicker = contestants[0] # if the length is 1, 
-        if len(contestants > 1):
-            # Compare sizes ;)
-            for contestant in contestants:
-                 if len(contestant["picker_ts"]) > len(self.chosenPicker["picker_ts"]):
-                     self.chosenPicker = contestant
-
-        self.consBoxSize = self.chosenPicker["picker_bs"]
-        print("Picker %d chosen as reference. SR %f BS %d Tomo amount %d." 
-              % (self.chosenPicker["picker_id"], self.chosenPicker["picker_sr"], self.chosenPicker["picker_bs"], len(self.chosenPicker["picker_ts"])))
-
-        # Calculate the needed scaling factor for each picker according to consensuated SR
-        # Ojo, only calculate the number, not scaling is performed in this function
-        for picker in self.inputsMD:
-            if picker["picker_sr"] == self.consSampRate:
-                picker["scaleFactor"] = 1.00
-            else:
-                picker["scaleFactor"] = picker["picker_sr"] / self.consSampRate
-
-        # TODO: Delete after it works?
+        # Print pickers information
         self.printPickersInfo()
 
-    # BLOCK 1 - 3: Rescale and write the fixed coordinates for each tomogram
-    def fixDimensionStep(self) -> None:
-        """
-        Generates:
-        - A dictionary with an entry per TS_ID, containing the coordinates that correspond to it
+        # Generate internal protocol folders
+        # folders = [ self._getPickedPerTomoPath() ]
+        # folders.append(self._getCoordConsensusPath())
+        # for f in folders:
+        #     pwutils.makePath(f)
 
-        Conditions:
-          1. Only the TS_ID that were found in all sets will be present
-          2. All of the coordinates are scaled to the conssamprate
-        """
-
-        self.scaledMD = Dict()
-        for uniqueId in self.commonUniqueTomoIds:
-            self.scaledMD[str(uniqueId)] = List()
-
-        """
-        Structure of the dictionary
-        -----------------------------
-        TS_ID_STRING: list<Coordinate3D>
-        """
+    def doBSSRConsensusStep(self) -> None:
         
-        aux = self.inputsMD.copy()
-        for picker in aux:
+        # With all information loaded, now we search for the biggest SR
+        allSRs = List()
+        allSRs = [inputSet.getSamplingRate() for inputSet in self.inputSetsOf3DCoordinates]
+        self.consSampRate = max(allSRs)        
+        allBSs = [inputSet.getBoxSize() for inputSet in self.inputSetsOf3DCoordinates]
+        self.consBoxSize = min(allBSs)
+
+        self.printBSSRConsensusInfo()
+
+    def calculateScalingFactorsStep(self) -> None:
+        """
+        Generates a new entry for each Picker MD dictionary: picker_sf (scale factor)
+        """
+        # Generate all -1 for later error detection capabilities
+        self.inputScalingFactors = [-1]*len(self.inputSetsOf3DCoordinates)
+
+        # Calculate the needed scaling factor for each picker according to consensuated SR
+        # Only calculates the number, not scaling is performed in this function
+        picker : SetOfCoordinates3D
+        for index,picker in enumerate(self.inputSetsOf3DCoordinates):
+            if picker.getSamplingRate() == self.consSampRate:
+                self.inputScalingFactors[index] = 1.00
+            else:
+                self.inputScalingFactors[index] = picker.getSamplingRate() / self.consSampRate
+
+        assert -1 not in self.inputScalingFactors
+        self.printScalingFactorsInfo()
+
+    def generateScaledCoordinatesStep(self) -> None:
+        """
+        Generates a new entry for a all Picker MD dictionary: picker_coords_scaled
+        """
+        inputSet : SetOfCoordinates3D
+        for index, inputSet in enumerate(self.inputSetsOf3DCoordinates):
             coord : Coordinate3D
-            for coord in picker["picker_coords"]:
-                if picker["picker_sr"] != self.consSampRate: # Needs scaling
-                    coord.scale(aux["scaleFactor"])
-                c_x = coord.getX(tconst.BOTTOM_LEFT_CORNER)
-                c_y = coord.getY(tconst.BOTTOM_LEFT_CORNER)
-                c_z = coord.getZ(tconst.BOTTOM_LEFT_CORNER)
-                # TODO: get angle values for directed structures
-                # c_em = coord.getMatrix() 
-                # TODO: Vilas dice - una vez llegados aquí, comprobar que escalado OK hecho
-                self.scaledMD[str(coord.getTomoId())].append((c_x,c_y,c_z))
-    
-    def writeCoords(self):
-        """
-        Agglutinates the scaled coordinates found for each TS_ID in all input pickers in an XMD file
-        Outputs: one XMD file for each TS_ID containing x,y,z,rot
-        """
+            if self.inputScalingFactors[index] != 1.0:
+                for coord in inputSet.iterCoordinates():
+                    coord.scale(self.inputScalingFactors[index])
 
+    def writeScaledCoordinatesStep(self):
         """
-        REMEMBER
-        Structure of the dictionary
-        -----------------------------
-        "ts_id": list<Coordinate3D>
-        """
+        Writes an XMD file with the scaled coordinates from each picker.
         
-        for tsKey, coords in self.scaledMD:
-            outMd = emlib.MetaData()
-            for c in coords:
+        Maintains a reference to the original picker but uses tsId for reference and not tomofile
+        The resultant XMD can not be previewed in tomogram mode because of that
+
+        But it's okay we only want to save scaled coords + picker of origin
+        """
+        part_id : Integer = 0
+        outMd = emlib.MetaData()
+        inputSet : SetOfCoordinates3D
+        for pickerIndex, inputSet in enumerate(self.inputSetsOf3DCoordinates): # For each picker...
+            coord : Coordinate3D
+            for coord in inputSet.iterCoordinates():
                 row_id = outMd.addObject()
-                outMd.setValue(emlib.MDL_XCOOR, int(c[0]), row_id)
-                outMd.setValue(emlib.MDL_YCOOR, int(c[1]), row_id)
-                outMd.setValue(emlib.MDL_ZCOOR, int(c[2]), row_id)
-                # TODO: save directionality value
-                # outMd.setValue(emlib.MDL_ANGLE_ROT, c[3], row_id)
-                outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, str(tsKey))
+                # outMd.setValue(emlib.MDL_PARTICLE_ID, int(part_id), row_id)
+                outMd.setValue(emlib.MDL_ITEM_ID, pickerIndex, row_id)
+                outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize, row_id)
                 outMd.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate, row_id)
-                outMd.write(self._getFilenameFromTsId(tsKey))
-                         
-    def vaina(self):
+                outMd.setValue(emlib.MDL_XCOOR, int(coord.getX(tconst.BOTTOM_LEFT_CORNER)), row_id)
+                outMd.setValue(emlib.MDL_YCOOR, int(coord.getY(tconst.BOTTOM_LEFT_CORNER)), row_id)
+                outMd.setValue(emlib.MDL_ZCOOR, int(coord.getZ(tconst.BOTTOM_LEFT_CORNER)), row_id)
+                # myMatrix = coord.getMatrix(tconst.BOTTOM_LEFT_CORNER)
+                # rot, tilt, psi = euler_from_matrix(myMatrix, axes='szyz')
+                # translation = translation_from_matrix(myMatrix)
+                # outMd.setValue(emlib.MDL_ANGLE_ROT, rot , row_id)
+                # outMd.setValue(emlib.MDL_ANGLE_TILT, tilt , row_id)
+                # outMd.setValue(emlib.MDL_ANGLE_PSI, psi, row_id)
+                # outMd.setValue(emlib.MDL_SHIFT_X, translation[0], row_id)
+                # outMd.setValue(emlib.MDL_SHIFT_Y, translation[1], row_id)
+                # outMd.setValue(emlib.MDL_SHIFT_Z, translation[2], row_id)
+                outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId(), row_id)
+                part_id += 1
+        outMd.write(self._getScaledFilename())
 
-            
-        globalIndex = 0
-        # Combined table of POSITIVE data
-        if self.havePositive:
-            self.untreatedPos = pd.DataFrame(index=range(self.nr_ROIsPos), columns=colnames)
-            self.pickerMDPos = pd.DataFrame(index=range(self.nr_pickersPos), columns=colnames_md)
-            pickerCoordinates : SetOfCoordinates3D
-            for pick_id, pickerCoordinates in enumerate(self.inputSetsOf3DCoordinatesPositive):
-                # Picker parameters
-                bsize = int(pickerCoordinates.getBoxSize())
-                srate = pickerCoordinates.getSamplingRate()
-
-                # Assign the corresponding line
-                self.pickerMDPos.loc[pick_id, 'boxsize'] = bsize
-                self.pickerMDPos.loc[pick_id, 'samplingrate'] = srate
-                self.pickerMDPos.loc[pick_id, 'factor'] = 1.0
-
-                # For each individual coordinate in this particular set...
-                coordinate : Coordinate3D
-                for coordinate in pickerCoordinates.iterCoordinates():
-                    asoc_vol : Tomogram = coordinate.getVolume()
-                    tomo_id = asoc_vol.getFileName()
-                    c_x = coordinate.getX(tconst.BOTTOM_LEFT_CORNER)
-                    c_y = coordinate.getY(tconst.BOTTOM_LEFT_CORNER)
-                    c_z = coordinate.getZ(tconst.BOTTOM_LEFT_CORNER)
-                    self.untreatedPos.loc[globalIndex, 'pick_id'] = pick_id
-                    self.untreatedPos.loc[globalIndex, 'x'] = c_x
-                    self.untreatedPos.loc[globalIndex, 'y'] = c_y
-                    self.untreatedPos.loc[globalIndex, 'z'] = c_z
-                    self.untreatedPos.loc[globalIndex, 'tomo_id'] = tomo_id
-                    self.untreatedPos.loc[globalIndex, 'boxsize'] = bsize
-                    self.untreatedPos.loc[globalIndex, 'samplingrate'] = srate
-                    globalIndex += 1
-            self.uniqueTomoIDsPos = self.untreatedPos['tomo_id'].unique()
-            for name in self.uniqueTomoIDsPos:
-                singleTomoDf : pd.DataFrame = self.untreatedPos[self.untreatedPos['tomo_id'] == name]
-                savedfile = self._getAllTruthCoordsFilename(self._stripTomoFilename(name))
-                self.writeCoords(savedfile, singleTomoDf)
-
-
-
-    
-    # BLOCK 2 - Program - consensuate coordinates
     def coordConsensusStep(self):
         """
         Block 2 - Perform consensus in the coordinates
@@ -543,7 +477,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
             # Recount how many to skip for next base subtomo ID
             self.globalParticleId += howManyCoords(self._getConsCoordsFilename(tomoname))
     
-    # BLOCK 2 - Program - Launch Noise Picking algorithm for data
     def noisePick(self, tomoPath, coordsPath, outPath, nrPositive):
         """
         Block 2 - Noise picker for training stages
@@ -572,9 +505,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for noise picking')
         self.runJob(program, args)
 
- 
-    
-    # BLOCK 2 - Prepare the material needed by the NN
     def prepareNNStep(self):
         """
         Block 2 - Neural Network TRAIN operations
@@ -679,7 +609,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # [pickingId, tomoId, subtomoId, x, y, z, srate, bsize]
         # Fin de paso - next: train if needed   
             
-    # BLOCK 2 - Program - Launch NN train (if needed)
     def processTrainStep(self):
         """
         Block 2 - Call for NN train
@@ -709,7 +638,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for Train')
         self.runJob(program, args)
                   
-    # BLOCK 2 - Program - Launch tomogram extraction step
     def tomogramExtract(self, tomoPath, coordsPath, outPath):
         """
         Block 2 - NN preparation
@@ -731,7 +659,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for tomogram extraction')
         self.runJob(program, args)
 
-    # BLOCK 2 - Program - Load model (if needed) and score 
     def processScoreStep(self):
         """
         Block 2 - Neural Network SCORE operations
@@ -757,7 +684,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         print('\nHanding over to Xmipp program for Score')
         self.runJob(program, args)
 
-    # BLOCK 3 - filter tables according to thresholds
     def postProcessStep(self):
         """
         Block 3 - Handling of posterous things
@@ -817,7 +743,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         # self.scoredDf_filtered_dedup : pd.DataFrame = self.dedup(intermediate)
         self.scoredDf_filtered_dedup = intermediate
     
-    # BLOCK 3 - Prepare output for Scipion GUI
     def createOutputStep(self):
         """
         Block 3 - Prepare output
@@ -870,9 +795,9 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         for inset in self.inputSets:
             self._defineSourceRelation(inset, coordinates)
         
-
     #--------------- INFO functions -------------------------
     def _summary(self):
+        # TODO: add more important information!!!!!
         summary = []
         summary.append("- Executing using %d Threads and %d GPUs" % self.numberOfThreads, len(self.getGpuList()))
         summary.append("- Using %d unique tomograms coming from %d tilt series." % self.uniqueTomoIDs,self.uniqueTsIds)
@@ -881,36 +806,81 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return summary
 
     #--------------- UTILS functions -------------------------
+
+    def getUniqueTsWithFilesInSet(self, inSet : SetOfCoordinates3D) -> dict:
+        '''
+        Get the unique tomograms with filenames in a single dictionary
+        '''
+        # Get the list of tomograms in this set, ALL including unused ones
+        precedents : SetOfTomograms = inSet.getPrecedents()
+        """
+        Dictionary contains
+          - *tsid_name* : String - tomogram filename
+        """
+        res = dict()
+        tomo : Tomogram
+        for tomo in precedents:
+            res[tomo.getTsId()] = tomo.getFileName()
+        return res
+
     def printPickersInfo(self) -> None:
         '''
         Prints the data of the input pickers, one by one.
         Does not print the coordinates, only the amount of them.
         '''
-        print("Input picker information")
-        for picker in self.inputsMD:
+        print("BEGIN Input pickers information")
+        picker: SetOfCoordinates3D
+        for index, picker in enumerate(self.inputSetsOf3DCoordinates):
             print("------------------------")
-            print("ID: %d" % picker["picker_id"])
-            print("SamplinRate: %.3f" % picker["picker_sr"])
-            print("BoxSize: %d" % picker["picker_bs"])
-            print("UniqueTomoIds: %d" % len(picker["picker_ts"]))
-            print("Pickings: %d" % len(picker["picker_coords"]))
-            print("------------------------")
+            print(f"ID: {index}")
+            print(f"SamplinRate: {picker.getSamplingRate():.2f}A/px")
+            print(f"BoxSize: {picker.getBoxSize()}px")
+            print(f"Pickings: {picker.getSize()}")
+        print("END Input pickers information")
     
-    def getUniqueTomoIdsInSet(inSet : SetOfCoordinates3D) -> List:
+    def printBSSRConsensusInfo(self) -> None:
         '''
-        Get the deduplicated list of tomogram Id /TSID in a SetOfCoordinates3D
+        Prints some lines with the actual BSSR consensus.
         '''
-        matches = inSet.aggregate(['COUNT'], Coordinate3D.TOMO_ID_ATTR)
-        uniqueValues = set(matches)
-        return List(list(uniqueValues))
-    
-    def getUniqueTomosInSet(inSet : SetOfCoordinates3D) -> List:
-        '''
-        Get the list of Tomo pointers in a SetOfCoordinates3D
-        '''
-        retval = list(set(inSet._getTomograms()))
-        return retval
+        assert self.consBoxSize is not None
+        assert self.consSampRate is not None
 
+        print("BEGIN BSSR information")
+        print("------------------------")
+        if len(self.allTsIds_common) < len(self.allTsIds):
+            print("=======================================================================================")
+            print(f"= HEY! IRREGULAR N OF TOMOs IN PICKERS. TOMOGRAMS WILL GET DOWNSAMPLED TO {self.consSampRate:.2f}A/px   =")
+            print("=======================================================================================")
+        print(f"Consensus Box Size: {self.consBoxSize}px")
+        print(f"Consensus Sampling Rate: {self.consSampRate:.2f}A/px")
+        print("------------------------")
+        print("END BSSR information")
+    
+    def printScalingFactorsInfo(self) -> None:
+        """
+        Prints scale factor for all pickers
+        """
+        print("BEGIN ScalingFactor information")
+        print("------------------------")
+        for i in range(len(self.inputSetsOf3DCoordinates)):
+            sf = self.inputScalingFactors[i]
+            print(f"Picker with ID {i} has scaling of {sf:.2f}")
+        print("------------------------")
+        print("END ScalingFactor information")
+        
+    def populateTomoIdSampling(self, myDict: Dict) -> None:
+        for pickerMD in self.inputsMD:
+            for tsId in pickerMD["picker_ts_and_files"]:
+                if tsId not in myDict.keys():
+                    myDict[tsId] = list()
+                tsKeyList : list = myDict[tsId]
+                tsKeyList.append(pickerMD["picker_sr"])
+        
+        for tsId in myDict.keys():
+            myList : list = myDict[tsId]
+            myDict[tsId] = list(set(myList))
+
+    #--------------- VALIDATE functions ----------------------
     def _validate(self) -> list:
         errors = []
         errors += self._validateParallelProcessing()
@@ -946,6 +916,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
         return errors
         
     #--------------- FILENAMES functions -------------------
+
+    def _getScaledFilename(self, *args):
+        return self._getExtraPath("all_scaled_coords.xmd")
+
+    # MIERDA OLD
 
     def _getOutputPath(self, *args):
         return self._getExtraPath('out', *args)
@@ -1019,13 +994,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def _getPickedPerTomoPath(self, *args):
         return self._getExtraPath('pickedpertomo', *args)
     
-    def _getTsIdFromName(self, name: str) -> int:
-        
-        # Buscar en el dataframe el ts_id aquella linea donde name sea el tomo_id
-        query : pd.DataFrame = self.uniqueTomoIDsWithTsId[ self.uniqueTomoIDsWithTsId['tomo_id'] == name ]
-        res = query.iloc[0][1]
-        return res
-    
     # OTHER UTILITIES
     
     def isTherePositive(self, tomoName):
@@ -1034,39 +1002,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking):
     def isThereDoubt(self, tomoName):
         return os.path.exists(self._getDoubtCoordsFilename(tomoName))
 
-    def dedup(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Calculate the threshold for assimilation
-        thold = int(int(self.consBoxSize)/2)
-        # Create a dataframe with same columns but no data
-        res = pd.DataFrame(columns=df.columns)
-        xyzres = np.empty(3,dtype=int)
-        xyz = np.empty(3, dtype=int)
-        row : pd.Series
-        rowres: pd.Series
-        for _, row in df.iterrows():
-            xyz[0] = row['x']
-            xyz[1] = row['y']
-            xyz[2] = row['z']
-            for _, rowres in res.iterrows():
-                xyzres[0] = rowres['x']
-                xyzres[1] = rowres['y']
-                xyzres[2] = rowres['z']
-                if distance(xyz, xyzres) < thold:
-                    # Get assimilated lol
-                    pass
-                break
-            else:
-                res = pd.concat
-        res = res.reset_index()
-        print("Proximity dedup: from %d to %d" %(len(df), len(res)))
-        return res
-
 def distance(a: np.ndarray, b: np.ndarray) -> float:
     return abs(np.linalg.norm(a-b))
 
 def intersectLists(l1: list, l2: list ) -> list:
-        out = [val for val in l1 if val in l2]
-        return out
+    """
+    Return l2 n L2
+    """
+    out = [val for val in l1 if val in l2]
+    return out
 
 def subtractLists(l1: list, l2: list) -> list:
     """
