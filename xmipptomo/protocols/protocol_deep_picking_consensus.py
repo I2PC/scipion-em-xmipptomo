@@ -363,10 +363,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         self.printPickersInfo()
 
         # Generate internal protocol folders
-        # folders = [ self._getPickedPerTomoPath() ]
+        folders = [ self._getScaledPath() ]
         # folders.append(self._getCoordConsensusPath())
-        # for f in folders:
-        #     pwutils.makePath(f)
+        for f in folders:
+            pwutils.makePath(f)
 
     def doBSSRConsensusStep(self) -> None:
         
@@ -411,15 +411,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
     def writeScaledCoordinatesStep(self):
         """
-        Writes an XMD file with the scaled coordinates from each picker.
+        Writes an XMD file with the scaled coordinates from each picker. One file per TSID
         
         Maintains a reference to the original picker but uses tsId for reference and not tomofile
         The resultant XMD can not be previewed in tomogram mode because of that
 
         But it's okay we only want to save scaled coords + picker of origin
         """
-        part_id : Integer = 0
-        outMd = emlib.MetaData()
+        # part_id : Integer = 0
+        myMdDict = dict()
+        for tsId in self.allTsIds:
+            myMdDict[tsId] = emlib.MetaData()
+
         row = emlib.metadata.Row()
         inputSet : SetOfCoordinates3D
         for pickerIndex, inputSet in enumerate(self.inputSetsOf3DCoordinates): # For each picker...
@@ -427,24 +430,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             for coord in inputSet.iterCoordinates():
                 # row.setValue(emlib.MDL_PARTICLE_ID, int(part_id))
                 row.setValue(emlib.MDL_ITEM_ID, pickerIndex) # Internally used for tracking which picker this comes from
-                row.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize)
-                row.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate)
+                # row.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize)
+                # row.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate)
                 row.setValue(emlib.MDL_XCOOR, int(coord.getX(tconst.BOTTOM_LEFT_CORNER)))
                 row.setValue(emlib.MDL_YCOOR, int(coord.getY(tconst.BOTTOM_LEFT_CORNER)))
                 row.setValue(emlib.MDL_ZCOOR, int(coord.getZ(tconst.BOTTOM_LEFT_CORNER)))
-                # myMatrix = coord.getMatrix(tconst.BOTTOM_LEFT_CORNER)
-                # rot, tilt, psi = euler_from_matrix(myMatrix, axes='szyz')
-                # translation = translation_from_matrix(myMatrix)
-                # outMd.setValue(emlib.MDL_ANGLE_ROT, rot , row_id)
-                # outMd.setValue(emlib.MDL_ANGLE_TILT, tilt , row_id)
-                # outMd.setValue(emlib.MDL_ANGLE_PSI, psi, row_id)
-                # outMd.setValue(emlib.MDL_SHIFT_X, translation[0], row_id)
-                # outMd.setValue(emlib.MDL_SHIFT_Y, translation[1], row_id)
-                # outMd.setValue(emlib.MDL_SHIFT_Z, translation[2], row_id)
-                row.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId())
-                row.addToMd(outMd)
-                part_id += 1
-        outMd.write(self._getScaledFilename())
+                # row.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId())
+                row.addToMd(myMdDict[coord.getTomoId()])
+                # part_id += 1
+
+        for tsId in self.allTsIds:
+            assert myMdDict[tsId] is not None
+            myMdDict[tsId].write(self._getScaledFile(tsId))
 
     def coordConsensusStep(self):
         """
@@ -452,7 +449,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
         This step launches a call to the associated Xmipp program, triggering
         a 3D coordinates consensus.
-        """        
+        """     
 
         program = "xmipp_coordinates_consensus_tomo"
         for tomo_id in self.uniqueTomoIDs:
@@ -918,8 +915,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
     #--------------- FILENAMES functions -------------------
 
-    def _getScaledFilename(self, *args):
-        return self._getExtraPath("all_scaled_coords.xmd")
+    def _getScaledPath(self, *args):
+        return self._getExtraPath('scaled', *args)
+
+    def _getScaledFile(self, tsId : str):
+        return self._getScaledPath('all_scaled_coords_'+tsId+'.xmd')
 
     # MIERDA OLD
 
