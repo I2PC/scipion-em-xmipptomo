@@ -52,6 +52,8 @@ from pwem.protocols import EMProtocol
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
 
+import multiprocessing as mp
+
 class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     """ 
         This protocol receives a set of coordinates representing 3D particles
@@ -248,7 +250,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         self._insertFunctionStep(self.calculateScalingFactorsStep)
         self._insertFunctionStep(self.generateScaledCoordinatesStep)  # Parallelizable
         self._insertFunctionStep(self.writeScaledCoordinatesStep) # Serial because of nature
-        # self._insertFunctionStep(self.coordConsensusStep)
+        self._insertFunctionStep(self.coordConsensusStep)
         # Serial para todos estos for the moment
         # self._insertFunctionStep(self.prepareNNStep)
         # self._insertFunctionStep(self.processTrainStep)
@@ -303,7 +305,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         self.convergeStop = Boolean(self.convergStop.get()) 
         self.augment = Boolean(self.forceDataAugment.get())
         self.batchSize = Integer(self.trainingBatch.get())
-        self.nr_pickers_needed = Integer(self.neededNumberOfPickers.get())
+        self.nrPickersNeeded = Integer(self.neededNumberOfPickers.get())
 
     def initializeDataStructuresStep(self) -> None:
         """
@@ -443,37 +445,34 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             assert myMdDict[tsId] is not None
             myMdDict[tsId].write(self._getScaledFile(tsId))
 
-    def coordConsensusStep(self):
+
+    def coordConsensusStep(self) -> None:
         """
-        Block 2 - Perform consensus in the coordinates
-
-        This step launches a call to the associated Xmipp program, triggering
-        a 3D coordinates consensus.
-        """     
-
+        Generates a pool with the amount of threads established in the form.
+        Launches a thread per input tsId to process all of its coords.
+        Writes the consensuated coordinates. One file per tsId.
+        """
+        # Generate a pool with the given No. of threads
+        myPool = mp.Pool(processes=self.numberOfThreads)
+        myPool.map(self._doLaunchCoordCons, self.allTsIds)
+    
+    def _doLaunchCoordCons(self, tsId) -> None:
         program = "xmipp_coordinates_consensus_tomo"
-        for tomo_id in self.uniqueTomoIDs:
-            tomoname = self._stripTomoFilename(tomo_id)
-            args = ''
-            args += ' --input ' + self._getAllCoordsFilename(tomoname)
-            args += ' --outputAll ' + self._getConsCoordsFilename(tomoname)
-            args += ' --outputPos ' + self._getPosCoordsFilename(tomoname)
-            args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tomoname)
-            args += ' --outputNeg ' + self._getNegCoordsFilename(tomoname)
-            args += ' --boxsize ' + str(self.consBoxSize)
-            args += ' --samplingrate ' + str(self.consSampRate)
-            args += ' --radius ' + str(self.coordConsRadius)
-            args += ' --number ' + str(self.nr_pickers_needed)
-            args += ' --constype ' + str(self.coordConsType)
-            if self.havePositive:
-                args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
-            if self.haveNegative:
-                args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
-            args += ' --startingId ' + str(self.globalParticleId)
-            print('\nHanding over to Xmipp program for coordinate consensus')
-            self.runJob(program, args)
-            # Recount how many to skip for next base subtomo ID
-            self.globalParticleId += howManyCoords(self._getConsCoordsFilename(tomoname))
+        args = ''
+        args += '--input ' + self._getScaledFile(tsId)
+        args += ' --outputAll ' + self._getConsCoordsFilename(tsId)
+        args += ' --outputPos ' + self._getPosCoordsFilename(tsId)
+        args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tsId)
+        args += ' --outputNeg ' + self._getNegCoordsFilename(tsId)
+        args += ' --boxsize ' + self.consBoxSize
+        args += ' --samplingrate ' + self.consSampRate
+        args += ' --radius ' + self.coordConsRadius
+        args += ' --number ' + self.nrPickersNeeded
+        # if self.havePositive:
+        #     args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
+        # if self.haveNegative:
+        #     args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
+        self.runJob(program, args)
     
     def noisePick(self, tomoPath, coordsPath, outPath, nrPositive):
         """
@@ -795,11 +794,11 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
     #--------------- INFO functions -------------------------
     def _summary(self):
-        # TODO: add more important information!!!!!
+        # TODO: add important information!!!!!
         summary = []
-        summary.append("- Executing using %d Threads and %d GPUs" % self.numberOfThreads, len(self.getGpuList()))
-        summary.append("- Using %d unique tomograms coming from %d tilt series." % self.uniqueTomoIDs,self.uniqueTsIds)
-        summary.append("- Found %d different pickers at input with %d ROIs" % self.nr_pickers, self.nr_ROIs)
+        # summary.append("- Executing using %d Threads and %d GPUs" % self.numberOfThreads, len(self.getGpuList()))
+        # summary.append("- Using %d unique tomograms coming from %d tilt series." % self.uniqueTomoIDs,self.uniqueTsIds)
+        # summary.append("- Found %d different pickers at input with %d ROIs" % self.nr_pickers, self.nr_ROIs)
         # summary.append("- Coordinates Consensus removed KKQLO duplicates")
         return summary
 
@@ -866,18 +865,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         print("------------------------")
         print("END ScalingFactor information")
         
-    def populateTomoIdSampling(self, myDict: Dict) -> None:
-        for pickerMD in self.inputsMD:
-            for tsId in pickerMD["picker_ts_and_files"]:
-                if tsId not in myDict.keys():
-                    myDict[tsId] = list()
-                tsKeyList : list = myDict[tsId]
-                tsKeyList.append(pickerMD["picker_sr"])
-        
-        for tsId in myDict.keys():
-            myList : list = myDict[tsId]
-            myDict[tsId] = list(set(myList))
-
     #--------------- VALIDATE functions ----------------------
     def _validate(self) -> list:
         errors = []
@@ -915,85 +902,85 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
     #--------------- FILENAMES functions -------------------
 
+    # Scaled coordinates file management
     def _getScaledPath(self, *args):
         return self._getExtraPath('scaled', *args)
-
     def _getScaledFile(self, tsId : str):
-        return self._getScaledPath('all_scaled_coords_'+tsId+'.xmd')
+        return self._getScaledPath(tsId + '_all_scaled_coords_.xmd')
+
+    # Consensus coordinates file management
+    def _getCoordConsensusPath(self, *args):
+        return self._getExtraPath('coordcons', *args)
+    def _getPosCoordsFilename(self, tsId: str):
+        return self._getCoordConsensusPath(tsId+"_cons_pos.xmd")
+    def _getNegCoordsFilename(self, tsId: str):
+        return self._getCoordConsensusPath(tsId+"_cons_neg.xmd")
+    def _getDoubtCoordsFilename(self, tsId: str):
+        return self._getCoordConsensusPath(tsId+"_cons_doubt.xmd")
 
     # MIERDA OLD
 
-    def _getOutputPath(self, *args):
-        return self._getExtraPath('out', *args)
+    # def _getOutputPath(self, *args):
+    #     return self._getExtraPath('out', *args)
     
-    def _getOutputFile(self, *args):
-        return self._getOutputPath('nn_output_scored.xmd', *args)
+    # def _getOutputFile(self, *args):
+    #     return self._getOutputPath('nn_output_scored.xmd', *args)
     
-    def _getOutputFilteredFile(self, *args):
-        return self._getOutputPath('nn_output_scored_filtered.xmd', *args)
+    # def _getOutputFilteredFile(self, *args):
+    #     return self._getOutputPath('nn_output_scored_filtered.xmd', *args)
 
-    def _getNnPath(self, *args):
-        return self._getExtraPath('nn', *args)
+    # def _getNnPath(self, *args):
+    #     return self._getExtraPath('nn', *args)
 
-    def _getNnResultFilename(self, *args):
-        return self._getNnPath("nn_res")
+    # def _getNnResultFilename(self, *args):
+    #     return self._getNnPath("nn_res")
 
-    def _stripTomoFilename(self, tomopath: str):
-        return tomopath.split("/")[-1].split(".")[0]
+    # def _stripTomoFilename(self, tomopath: str):
+    #     return tomopath.split("/")[-1].split(".")[0]
     
-    def _getCoordConsensusPath(self, *args):
-        return self._getExtraPath('coordconsensus', *args)
+    
+    
+    # def _getPosCoordsScaledFilename(self, tomo_name: str):
+    #     return self._getCoordConsensusPath(tomo_name+"_cons_pos_scl.xmd")
+    
+    # def _getNegCoordsScaledFilename(self, tomo_name: str):
+    #     return self._getCoordConsensusPath(tomo_name+"_cons_neg_scl.xmd")
+    
+    # def _getDoubtCoordsScaledFilename(self, tomo_name: str):
+    #     return self._getCoordConsensusPath(tomo_name+"_cons_doubt_scl.xmd")
+    
+    # def _getConsCoordsFilename(self, tomo_name:str):
+    #     return self._getCoordConsensusPath(tomo_name+"_cons_all.xmd")
+    
+    # def _getAllCoordsFilename(self, tomo_name: str):
+    #     return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
+    
+    # def _getAllTruthCoordsFilename(self, tomo_name: str):
+    #     return self._getPickedPerTomoPath(tomo_name+"_truth.xmd")
+    
+    # def _getAllLieCoordsFilename(self, tomo_name: str):
+    #     return self._getPickedPerTomoPath(tomo_name+"_lie.xmd")
 
-    def _getPosCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_pos.xmd")
+    # def _getDatasetPath(self, *args):
+    #     return self._getExtraPath('dataset', *args)
     
-    def _getNegCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_neg.xmd")
+    # def _getPosSubtomogramPath(self, *args):
+    #     return self._getDatasetPath('pos', *args)
     
-    def _getDoubtCoordsFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_doubt.xmd")
+    # def _getNegSubtomogramPath(self, *args):
+    #     return self._getDatasetPath('neg', *args)
     
-    def _getPosCoordsScaledFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_pos_scl.xmd")
-    
-    def _getNegCoordsScaledFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_neg_scl.xmd")
-    
-    def _getDoubtCoordsScaledFilename(self, tomo_name: str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_doubt_scl.xmd")
-    
-    def _getConsCoordsFilename(self, tomo_name:str):
-        return self._getCoordConsensusPath(tomo_name+"_cons_all.xmd")
-    
-    def _getAllCoordsFilename(self, tomo_name: str):
-        return self._getPickedPerTomoPath(tomo_name+"_allpickedcoords.xmd")
-    
-    def _getAllTruthCoordsFilename(self, tomo_name: str):
-        return self._getPickedPerTomoPath(tomo_name+"_truth.xmd")
-    
-    def _getAllLieCoordsFilename(self, tomo_name: str):
-        return self._getPickedPerTomoPath(tomo_name+"_lie.xmd")
+    # def _getDoubtSubtomogramPath(self, *args):
+    #     return self._getDatasetPath('doubt', *args)
 
-    def _getDatasetPath(self, *args):
-        return self._getExtraPath('dataset', *args)
-    
-    def _getPosSubtomogramPath(self, *args):
-        return self._getDatasetPath('pos', *args)
-    
-    def _getNegSubtomogramPath(self, *args):
-        return self._getDatasetPath('neg', *args)
-    
-    def _getDoubtSubtomogramPath(self, *args):
-        return self._getDatasetPath('doubt', *args)
+    # def _getCombinedDatasetFile(self, *args):
+    #     return self._getDoubtSubtomogramPath('combined.xmd', *args)
 
-    def _getCombinedDatasetFile(self, *args):
-        return self._getDoubtSubtomogramPath('combined.xmd', *args)
+    # def _getFilenameFromTsId(self, *args):
+    #     pass
 
-    def _getFilenameFromTsId(self, *args):
-        pass
-
-    def _getPickedPerTomoPath(self, *args):
-        return self._getExtraPath('pickedpertomo', *args)
+    # def _getPickedPerTomoPath(self, *args):
+    #     return self._getExtraPath('pickedpertomo', *args)
     
     # OTHER UTILITIES
     
