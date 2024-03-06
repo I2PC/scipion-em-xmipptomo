@@ -128,8 +128,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       condition="inputSet is not None and inputSet.getClassName()=='SetOfLandmarkModels' and "
                                 "subtleMisaliToggle",
                       label='Tilt-series associated to the LM',
-                      help='Input set of tilt-series associated to the provided landmark model. This tilt-series is the'
-                           '')
+                      help='Input set of tilt-series associated to the provided landmark model. This tilt-series is '
+                           'mean to be the tilt-series aligned by the algorithm that has produces the set of landmark'
+                           'models. It might be the interpolated tilt-series or a non-interpolated one with its '
+                           'associated alignment.')
 
         # Advanced parameters
         form.addParam('thrSDHCC',
@@ -205,7 +207,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         else:  # SetOfLandmarkModels
             self.inputSetOfLandmarkModels = self.inputSet.get()
-            self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries()
+            if self.subtleMisaliToggle.get():
+                self.inputSetOfTiltSeries = self.inputTsFromLm.get()
+            else:
+                self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries()
 
             for lm in self.inputSetOfLandmarkModels:
                 lmTsId = lm.getTsId()
@@ -248,7 +253,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                      prerequisites=allcossId)
 
     # --------------------------- STEPS functions ----------------------------
-
     def convertInputStep(self, tsObjId, modeTs):
         ts = self.inputSetOfTiltSeries[tsObjId]
         tsId = ts.getTsId()
