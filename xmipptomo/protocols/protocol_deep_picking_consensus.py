@@ -430,21 +430,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         for pickerIndex, inputSet in enumerate(self.inputSetsOf3DCoordinates): # For each picker...
             coord : Coordinate3D
             for coord in inputSet.iterCoordinates():
-                # row.setValue(emlib.MDL_PARTICLE_ID, int(part_id))
-                row.setValue(emlib.MDL_ITEM_ID, pickerIndex) # Internally used for tracking which picker this comes from
-                # row.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize)
-                # row.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate)
+                row.setValue(emlib.MDL_REF, pickerIndex) # Internally used for tracking which picker this comes from
                 row.setValue(emlib.MDL_XCOOR, int(coord.getX(tconst.BOTTOM_LEFT_CORNER)))
                 row.setValue(emlib.MDL_YCOOR, int(coord.getY(tconst.BOTTOM_LEFT_CORNER)))
                 row.setValue(emlib.MDL_ZCOOR, int(coord.getZ(tconst.BOTTOM_LEFT_CORNER)))
-                # row.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId())
                 row.addToMd(myMdDict[coord.getTomoId()])
-                # part_id += 1
 
         for tsId in self.allTsIds:
             assert myMdDict[tsId] is not None
             myMdDict[tsId].write(self._getScaledFile(tsId))
-
 
     def coordConsensusStep(self) -> None:
         """
@@ -459,19 +453,19 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     def _doLaunchCoordCons(self, tsId) -> None:
         program = "xmipp_coordinates_consensus_tomo"
         args = ''
-        args += '--input ' + self._getScaledFile(tsId)
-        args += ' --outputAll ' + self._getConsCoordsFilename(tsId)
-        args += ' --outputPos ' + self._getPosCoordsFilename(tsId)
-        args += ' --outputDoubt ' + self._getDoubtCoordsFilename(tsId)
-        args += ' --outputNeg ' + self._getNegCoordsFilename(tsId)
+        args += ' --infile ' + self._getScaledFile(tsId)
+        args += ' --outall ' + self._getAllCoordsFilename(tsId)
+        args += ' --outpos ' + self._getPosCoordsFilename(tsId)
+        args += ' --outdoubt ' + self._getDoubtCoordsFilename(tsId)
+        args += ' --negfolder ' + self._getNegCoordsFilename(tsId)
         args += ' --boxsize ' + self.consBoxSize
         args += ' --samplingrate ' + self.consSampRate
         args += ' --radius ' + self.coordConsRadius
         args += ' --number ' + self.nrPickersNeeded
         # if self.havePositive:
-        #     args += ' --inputTruth ' + self._getAllTruthCoordsFilename(tomoname)
+        #     args += ' --inTruth ' + self._getAllTruthCoordsFilename(tsId)
         # if self.haveNegative:
-        #     args += ' --inputLie ' + self._getAllLieCoordsFilename(tomoname)
+        #     args += ' --inLie ' + self._getAllLieCoordsFilename(tsId)
         self.runJob(program, args)
     
     def noisePick(self, tomoPath, coordsPath, outPath, nrPositive):
@@ -906,17 +900,20 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     def _getScaledPath(self, *args):
         return self._getExtraPath('scaled', *args)
     def _getScaledFile(self, tsId : str):
-        return self._getScaledPath(tsId + '_all_scaled_coords_.xmd')
+        return self._getScaledPath(tsId + '_scaled_coords_all.xmd')
 
     # Consensus coordinates file management
-    def _getCoordConsensusPath(self, *args):
+    def _getCoordConsPath(self, *args):
         return self._getExtraPath('coordcons', *args)
+    def _getAllCoordsFilename(self, tsId: str):
+        return self._getCoordConsPath(tsId+"_cons_all.xmd")
     def _getPosCoordsFilename(self, tsId: str):
-        return self._getCoordConsensusPath(tsId+"_cons_pos.xmd")
-    def _getNegCoordsFilename(self, tsId: str):
-        return self._getCoordConsensusPath(tsId+"_cons_neg.xmd")
+        return self._getCoordConsPath(tsId+"_cons_pos.xmd")
     def _getDoubtCoordsFilename(self, tsId: str):
-        return self._getCoordConsensusPath(tsId+"_cons_doubt.xmd")
+        return self._getCoordConsPath(tsId+"_cons_doubt.xmd")
+    def _getNegCoordsFilename(self, tsId: str):
+        return self._getCoordConsPath(tsId+"_cons_neg.xmd")
+    
 
     # MIERDA OLD
 
