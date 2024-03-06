@@ -127,6 +127,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       pointerClass='SetOfTiltSeries',
                       condition="inputSet is not None and inputSet.getClassName()=='SetOfLandmarkModels' and "
                                 "subtleMisaliToggle",
+                      allowsNull=True,
                       label='Tilt-series associated to the LM',
                       help='Input set of tilt-series associated to the provided landmark model. This tilt-series is '
                            'mean to be the tilt-series aligned by the algorithm that has produces the set of landmark'
