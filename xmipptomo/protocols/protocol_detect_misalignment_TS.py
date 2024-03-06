@@ -108,10 +108,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('subtleMisalignmentTolerance',
                       params.IntParam,
                       default=3,
-                      label='Misalignment tolerance',
-                      help='Maximum number of tilt-images that might present misalignment to keep series as aligned. '
-                           'Default value is 3, meaning that if 3 or less tilt-images present misalignment they are '
-                           'annotated but the tilt-series is not classified as misaligned as a whole.')
+                      label='Misalignment tolerance (px)',
+                      help='Maximum displacement between to consecutive images to consider that misalignment is '
+                           'present. This displacement is calculated by correlation.')
 
         # Advanced parameters
         form.addParam('thrSDHCC',
