@@ -420,18 +420,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         """
         part_id : Integer = 0
         outMd = emlib.MetaData()
+        row = emlib.metadata.Row()
         inputSet : SetOfCoordinates3D
         for pickerIndex, inputSet in enumerate(self.inputSetsOf3DCoordinates): # For each picker...
             coord : Coordinate3D
             for coord in inputSet.iterCoordinates():
-                row_id = outMd.addObject()
-                # outMd.setValue(emlib.MDL_PARTICLE_ID, int(part_id), row_id)
-                outMd.setValue(emlib.MDL_ITEM_ID, pickerIndex, row_id)
-                outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize, row_id)
-                outMd.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate, row_id)
-                outMd.setValue(emlib.MDL_XCOOR, int(coord.getX(tconst.BOTTOM_LEFT_CORNER)), row_id)
-                outMd.setValue(emlib.MDL_YCOOR, int(coord.getY(tconst.BOTTOM_LEFT_CORNER)), row_id)
-                outMd.setValue(emlib.MDL_ZCOOR, int(coord.getZ(tconst.BOTTOM_LEFT_CORNER)), row_id)
+                # row.setValue(emlib.MDL_PARTICLE_ID, int(part_id))
+                row.setValue(emlib.MDL_ITEM_ID, pickerIndex) # Internally used for tracking which picker this comes from
+                row.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, self.consBoxSize)
+                row.setValue(emlib.MDL_SAMPLINGRATE, self.consSampRate)
+                row.setValue(emlib.MDL_XCOOR, int(coord.getX(tconst.BOTTOM_LEFT_CORNER)))
+                row.setValue(emlib.MDL_YCOOR, int(coord.getY(tconst.BOTTOM_LEFT_CORNER)))
+                row.setValue(emlib.MDL_ZCOOR, int(coord.getZ(tconst.BOTTOM_LEFT_CORNER)))
                 # myMatrix = coord.getMatrix(tconst.BOTTOM_LEFT_CORNER)
                 # rot, tilt, psi = euler_from_matrix(myMatrix, axes='szyz')
                 # translation = translation_from_matrix(myMatrix)
@@ -441,7 +441,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
                 # outMd.setValue(emlib.MDL_SHIFT_X, translation[0], row_id)
                 # outMd.setValue(emlib.MDL_SHIFT_Y, translation[1], row_id)
                 # outMd.setValue(emlib.MDL_SHIFT_Z, translation[2], row_id)
-                outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId(), row_id)
+                row.setValue(emlib.MDL_TOMOGRAM_VOLUME, coord.getTomoId())
+                row.addToMd(outMd)
                 part_id += 1
         outMd.write(self._getScaledFilename())
 
