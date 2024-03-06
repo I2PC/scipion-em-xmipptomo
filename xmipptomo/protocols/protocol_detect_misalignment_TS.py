@@ -86,6 +86,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('inputSetOfCoordinates',
                       params.PointerParam,
                       pointerClass='SetOfTiltSeriesCoordinates',
+                      condition="inputSet is not None and inputSet.getClassName()=='SetOfTiltSeries'",
                       important=True,
                       label='Input set of coordinates 3D',
                       help='Set of 3D coordinates indicating the position in space of the fiducials. This set should '
@@ -105,12 +106,30 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'Default value is 3, meaning that if 3 or less tilt-images present misalignment they are '
                            'annotated but the tilt-series is not classified as misaligned as a whole.')
 
+        form.addParam('subtleMisaliToggle',
+                      params.BooleanParam,
+                      default=True,
+                      label='Subtle misalignment analysis',
+                      display=params.EnumParam.DISPLAY_HLIST,
+                      help='Run local alignment to detect subtle misalignment. This analysis detects lower alignment '
+                           'errors but it requires some computational extra load.')
+
         form.addParam('subtleMisalignmentTolerance',
                       params.IntParam,
                       default=3,
+                      condition='subtleMisaliToggle',
                       label='Misalignment tolerance (px)',
                       help='Maximum displacement between to consecutive images to consider that misalignment is '
                            'present. This displacement is calculated by correlation.')
+
+        form.addParam('inputTsFromLm',
+                      params.PointerParam,
+                      pointerClass='SetOfTiltSeries',
+                      condition="inputSet is not None and inputSet.getClassName()=='SetOfLandmarkModels' and "
+                                "subtleMisaliToggle",
+                      label='Tilt-series associated to the LM',
+                      help='Input set of tilt-series associated to the provided landmark model. This tilt-series is the'
+                           '')
 
         # Advanced parameters
         form.addParam('thrSDHCC',
@@ -135,15 +154,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       label='Target fiducial size (px)',
                       help='Target fiducial size in pixels to calculate the downsampling when detecting landmarks'
                            'on the tilt series.',
-                      expertLevel=params.LEVEL_ADVANCED)
-
-        form.addParam('subtleMisaliToggle',
-                      params.BooleanParam,
-                      default=True,
-                      label='Subtle misalignment analysis',
-                      display=params.EnumParam.DISPLAY_HLIST,
-                      help='Run local alignment to detect subtle misalignment. This analysis detects lower alignment '
-                           'errors but it requires some computational extra load.',
                       expertLevel=params.LEVEL_ADVANCED)
 
         form.addParallelSection(threads=4, mpi=1)
