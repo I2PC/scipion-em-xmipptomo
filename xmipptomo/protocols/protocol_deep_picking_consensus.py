@@ -41,7 +41,7 @@ from xmipp3 import XmippProtocol
 from tomo.objects import SetOfCoordinates3D, Coordinate3D, SetOfTomograms, Tomogram
 
 # Needed for the GUI definition and pyworkflow objects
-from pyworkflow.protocol import params, LEVEL_ADVANCED
+from pyworkflow.protocol import params, LEVEL_ADVANCED, STEPS_PARALLEL
 from pyworkflow import BETA
 import pyworkflow.utils as pwutils
 
@@ -51,8 +51,6 @@ from pyworkflow.object import Integer, Float, Boolean, List, Dict
 from pwem.protocols import EMProtocol
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
-
-import multiprocessing as mp
 
 class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     """ 
@@ -87,7 +85,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # self.stepsExecutionMode = STEPS_PARALLEL
+        self.stepsExecutionMode = STEPS_PARALLEL
 
     #--------------- DEFINE param functions ---------------
     def _defineParams(self, form : params.Form):
@@ -244,23 +242,29 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
     #--------------- INSERT steps functions ----------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.readInputsStep) # Serial because of nature
-        self._insertFunctionStep(self.initializeDataStructuresStep) # Serial because of nature
-        self._insertFunctionStep(self.doBSSRConsensusStep) # Serial because of nature
-        self._insertFunctionStep(self.calculateScalingFactorsStep)
-        self._insertFunctionStep(self.generateScaledCoordinatesStep)  # Parallelizable
-        self._insertFunctionStep(self.writeScaledCoordinatesStep) # Serial because of nature
-        self._insertFunctionStep(self.coordConsensusStep)
-        # Serial para todos estos for the moment
-        # self._insertFunctionStep(self.prepareNNStep)
-        # self._insertFunctionStep(self.processTrainStep)
-        # self._insertFunctionStep(self.processScoreStep)
-        # self._insertFunctionStep(self.postProcessStep)
-        # self._insertFunctionStep(self.createOutputStep)
+        # readInputs and doBSSR consensus need to be outside of the steps system
+        # Otherwise there is no global knowledge here of tsIds, etc.
+        self.readInputs()  # Serial and out of the steps 
+        self.doBSSRConsensus() # Serial and out of the steps
+        # From here on it can be steps system
+        this = self._insertFunctionStep(self.calculateScalingFactorsStep, prerequisites=[])
+        this = self._insertFunctionStep(self.generateScaledCoordinatesStep, prerequisites=[this])
+        this = self._insertFunctionStep(self.writeScaledCoordinatesStep, prerequisites=[this]) # Serial because of nature
+        deps = []
+        threadsPerTomogram = int(self.numberOfThreads) // len(self.allTsIds)
+        threadsPerTomogram = threadsPerTomogram if threadsPerTomogram > 0 else 1
+        for tsId in self.allTsIds:
+            thisStep = self._insertFunctionStep(self.coordConsensusStep, tsId, prerequisites=this)
+            deps.append(self._insertFunctionStep(self.noisePickStep, tsId, threadsPerTomogram, prerequisites=thisStep))
+        # this = self._insertFunctionStep(self.prepareNNStep, prerequisites=deps)
+        # this = self._insertFunctionStep(self.processTrainStep)
+        # this = self._insertFunctionStep(self.processScoreStep)
+        # this = self._insertFunctionStep(self.postProcessStep)
+        # this = self._insertFunctionStep(self.createOutputStep prerequisites=this)
 
     #--------------- STEPS functions -----------------------
 
-    def readInputsStep(self) -> None:
+    def readInputs(self) -> None:
         """
         Reads the input form, establishes some hardcoded parameters.
         Uses Scipion datatypes for DB persistence.
@@ -307,11 +311,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         self.batchSize = Integer(self.trainingBatch.get())
         self.nrPickersNeeded = Integer(self.neededNumberOfPickers.get())
 
-    def initializeDataStructuresStep(self) -> None:
-        """
-        Organises all of the data into a structured object
-        """
-
         # Populated in this function
         self.allTsIds = List() # Dedup list of all TSID found in the inputs
         self.allTsIds_raw = List() # Duplicated list of all TSID found in all pickers
@@ -322,6 +321,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         self.consBoxSize = Integer()
         self.consSampRate = Float()
         self.inputScalingFactors = List()
+        self.scaledTomoDims = List([-1,-1,-1])
 
         """
         allTsIds_filedicts dictionary of dictionaries
@@ -357,7 +357,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             print(f"TS ID {key} has these candidates: {myList}.")
 
         # Print the sets to console output
-            # TODO: put this in the summary page
         print(f"Total unique tomograms: {len(self.allTsIds)} in {len(self.inputSetsOf3DCoordinates)} pickers")
         print(f"Tomograms found in all pickers: {len(self.allTsIds_common)}")
 
@@ -366,11 +365,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
         # Generate internal protocol folders
         folders = [ self._getScaledPath() ]
+        folders.append(self._getCoordConsPath())
+        folders.append(self._getNoisePath())
         # folders.append(self._getCoordConsensusPath())
         for f in folders:
             pwutils.makePath(f)
-
-    def doBSSRConsensusStep(self) -> None:
+        
+    def doBSSRConsensus(self) -> None:
         
         # With all information loaded, now we search for the biggest SR
         allSRs = List()
@@ -398,6 +399,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
                 self.inputScalingFactors[index] = picker.getSamplingRate() / self.consSampRate
 
         assert -1 not in self.inputScalingFactors
+
         self.printScalingFactorsInfo()
 
     def generateScaledCoordinatesStep(self) -> None:
@@ -410,6 +412,17 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             if self.inputScalingFactors[index] != 1.0:
                 for coord in inputSet.iterCoordinates():
                     coord.scale(self.inputScalingFactors[index])
+
+        dims = [-1,-1,-1]
+        for tsId in self.allTsIds:
+            if self.consSampRate in self.allTsIds_filedicts[tsId].keys():
+                ih = ImageHandler()
+                dims = ih.getDimensions(self.allTsIds_filedicts[tsId][self.consSampRate])
+                self.scaledTomoDims[0] = dims[0]
+                self.scaledTomoDims[1] = dims[1]
+                self.scaledTomoDims[2] = dims[2]
+
+        assert (-1 not in dims) and (-1 not in self.scaledTomoDims)
 
     def writeScaledCoordinatesStep(self):
         """
@@ -440,61 +453,65 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             assert myMdDict[tsId] is not None
             myMdDict[tsId].write(self._getScaledFile(tsId))
 
-    def coordConsensusStep(self) -> None:
+    def coordConsensusStep(self, tsId) -> None:
         """
-        Generates a pool with the amount of threads established in the form.
-        Launches a thread per input tsId to process all of its coords.
-        Writes the consensuated coordinates. One file per tsId.
+        Launches the consensus of the coordinates per tsId
+        Saves into pos, doubt, neg and all coords XMD files. 
+        One call per tsId
         """
-        # Generate a pool with the given No. of threads
-        myPool = mp.Pool(processes=self.numberOfThreads)
-        myPool.map(self._doLaunchCoordCons, self.allTsIds)
-    
-    def _doLaunchCoordCons(self, tsId) -> None:
-        program = "xmipp_coordinates_consensus_tomo"
-        args = ''
+
+        program = "xmipp_tomo_coordinates_consensus"
+
+        args = ' --boxsize ' + str(self.consBoxSize)
+        args += ' --samplingrate ' + str(self.consSampRate)
+        args += ' --radius ' + str(self.coordConsRadius)
+        args += ' --number ' + str(self.nrPickersNeeded)
+        args += ' --constype ' + str(self.coordConsType)
         args += ' --infile ' + self._getScaledFile(tsId)
         args += ' --outall ' + self._getAllCoordsFilename(tsId)
         args += ' --outpos ' + self._getPosCoordsFilename(tsId)
         args += ' --outdoubt ' + self._getDoubtCoordsFilename(tsId)
-        args += ' --negfolder ' + self._getNegCoordsFilename(tsId)
-        args += ' --boxsize ' + self.consBoxSize
-        args += ' --samplingrate ' + self.consSampRate
-        args += ' --radius ' + self.coordConsRadius
-        args += ' --number ' + self.nrPickersNeeded
-        # if self.havePositive:
-        #     args += ' --inTruth ' + self._getAllTruthCoordsFilename(tsId)
-        # if self.haveNegative:
-        #     args += ' --inLie ' + self._getAllLieCoordsFilename(tsId)
-        self.runJob(program, args)
-    
-    def noisePick(self, tomoPath, coordsPath, outPath, nrPositive):
-        """
-        Block 2 - Noise picker for training stages
-
-        Generates noise for input tomogram, thus adding an
-        almost certain negative input for the NN training stage,
-        when training is selected from the GUI or the model is 
-        built from scratch.
-        """
-
-        program = "xmipp_pick_noise_tomo"
-        ih = ImageHandler()
+        args += ' --outneg ' + self._getNegCoordsFilename(tsId)
+        args += ' --tsid ' + str(tsId)   
         
-        # Prepare and launch script
-        dims = ih.getDimensions(tomoPath)
-        args = ''
-        args += ' --input ' + coordsPath # Ruta al _allpickedcoordinates
-        args += ' --radius ' + str(self.noiseRadius)
-        args += ' --boxsize ' + str(self.consBoxSize)
-        args += ' --samplingrate ' + str(self.consSampRate)
-        args += ' --size ' + ' '.join(map(str, dims[0:3]))
-        args += ' --limit ' + str(self.noiseFrac)
-        args += ' --nrPositive ' + str(nrPositive)
-        args += ' --threads ' + str(self.numberOfThreads)
-        args += ' --output ' + outPath
-        print('\nHanding over to Xmipp program for noise picking')
         self.runJob(program, args)
+
+    def noisePickStep(self, tsId: str, threads: int) -> None:
+        """
+        Launches the noise picking step.
+        One call per tsId
+        """
+        program = "xmipp_tomo_pick_noise"
+        
+        args = ''
+        args += ' --infile ' + self._getPosCoordsFilename(tsId)
+        args += ' --output ' + self._getNoiseCoordsFilename(tsId)
+        args += ' --boxsize ' + str(self.consBoxSize)
+        args += ' --tomosize ' + ' '.join(map(str,self.scaledTomoDims[0:3]))
+        args += ' --threads ' + str(threads)
+        args += ' --tsid ' + str(tsId)  
+        
+        self.runJob(program, args)
+
+    # def OLDnoisePick(self, tomoPath, coordsPath, outPath, nrPositive):
+
+    #     program = "xmipp_pick_noise_tomo"
+    #     ih = ImageHandler()
+        
+    #     # Prepare and launch script
+    #     dims = ih.getDimensions(tomoPath)
+    #     args = ''
+    #     args += ' --infile ' + coordsPath # Route to allcoords path
+    #     args += ' --radius ' + str(self.noiseRadius)
+    #     args += ' --boxsize ' + str(self.consBoxSize)
+    #     args += ' --samplingrate ' + str(self.consSampRate)
+    #     args += ' --size ' + ' '.join(map(str, dims[0:3]))
+    #     args += ' --limit ' + str(self.noiseFrac)
+    #     args += ' --nrPositive ' + str(nrPositive)
+    #     args += ' --threads ' + str(self.numberOfThreads)
+    #     args += ' --output ' + outPath
+    #     print('\nHanding over to Xmipp program for noise picking')
+    #     self.runJob(program, args)
 
     def prepareNNStep(self):
         """
@@ -525,8 +542,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             # Extract the doubt subtomograms
             if self.isThereDoubt(tomoName):
                 self.tomogramExtract(tomoPath, self._getDoubtCoordsScaledFilename(tomoName), self._getDoubtSubtomogramPath())
-        # Tengo: todo extraido
-        # Necesito: combinar todos en un solo XMD
 
         print("Combining the metadata of the whole dataset...", flush=True)
         
@@ -776,7 +791,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             c.setX(self.scoredDf_filtered_dedup['x'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setY(self.scoredDf_filtered_dedup['y'][ind], tconst.BOTTOM_LEFT_CORNER)
             c.setZ(self.scoredDf_filtered_dedup['z'][ind], tconst.BOTTOM_LEFT_CORNER)
-            # TODO: assign escore
+            # TODO: set score with new function
+            # c.setScore()
             coordinates.append(c)
         
         name = self.OUTPUT_PREFIX + suffix
@@ -788,11 +804,13 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
     #--------------- INFO functions -------------------------
     def _summary(self):
-        # TODO: add important information!!!!!
         summary = []
-        # summary.append("- Executing using %d Threads and %d GPUs" % self.numberOfThreads, len(self.getGpuList()))
-        # summary.append("- Using %d unique tomograms coming from %d tilt series." % self.uniqueTomoIDs,self.uniqueTsIds)
-        # summary.append("- Found %d different pickers at input with %d ROIs" % self.nr_pickers, self.nr_ROIs)
+        summary.append(f"- Executed in {self.numberOfThreads} threads and {len(self.getGpuList())}.")
+        summary.append(f"- Found {self.nr_pickers} input pickers in total.")
+        summary.append(f"- Found {len(self.allTsIds)} tsId from which {len(self.allTsIds_common)} are present in all pickers.")
+        summary.append(f"- Used {self.consSampRate}A/px as the common sampling rate and {self.consBoxSize}px as box size.")
+        # summary.append(f"- Total input coordinates: {self.nr_ROIsTotal}. Total output coordinates: {self.nr_ROIsTotal_out}.")
+        # summary.append(f"- ")
         # summary.append("- Coordinates Consensus removed KKQLO duplicates")
         return summary
 
@@ -914,7 +932,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     def _getNegCoordsFilename(self, tsId: str):
         return self._getCoordConsPath(tsId+"_cons_neg.xmd")
     
-
+    # Noise picking file management
+    def _getNoisePath(self, *args):
+        return self._getExtraPath('noisepick', *args)
+    def _getNoiseCoordsFilename(self, tsId: str):
+        return self._getNoisePath(tsId+"_noise.xmd")
+    
     # MIERDA OLD
 
     # def _getOutputPath(self, *args):
