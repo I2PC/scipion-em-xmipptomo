@@ -304,9 +304,6 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             shiftX = rng.integers(self.xmin.get(), self.xmax.get())
             shiftY = rng.integers(self.ymin.get(), self.ymax.get())
             shiftZ = rng.integers(self.zmin.get(), self.zmax.get())
-            #shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
-            #shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
-            #shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
 
 
         self.runJob("xmipp_transform_geometry",
@@ -418,9 +415,10 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             coor = Coordinate3D()
             coor.setVolume(tomo)
             tomoDim = tomo.getDim()
-            coor.setX(np.random.randint(0, tomoDim[0]), const.BOTTOM_LEFT_CORNER)
-            coor.setY(np.random.randint(0, tomoDim[1]), const.BOTTOM_LEFT_CORNER)
-            coor.setZ(np.random.randint(0, tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            rng = np.random.default_rng()
+            coor.setX(rng.integers(tomoDim[0]), const.BOTTOM_LEFT_CORNER)
+            coor.setY(rng.integers(tomoDim[1]), const.BOTTOM_LEFT_CORNER)
+            coor.setZ(rng.integers(tomoDim[2]), const.BOTTOM_LEFT_CORNER)
 
             self.coordsSet.append(coor)
             self.coordsSet.setBoxSize(subtomo.getDim()[0])
