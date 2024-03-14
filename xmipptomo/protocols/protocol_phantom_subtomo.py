@@ -291,9 +291,13 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                     rotErr = rot + np.random.normal(0, self.sigma.get())
                     tiltErr = tilt + np.random.normal(0, self.sigma.get())
             else:
-                rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-                tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-                psi = np.random.randint(self.psimin.get(), self.psimax.get())
+                rng = np.random.default_rng()
+                rot = rng.integers(self.rotmin.get(), self.rotmax.get())
+                tilt = rng.integers(self.tiltmin.get(), self.tiltmax.get())
+                psi = rng.integers(self.psimin.get(), self.psimax.get())
+                #rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
+                #tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
+                #psi = np.random.randint(self.psimin.get(), self.psimax.get())
                 rotErr = rot
                 tiltErr = tilt
 
