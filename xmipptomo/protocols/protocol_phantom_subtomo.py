@@ -295,17 +295,18 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
                 rot = rng.integers(self.rotmin.get(), self.rotmax.get())
                 tilt = rng.integers(self.tiltmin.get(), self.tiltmax.get())
                 psi = rng.integers(self.psimin.get(), self.psimax.get())
-                #rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-                #tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-                #psi = np.random.randint(self.psimin.get(), self.psimax.get())
                 rotErr = rot
                 tiltErr = tilt
 
         if self.applyShift:
             # Shifts
-            shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
-            shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
-            shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
+            rng = np.random.default_rng()
+            shiftX = rng.integers(self.xmin.get(), self.xmax.get())
+            shiftY = rng.integers(self.ymin.get(), self.ymax.get())
+            shiftZ = rng.integers(self.zmin.get(), self.zmax.get())
+            #shiftX = np.random.randint(self.xmin.get(), self.xmax.get())
+            #shiftY = np.random.randint(self.ymin.get(), self.ymax.get())
+            #shiftZ = np.random.randint(self.zmin.get(), self.zmax.get())
 
 
         self.runJob("xmipp_transform_geometry",
