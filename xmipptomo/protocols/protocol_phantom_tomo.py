@@ -184,7 +184,8 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
                 rot, tilt, psi = self._getRandomAngles()
 
-                posIndex = np.random.randint(0, len(positions))
+                rng = np.random.default_rng()
+                posIndex = rng.integers(len(positions))
                 pos = positions[posIndex]
                 del positions[posIndex]
 
@@ -256,9 +257,10 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
     def _getRandomAngles(self):
         """ Returns random rot, tilt, psi in range"""
 
-        rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-        tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-        psi = np.random.randint(self.psimin.get(), self.psimax.get())
+        rng = np.random.default_rng()
+        rot = rng.integers(self.rotmin.get(), self.rotmax.get())
+        tilt = rng.integers(self.tiltmin.get(), self.tiltmax.get())
+        psi = rng.integers(self.psimin.get(), self.psimax.get()
 
         # Get the random values
         return rot, tilt, psi
