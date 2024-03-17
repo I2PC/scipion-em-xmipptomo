@@ -148,11 +148,10 @@ def readXmippMetadataEnabledTiltImages(xmdPath):
     mdEnable = md.MetaData(xmdPath)
 
     for objId in mdEnable:
-        imageName = mdEnable.getValue(lib.MDL_IMAGE, objId)
+        imgNumber = mdEnable.getValue(lib.MDL_IDX, objId)
         enable = mdEnable.getValue(lib.MDL_ENABLED, objId)
-        imgNumber, imgPath = imageName.split("@")
 
-        enableInfoList.append([enable, imgNumber, imgPath])
+        enableInfoList.append([enable, imgNumber])
 
     return enableInfoList
 

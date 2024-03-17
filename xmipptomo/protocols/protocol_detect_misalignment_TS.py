@@ -266,23 +266,24 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
-        """Apply the transformation form the input tilt-series"""
-        # Use Xmipp interpolation via Scipion
-        swap = False
-        if firstItem.hasTransform():
-            avgRotAngle = utils.calculateAverageRotationAngleFromTM(ts)
-            swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
+        if modeTs or self.subtleMisaliToggle.get():
+            """Apply the transformation form the input tilt-series"""
+            # Use Xmipp interpolation via Scipion
+            swap = False
+            if firstItem.hasTransform():
+                avgRotAngle = utils.calculateAverageRotationAngleFromTM(ts)
+                swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
-            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
-            ts.applyTransform(outputTsFileName, swapXY=swap)
+                outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+                ts.applyTransform(outputTsFileName, swapXY=swap)
 
-        else:
-            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
-            ts.applyTransform(outputTsFileName)
+            else:
+                outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+                ts.applyTransform(outputTsFileName)
 
-        """Generate angle file"""
-        angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-        utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
+            """Generate angle file"""
+            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+            utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
         if modeTs:
             """Generate 3D coordinates metadata"""
@@ -398,8 +399,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
             }
 
-            argsDetectMisali = "-i %(i)s " \
-                               "--inputResInfo %(inputResInfo)s " \
+            # "-i %(i)s " \
+            argsDetectMisali = "--inputResInfo %(inputResInfo)s " \
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
