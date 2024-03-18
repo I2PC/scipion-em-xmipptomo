@@ -324,6 +324,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         mdlm = lib.MetaData()
 
+        # Check that there is residual information in the input landmark models
+        self.check = False
+
         for infoLine in lmInfoTable:
             nRow = md.Row()
 
@@ -331,6 +334,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             # is saved for that coordinate.
             if self.is_float_zero(float(infoLine[4])) and self.is_float_zero(float(infoLine[5])):
                 continue
+
+            self.check = True
 
             nRow.setValue(lib.MDL_X, float(infoLine[0]))
             nRow.setValue(lib.MDL_Y, float(infoLine[1]))
@@ -533,6 +538,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 self.outputSetOfMisalignedTiltSeries.write()
 
             self._store()
+
+        # Return check to true for the next iteration
+        self.check = True
 
     def closeOutputSetsStep(self):
         if hasattr(self, "outputSetOfTiltSeries"):
