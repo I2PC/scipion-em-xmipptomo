@@ -62,6 +62,7 @@ class ExtractCentralTiltParticles(ProtTomoBase, EMProtocol):
     def createOutputStep(self):
         inputParticles: SetOfTiltSeriesParticle = self.inputParticles.get()
         outputParticles: SetOfParticles = self._createSetOfParticles()
+        outputParticles.enableAppend()
         outputParticles.setAcquisition(outputParticles.getAcquisition())
         outputParticles.setSamplingRate(inputParticles.getSamplingRate())
         
