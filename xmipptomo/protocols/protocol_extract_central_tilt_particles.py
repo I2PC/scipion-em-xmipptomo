@@ -46,7 +46,7 @@ class ExtractCentralTiltParticles(ProtTomoBase, EMProtocol):
     _devStatus = BETA
 
     def __init__(self, *args, **kwargs):
-        ProtTomoBase.__init__(self, *args, **kwargs)
+        EMProtocol.__init__(self, *args, **kwargs)
 
     def _defineParams(self, form):
         form.addSection(label='Input')

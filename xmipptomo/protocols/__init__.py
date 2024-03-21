@@ -33,6 +33,7 @@ from .protocol_connected_components import XmippProtConnectedComponents
 from .protocol_coords_roi import XmippProtCCroi
 from .protocol_deep_misalignment_detection import XmippProtDeepDetectMisalignment
 from .protocol_dose_filter import XmippProtDoseFilter
+from .protocol_extract_central_tilt_particles import ExtractCentralTiltParticles
 from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
 from .protocol_denoising_confidence import XmippProtConfTomo
