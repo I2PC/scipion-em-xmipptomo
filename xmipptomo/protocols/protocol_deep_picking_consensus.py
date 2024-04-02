@@ -47,7 +47,7 @@ import pyworkflow.utils as pwutils
 
 # Data and objects management
 import numpy as np
-from pyworkflow.object import Integer, Float, Boolean, List, Dict
+from pyworkflow.object import Integer, Float, Boolean, List, Dict, String
 from pwem.protocols import EMProtocol
 from pwem import emlib
 from pwem.emlib.image import ImageHandler
@@ -251,11 +251,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         this = self._insertFunctionStep(self.generateScaledCoordinatesStep, prerequisites=[this])
         this = self._insertFunctionStep(self.writeScaledCoordinatesStep, prerequisites=[this]) # Serial because of nature
         deps = []
-        threadsPerTomogram = int(self.numberOfThreads) // len(self.allTsIds)
+        threadsPerTomogram = int(self.nThreads) // len(self.allTsIds)
         threadsPerTomogram = threadsPerTomogram if threadsPerTomogram > 0 else 1
         for tsId in self.allTsIds:
             thisStep = self._insertFunctionStep(self.coordConsensusStep, tsId, prerequisites=this)
             deps.append(self._insertFunctionStep(self.noisePickStep, tsId, threadsPerTomogram, prerequisites=thisStep))
+        self._insertFunctionStep(self.extractionStep, prerequisites=deps)
         # this = self._insertFunctionStep(self.prepareNNStep, prerequisites=deps)
         # this = self._insertFunctionStep(self.processTrainStep)
         # this = self._insertFunctionStep(self.processScoreStep)
@@ -269,6 +270,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         Reads the input form, establishes some hardcoded parameters.
         Uses Scipion datatypes for DB persistence.
         """
+        # Compute
+        self.nThreads : String = str(self.numberOfThreads.get())
 
         # Sets of coordinates
         self.inputSetsOf3DCoordinates : List = List([item.get() for item in self.inputSets])
@@ -493,25 +496,20 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
         self.runJob(program, args)
 
-    # def OLDnoisePick(self, tomoPath, coordsPath, outPath, nrPositive):
-
-    #     program = "xmipp_pick_noise_tomo"
-    #     ih = ImageHandler()
-        
-    #     # Prepare and launch script
-    #     dims = ih.getDimensions(tomoPath)
-    #     args = ''
-    #     args += ' --infile ' + coordsPath # Route to allcoords path
-    #     args += ' --radius ' + str(self.noiseRadius)
-    #     args += ' --boxsize ' + str(self.consBoxSize)
-    #     args += ' --samplingrate ' + str(self.consSampRate)
-    #     args += ' --size ' + ' '.join(map(str, dims[0:3]))
-    #     args += ' --limit ' + str(self.noiseFrac)
-    #     args += ' --nrPositive ' + str(nrPositive)
-    #     args += ' --threads ' + str(self.numberOfThreads)
-    #     args += ' --output ' + outPath
-    #     print('\nHanding over to Xmipp program for noise picking')
-    #     self.runJob(program, args)
+    def extractionStep(self) -> None :
+        # TODO: in progress
+        program = "xmipp_tomo_extract_subtomograms"
+        for tsId in self.allTsIds:
+            # Get filename, extract subtomograms
+            tomoPath = "" # TODO: get filename associated to tsid
+            coordsPath = "" # TODO: get filename for this tsId coords
+            args = ' '
+            args += '--tomogram ' + tomoPath
+            args += '--coordinates ' + coordsPath
+            args += '--boxsize'
+            args += '-o'
+            args += '--threads ' + str(self.nThreads)
+            self.runJob(program, args)
 
     def prepareNNStep(self):
         """
@@ -624,7 +622,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
-        args += ' -t ' + str(self.numberOfThreads)
+        args += ' -t ' + str(self.nThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
         args += ' --batchsize ' + str(self.batchSize)
@@ -643,27 +641,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             args += ' -s'
         print('\nHanding over to Xmipp program for Train')
         self.runJob(program, args)
-                  
-    def tomogramExtract(self, tomoPath, coordsPath, outPath):
-        """
-        Block 2 - NN preparation
-
-        This program extracts subtomograms using Xmipp.
-        tomoPath - .mrc file path
-        coordsPath - .xmd coordinates
-        outPath - folder to leave .mrc files in
-        """
-
-        program = "xmipp_tomo_extract_subtomograms"
-        args = ''
-        args += '--tomogram ' + tomoPath
-        args += ' --coordinates ' + coordsPath
-        args += ' --boxsize ' + str(self.consBoxSize)
-        args += ' -o ' + outPath
-        args += ' --threads ' + str(self.numberOfThreads)
-
-        print('\nHanding over to Xmipp program for tomogram extraction')
-        self.runJob(program, args)
 
     def processScoreStep(self):
         """
@@ -676,7 +653,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
-        args += ' -t ' + str(self.numberOfThreads)
+        args += ' -t ' + str(self.nThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode scoring'
         args += ' --batchsize ' + str(self.batchSize)
@@ -805,7 +782,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     #--------------- INFO functions -------------------------
     def _summary(self):
         summary = []
-        summary.append(f"- Executed in {self.numberOfThreads} threads and {len(self.getGpuList())}.")
+        summary.append(f"- Executed in {self.nThreads} threads and {len(self.getGpuList())}.")
         summary.append(f"- Found {self.nr_pickers} input pickers in total.")
         summary.append(f"- Found {len(self.allTsIds)} tsId from which {len(self.allTsIds_common)} are present in all pickers.")
         summary.append(f"- Used {self.consSampRate}A/px as the common sampling rate and {self.consBoxSize}px as box size.")
