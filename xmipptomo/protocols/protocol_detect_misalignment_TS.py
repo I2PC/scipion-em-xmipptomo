@@ -332,6 +332,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.check = True
 
+            # Only consider those landmark models with residual information
+            if infoLine[3] == 'nan' or infoLine[4] == 'nan':
+                continue
+
             nRow.setValue(lib.MDL_X, float(infoLine[0]))
             nRow.setValue(lib.MDL_Y, float(infoLine[1]))
             nRow.setValue(lib.MDL_Z, float(infoLine[2]) - 1)
@@ -341,7 +345,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             nRow.addToMd(mdlm)
 
-        print(resModFilePath)
         mdlm.write(resModFilePath)
 
     def calculateResidualVectors(self, tsObjId):
