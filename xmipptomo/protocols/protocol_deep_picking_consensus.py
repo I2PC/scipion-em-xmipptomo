@@ -32,7 +32,7 @@
 """
 Deep Consensus picking protocol suited for Cryo-ET
 """
-import os
+import os,time
 
 # Tomo-specific
 import tomo.constants as tconst
@@ -256,8 +256,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         for tsId in self.allTsIds:
             thisStep = self._insertFunctionStep(self.coordConsensusStep, tsId, prerequisites=this)
             deps.append(self._insertFunctionStep(self.noisePickStep, tsId, threadsPerTomogram, prerequisites=thisStep))
-        self._insertFunctionStep(self.extractionStep, prerequisites=deps)
-        # this = self._insertFunctionStep(self.prepareNNStep, prerequisites=deps)
+        this = self._insertFunctionStep(self.tomogramScalingStep, prerequisites=deps)
+        this = self._insertFunctionStep(self.extractionStep, prerequisites=[this])
         # this = self._insertFunctionStep(self.processTrainStep)
         # this = self._insertFunctionStep(self.processScoreStep)
         # this = self._insertFunctionStep(self.postProcessStep)
@@ -370,6 +370,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         folders = [ self._getScaledPath() ]
         folders.append(self._getCoordConsPath())
         folders.append(self._getNoisePath())
+        folders.append(self._getScaledTomoPath())
         # folders.append(self._getCoordConsensusPath())
         for f in folders:
             pwutils.makePath(f)
@@ -496,122 +497,49 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         
         self.runJob(program, args)
 
-    def extractionStep(self) -> None :
+    def tomogramScalingStep(self) -> None:
+        """
+        This program analyzes the current tsId panorama and decides if any of them needs to be
+        generated parting from a higher-resolution one. If so, it performs this scaling.
+        If not, it does nothing to that particular tsId.
+        """
+        count = 0
+        program = "xmipp_image_resize"
+        params = ''
+        start = time.time()
+        # Perform scaling if needed for every tsId that is present in the protocol
+        for tsId in self.allTsIds:
+            if self.consSampRate not in self.allTsIds_filedicts[tsId].keys():
+                count += 1
+                closestSR = max(self.allTsIds_filedicts[tsId].keys())
+                inputTomo = self.allTsIds_filedicts[tsId][closestSR]
+                outputTomo = self._getScaledTomoFilename(tsId)
+                params += ' -i ' + inputTomo
+                params += ' -o ' + outputTomo
+                params += ' --factor ' + str(closestSR / self.consSampRate)
+                self.runJob(program, params)
+                # Add the newly created tomogram to the list
+                self.allTsIds_filedicts[tsId][self.consSampRate] = outputTomo
+        # Calculate elapsed wall time and print
+        end = time.time()
+        print(f"tomogramScalingStep scaled {count} tomograms in {end - start} seconds.")
+
+    def extractionStep(self) -> None:
         # TODO: in progress
         program = "xmipp_tomo_extract_subtomograms"
         for tsId in self.allTsIds:
             # Get filename, extract subtomograms
-            tomoPath = "" # TODO: get filename associated to tsid
+            tomoPath = self.allTsIds_filedicts[tsId][self.consSampRate]
             coordsPath = "" # TODO: get filename for this tsId coords
+            outPath = "" # TODO: get folder output and name
             args = ' '
             args += '--tomogram ' + tomoPath
             args += '--coordinates ' + coordsPath
-            args += '--boxsize'
-            args += '-o'
+            args += '--boxsize ' + str(self.consBoxSize)
+            args += '-o ' + outPath
             args += '--threads ' + str(self.nThreads)
+            args += '--normalize '
             self.runJob(program, args)
-
-    def prepareNNStep(self):
-        """
-        Block 2 - Neural Network TRAIN operations
-
-        - Launch extraction of all needed subtomos into /dataset/pos | neg | doubt
-        - Launch split generation
-        - Launch NN tren (chuchú)
-        - Save the NN
-        model into a H5 file both intermediate and final.
-        """
-        # This protocol executes on the Xmipp program side
-        # Tengo: carpetas
-        # Necesito: extraer
-        for tomogram in self.uniqueTomoIDs:
-            originalTomoName = self._stripTomoFilename(tomogram)
-            tomoName = originalTomoName
-            # tomoName = self.tomoAssignationTable[self.tomoAssignationTable['original'] == tomoName]
-            if not self.trainSkip:
-                howManyPositive = howManyCoords(self._getPosCoordsFilename(tomoName))
-                # Generate the bad examples for later extraction
-                self.noisePick(tomoPath, self._getConsCoordsFilename(tomoName), self._getNegCoordsFilename(tomoName), howManyPositive)
-                # Actually extract the bad examples
-                self.tomogramExtract(tomoPath, self._getNegCoordsScaledFilename(tomoName), self._getNegSubtomogramPath())
-            # Extract the known good examples
-            if self.isTherePositive(tomoName):
-                self.tomogramExtract(tomoPath, self._getPosCoordsScaledFilename(tomoName), self._getPosSubtomogramPath())
-            # Extract the doubt subtomograms
-            if self.isThereDoubt(tomoName):
-                self.tomogramExtract(tomoPath, self._getDoubtCoordsScaledFilename(tomoName), self._getDoubtSubtomogramPath())
-
-        print("Combining the metadata of the whole dataset...", flush=True)
-        
-        extractFns = folderContentEndingWith(self._getDoubtSubtomogramPath(), "_extracted.xmd")
-        # For every summary file of each tomogram...
-        doubtBasePath = self._getDoubtSubtomogramPath()
-        posBasePath = self._getPosSubtomogramPath()
-        outMd = emlib.MetaData()
-
-        for tomoPath in self.uniqueTomoIDs:
-        # Estan las cosas en /extra/dataset/doubt/TOMONAME_cons_doubt_extracted.xmd
-            tomoName = self._stripTomoFilename(tomoPath)
-            fn = self._getDoubtSubtomogramPath(str(tomoName + "_cons_doubt_extracted.xmd"))
-            fnPos = self._getPosSubtomogramPath(str(tomoName +  "_cons_pos_extracted.xmd"))
-
-            print(str("Filename for combination is: " + fn), flush=True)
-            inMd = emlib.MetaData(fn)
-            
-            if self.isThereDoubt(tomoName):
-                for inRow in inMd:
-                    # READ
-                    x = int(inMd.getValue(emlib.MDL_XCOOR, inRow))
-                    y = int(inMd.getValue(emlib.MDL_YCOOR, inRow))
-                    z = int(inMd.getValue(emlib.MDL_ZCOOR, inRow))
-                    partId = int(inMd.getValue(emlib.MDL_PARTICLE_ID, inRow))
-                    subtomoFilename : str = inMd.getValue(emlib.MDL_IMAGE, inRow)
-                    sr = float(self.consSampRate)
-                    bs = int(self.consBoxSize)
-
-                    # SET
-                    row_id = outMd.addObject()
-                    outMd.setValue(emlib.MDL_XCOOR, x, row_id)
-                    outMd.setValue(emlib.MDL_YCOOR, y, row_id)
-                    outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
-                    outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
-                    outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
-                    outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
-                    outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
-                    correctedPath = str( doubtBasePath + "/" + subtomoFilename)
-                    outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
-
-            if self.isTherePositive(tomoName):
-                # Also add positive to the combined dataset
-                inMdPos = emlib.MetaData(fnPos)
-                for inRow in inMdPos:
-                    # READ
-                    x = int(inMdPos.getValue(emlib.MDL_XCOOR, inRow))
-                    y = int(inMdPos.getValue(emlib.MDL_YCOOR, inRow))
-                    z = int(inMdPos.getValue(emlib.MDL_ZCOOR, inRow))
-                    partId = int(inMdPos.getValue(emlib.MDL_PARTICLE_ID, inRow))
-                    subtomoFilename : str = inMdPos.getValue(emlib.MDL_IMAGE, inRow)
-                    sr = float(self.consSampRate)
-                    bs = int(self.consBoxSize)
-
-                    # SET
-                    row_id = outMd.addObject()
-                    outMd.setValue(emlib.MDL_XCOOR, x, row_id)
-                    outMd.setValue(emlib.MDL_YCOOR, y, row_id)
-                    outMd.setValue(emlib.MDL_ZCOOR, z, row_id)
-                    outMd.setValue(emlib.MDL_SAMPLINGRATE, sr, row_id)
-                    outMd.setValue(emlib.MDL_PICKING_PARTICLE_SIZE, bs, row_id)
-                    outMd.setValue(emlib.MDL_PARTICLE_ID, partId, row_id)
-                    outMd.setValue(emlib.MDL_TOMOGRAM_VOLUME, tomoPath, row_id)
-                    correctedPath = str( posBasePath + "/" + subtomoFilename)
-                    outMd.setValue(emlib.MDL_IMAGE, correctedPath, row_id)
-        
-        # Persist to disk
-        outMd.write(self._getCombinedDatasetFile())
-
-        # Tengo: un solo XMD con:
-        # [pickingId, tomoId, subtomoId, x, y, z, srate, bsize]
-        # Fin de paso - next: train if needed   
             
     def processTrainStep(self):
         """
@@ -661,6 +589,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         args += ' --netname ' + "dpc_nn.h5"
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
+        # TODO: change this to something more sensible based on folder structure por favor
         args += ' --inputvolpath ' + self._getCombinedDatasetFile()
         args += ' --outputpath ' + self._getOutputFile()
 
@@ -674,6 +603,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         Apply the desired filters and thresholds to the 
         results.
         """
+        # TODO: fully redo
 
         # Open the scored output XMD file
         md = emlib.MetaData(self._getOutputFile())
@@ -890,6 +820,12 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         return errors
         
     #--------------- FILENAMES functions -------------------
+
+    # Scaled tomograms file management
+    def _getScaledTomoPath(self, *args):
+        return self._getExtraPath('scaledTomos', *args)
+    def _getScaledTomoFilename(self, tsId: str):
+        return self._getScaledTomoPath(tsId)
 
     # Scaled coordinates file management
     def _getScaledPath(self, *args):
