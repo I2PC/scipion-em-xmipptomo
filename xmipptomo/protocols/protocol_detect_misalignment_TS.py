@@ -400,6 +400,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
+                'numberTiltImages': len(ts),
             }
 
             # "-i %(i)s " \
@@ -407,7 +408,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--thrFiducialDistance %(thrFiducialDistance).2f "
+                               "--thrFiducialDistance %(thrFiducialDistance).2f " \
+                               "--numberTiltImages %(numberTiltImages)d "
 
             self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
