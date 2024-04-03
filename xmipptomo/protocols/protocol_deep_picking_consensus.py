@@ -525,21 +525,33 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         print(f"tomogramScalingStep scaled {count} tomograms in {end - start} seconds.")
 
     def extractionStep(self) -> None:
-        # TODO: in progress
-        program = "xmipp_tomo_extract_subtomograms"
+        """
+        Performs the extraction of the subtomograms from the previously generated coords files.
+        It is done in a per-tsId basis.
+        """        
         for tsId in self.allTsIds:
-            # Get filename, extract subtomograms
             tomoPath = self.allTsIds_filedicts[tsId][self.consSampRate]
-            coordsPath = "" # TODO: get filename for this tsId coords
-            outPath = "" # TODO: get folder output and name
-            args = ' '
-            args += '--tomogram ' + tomoPath
-            args += '--coordinates ' + coordsPath
-            args += '--boxsize ' + str(self.consBoxSize)
-            args += '-o ' + outPath
-            args += '--threads ' + str(self.nThreads)
-            args += '--normalize '
-            self.runJob(program, args)
+            posPath = self._getExtractedSubtomosPathPos()
+            negPath = self._getExtractedSubtomosPathNeg()
+            doubtPath = self._getExtractedSubtomosPathDoubt()
+            coordsFile_pos = self._getPosCoordsFilename(tsId)
+            coordsFile_neg = self._getNegCoordsFilename(tsId)
+            coordsFile_doubt = self._getDoubtCoordsFilename(tsId)
+            
+            files_coords = [coordsFile_pos, coordsFile_doubt, coordsFile_neg]
+            paths_extract = [posPath, doubtPath, negPath]
+
+            program = "xmipp_tomo_extract_subtomograms"
+            for coordsFile, outPath in zip(files_coords,paths_extract):
+                args = ' '
+                args += '--tomogram ' + tomoPath
+                args += '--coordinates ' + coordsFile
+                args += '--boxsize ' + str(self.consBoxSize)
+                args += '-o ' + outPath
+                args += '--threads ' + str(self.nThreads)
+                args += '--normalize '
+                args += '--factor 1.0 '
+                self.runJob(program, args)
             
     def processTrainStep(self):
         """
@@ -820,6 +832,16 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         return errors
         
     #--------------- FILENAMES functions -------------------
+
+    # Extracted subtomogram file management
+    def _getExtractedSubtomosPath(self, *args):
+        return self._getExtraPath('extracted', *args)
+    def _getExtractedSubtomosPathPos(self, *args):
+        return self._getExtractedSubtomosPath('pos', *args)
+    def _getExtractedSubtomosPathNeg(self, *args):
+        return self._getExtractedSubtomosPath('neg', *args)
+    def _getExtractedSubtomosPathDoubt(self, *args):
+        return self._getExtractedSubtomosPath('doubt', *args)
 
     # Scaled tomograms file management
     def _getScaledTomoPath(self, *args):
