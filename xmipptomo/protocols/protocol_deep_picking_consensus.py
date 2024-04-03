@@ -559,7 +559,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
         Launches the script responsible for training the NN.
         """
-        program = "conda run -n xmipp_DLTK_v1.0 xmipp_deep_picking_consensus_tomo"
+        program = "xmipp_deep_picking_consensus_tomo"
         # program = "xmipp_deep_picking_consensus_tomo"
         args = ''
         args += ' -t ' + str(self.nThreads)
