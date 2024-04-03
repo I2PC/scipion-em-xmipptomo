@@ -134,6 +134,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'models. It might be the interpolated tilt-series or a non-interpolated one with its '
                            'associated alignment.')
 
+        form.addParam('removeOutliers',
+                      params.BooleanParam,
+                      label='Robust analysis',
+                      default=False,
+                      help='Remove outlier vectors before the detection of misalignment. False by default. It might'
+                           'improve the results when calculating residual vector over very noisy (or low contrast)'
+                           'tilt-series.')
+
         # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
@@ -394,7 +402,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             firstItem = ts.getFirstItem()
 
             paramsDetectMisali = {
-                'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
                 'inputResInfo': os.path.join(extraPrefix, (tsId + VRESMOD_FILE_NAME_EXT)),
                 'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
@@ -403,13 +410,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'numberTiltImages': len(ts),
             }
 
-            # "-i %(i)s " \
             argsDetectMisali = "--inputResInfo %(inputResInfo)s " \
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
                                "--thrFiducialDistance %(thrFiducialDistance).2f " \
                                "--numberTiltImages %(numberTiltImages)d "
+
+            if self.removeOutliers.get():
+                argsDetectMisali += "--removeOutliers "
 
             self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
