@@ -804,7 +804,7 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         errors += self._validateExistingModel()
         return errors
 
-    def _validateParallelProcessing(self):
+    def _validateParallelProcessing(self) -> list:
         nGpus = len(self.getGpuList())
         nMPI = self.numberOfMpi.get()
         errors = []
@@ -814,15 +814,15 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
             errors.append("Multiprocessing not yet supported. Set MPI parameter to 1 and use Threads instead.")
         return errors
     
-    def _validateNrOfPickersNeeded(self):
-        howManyInputs = len(self.inputSets)
+    def _validateNrOfPickersNeeded(self) -> list:
+        howManyInputs = len(self.inputSets.get())
         howManySelected = int(self.neededNumberOfPickers.get())
         errors = []
         if howManySelected > howManyInputs:
-            errors.append("Check the required nr of pickers, it is superior than the amount of pickers given as input!")
+            errors.append("Required pickers number must be lesser or equal to the number of input pickers.")
         return errors
     
-    def _validateExistingModel(self):
+    def _validateExistingModel(self) -> list:
         execMode = self.modelInitialization.get()
         errors = []
         if execMode == self.MODEL_TRAIN_PRETRAIN:
@@ -834,43 +834,43 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
     #--------------- FILENAMES functions -------------------
 
     # Extracted subtomogram file management
-    def _getExtractedSubtomosPath(self, *args):
+    def _getExtractedSubtomosPath(self, *args) -> str:
         return self._getExtraPath('extracted', *args)
-    def _getExtractedSubtomosPathPos(self, *args):
+    def _getExtractedSubtomosPathPos(self, *args) -> str:
         return self._getExtractedSubtomosPath('pos', *args)
-    def _getExtractedSubtomosPathNeg(self, *args):
+    def _getExtractedSubtomosPathNeg(self, *args) -> str:
         return self._getExtractedSubtomosPath('neg', *args)
-    def _getExtractedSubtomosPathDoubt(self, *args):
+    def _getExtractedSubtomosPathDoubt(self, *args) -> str:
         return self._getExtractedSubtomosPath('doubt', *args)
 
     # Scaled tomograms file management
-    def _getScaledTomoPath(self, *args):
+    def _getScaledTomoPath(self, *args) -> str:
         return self._getExtraPath('scaledTomos', *args)
-    def _getScaledTomoFilename(self, tsId: str):
+    def _getScaledTomoFilename(self, tsId: str) -> str:
         return self._getScaledTomoPath(tsId)
 
     # Scaled coordinates file management
-    def _getScaledPath(self, *args):
+    def _getScaledPath(self, *args) -> str:
         return self._getExtraPath('scaled', *args)
-    def _getScaledFile(self, tsId : str):
+    def _getScaledFile(self, tsId : str) -> str:
         return self._getScaledPath(tsId + '_scaled_coords_all.xmd')
 
     # Consensus coordinates file management
-    def _getCoordConsPath(self, *args):
+    def _getCoordConsPath(self, *args) -> str:
         return self._getExtraPath('coordcons', *args)
-    def _getAllCoordsFilename(self, tsId: str):
+    def _getAllCoordsFilename(self, tsId: str) -> str:
         return self._getCoordConsPath(tsId+"_cons_all.xmd")
-    def _getPosCoordsFilename(self, tsId: str):
+    def _getPosCoordsFilename(self, tsId: str) -> str:
         return self._getCoordConsPath(tsId+"_cons_pos.xmd")
-    def _getDoubtCoordsFilename(self, tsId: str):
+    def _getDoubtCoordsFilename(self, tsId: str) -> str:
         return self._getCoordConsPath(tsId+"_cons_doubt.xmd")
-    def _getNegCoordsFilename(self, tsId: str):
+    def _getNegCoordsFilename(self, tsId: str) -> str:
         return self._getCoordConsPath(tsId+"_cons_neg.xmd")
     
     # Noise picking file management
-    def _getNoisePath(self, *args):
+    def _getNoisePath(self, *args) -> str:
         return self._getExtraPath('noisepick', *args)
-    def _getNoiseCoordsFilename(self, tsId: str):
+    def _getNoiseCoordsFilename(self, tsId: str) -> str:
         return self._getNoisePath(tsId+"_noise.xmd")
     
     # MIERDA OLD
