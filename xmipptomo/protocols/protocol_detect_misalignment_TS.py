@@ -395,7 +395,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                     "--thrSDHCC %(thrSDHCC).2f " \
                                     "--thrFiducialDistance %(thrFiducialDistance).2f " \
                                     "--targetLMsize %(targetLMsize).2f " \
-                                    "--numberFTdirOfDirections %(numberFTdirOfDirections).2f"
+                                    "--numberFTdirOfDirections %(numberFTdirOfDirections)d"
 
             self.runJob('xmipp_tomo_calculate_landmark_residuals', argsLandmarkResiduals % paramsLandmarkResiduals)
 
