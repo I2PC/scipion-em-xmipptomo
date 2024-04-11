@@ -142,6 +142,12 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'improve the results when calculating residual vector over very noisy (or low contrast)'
                            'tilt-series.')
 
+        form.addParam('numberFTdirOfDirections',
+                      params.IntParam,
+                      default=8,
+                      label='Fourier filter directions',
+                      help='Number of directions to analyze in the Fourier directional filter.')
+
         # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
@@ -376,7 +382,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrSDHCC': self.thrSDHCC.get(),
                 'thrFiducialDistance': self.thrFiducialDistance.get(),
-                'targetLMsize': self.targetLMsize.get()
+                'targetLMsize': self.targetLMsize.get(),
+                'numberFTdirOfDirections': self.numberFTdirOfDirections.get()
             }
 
             argsLandmarkResiduals = "-i %(i)s " \
@@ -387,7 +394,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                     "--fiducialSize %(fiducialSize).2f " \
                                     "--thrSDHCC %(thrSDHCC).2f " \
                                     "--thrFiducialDistance %(thrFiducialDistance).2f " \
-                                    "--targetLMsize %(targetLMsize).2f"
+                                    "--targetLMsize %(targetLMsize).2f " \
+                                    "--numberFTdirOfDirections %(numberFTdirOfDirections).2f"
 
             self.runJob('xmipp_tomo_calculate_landmark_residuals', argsLandmarkResiduals % paramsLandmarkResiduals)
 
