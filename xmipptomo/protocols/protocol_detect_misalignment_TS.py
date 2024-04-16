@@ -142,6 +142,17 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            'improve the results when calculating residual vector over very noisy (or low contrast)'
                            'tilt-series.')
 
+        form.addParam('voteCriteria',
+                      params.EnumParam,
+                      choices=['Average', 'Votes'],
+                      default=0,
+                      label='Local misalignment criteria',
+                      help='Choose between to option for a local misalignment detection criteria:\n'
+                           '- Average: If the average mahalanobis distance of the residuals is greater than the given '
+                           'threshold the image is discarded.\n'
+                           '- Votes: If the ratio of residuals with a mahalanobis distance greater than 1 is above the '
+                           'given threshold the image is discarded.')
+
         form.addParam('numberFTdirOfDirections',
                       params.IntParam,
                       default=8,
@@ -427,6 +438,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             if self.removeOutliers.get():
                 argsDetectMisali += "--removeOutliers "
+
+            if self.voteCriteria.get() == 1:
+                argsDetectMisali += "--voteCriteria "
 
             self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
