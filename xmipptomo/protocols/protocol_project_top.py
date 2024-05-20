@@ -154,7 +154,7 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         # Input could be SetOfVolumes or SetOfSubtomograms
         for item in input.iterItems():
             idx = item.getObjId()
-            p = Particle()
+            p = Particle(objId=item.getObjId())
             p.setLocation(ih._convertToLocation((idx, self._getExtraPath("projections.mrcs"))))
             p._subtomogramID = String(idx)
 

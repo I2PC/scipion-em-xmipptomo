@@ -42,6 +42,7 @@ from .protocol_flexalign import XmippProtTsFlexAlign
 from .protocol_peak_high_contrast import XmippProtPeakHighContrast
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_phantom_tomo import XmippProtPhantomTomo
+from .protocol_project_subtomograms import XmippProtProjectSubtomograms
 from .protocol_project_top import XmippProtSubtomoProject
 from .protocol_reconstruct_tomograms import XmippProtReconstructTomograms
 from .protocol_resizeTS import XmippProtResizeTiltSeries
@@ -54,4 +55,4 @@ from .protocol_splitTS import XmippProtSplitTiltSeries
 from .protocol_subtraction_subtomo import XmippProtSubtractionSubtomo
 from .protocol_subtomo_map_back import XmippProtSubtomoMapBack
 from .protocol_half_maps_subtomos import XmippProtHalfMapsSubtomo
-from .protocol_project_subtomograms import XmippProtProjectSubtomograms
+
