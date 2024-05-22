@@ -143,7 +143,7 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
             plot = self._createSlicePlot(imgData, sliceNumber, xplotter)
         xplotter.getColorBar(plot)
 
-        return [plt.show(xplotter)]
+        return [plt.show()]
 
     def _showOneColorslice(self, param=None):
         imageFile = self.createPath(TOMOGRAM_RESOLUTION_FILE, MRCEXT)
@@ -161,7 +161,7 @@ class XmippMonoTomoViewer(LocalResolutionViewer):
         plot = self._createSlicePlot(imgData, sliceNumber, xplotter)
         xplotter.getColorBar(plot)
 
-        return [plt.show(xplotter)]
+        return [plt.show()]
 
     def _createSlicePlot(self, imgData, sliceNumber, xplotter):
         a = xplotter.createSubPlot("Slice %s" % (sliceNumber + 1), '', '')
