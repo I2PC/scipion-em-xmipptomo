@@ -133,8 +133,9 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
 
     def _conciliateAlignmentMatrix(matrix: np.ndarray) -> np.ndarray:
         n = len(matrix) // 3
-        _, v = scipy.linalg.eigh(matrix, subset_by_index=[n-3, n-1])
-        return v.reshape((n, 3, 3)) * np.sqrt(n)
+        w, v = scipy.linalg.eigh(matrix, subset_by_index=[n-3, n-1])
+        v *= np.sqrt(w)
+        return v.reshape((n, 3, 3))
 
     # --------------------------- INFO functions ---------------------------
     def _summary(self):
