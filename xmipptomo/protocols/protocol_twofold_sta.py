@@ -25,18 +25,19 @@
 # *
 # **************************************************************************
 
-from typing import Dict, Tuple, Sequence
+from typing import Dict, Tuple, Sequence, List
 import numpy as np
 import scipy.linalg
 
 from pyworkflow import BETA
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, LEVEL_ADVANCED
 
 from pwem import emlib
-from pwem.convert import euler_matrix
+from pwem.convert.transformations import euler_matrix, euler_from_matrix
+from pwem.emlib.image import ImageHandler
 
 from tomo.protocols import ProtTomoSubtomogramAveraging
-from tomo.objects import SubTomogram, SetOfSubTomograms
+import pwem.objects as objects
 
 
 class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
@@ -49,47 +50,83 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         ProtTomoSubtomogramAveraging.__init__(self, **args)
 
     def _defineParams(self, form):
-        form.addSection(label='Input')
+        form.addSection('Input')
         form.addParam('inputVolumes', params.PointerParam,
-                      pointerClass=SetOfSubTomograms,
+                      pointerClass=objects.SetOfVolumes,
                       label='Input subtomograms', important=True)
+        form.addParam('maxTilt', params.FloatParam, label='Maximum tilt',
+                      default=60.0,
+                      help='Maximum tilt angle in degrees')
+        form.addParam('maxRes', params.FloatParam, label='Alignment resolution',
+                      default=10.0, expertLevel=LEVEL_ADVANCED,
+                      help='Maximum tilt angle in angstroms')
+        form.addParam('angularSampling', params.FloatParam, label='Angular sampling rate',
+                      default=5.0, expertLevel=LEVEL_ADVANCED,
+                      help='Angular sampling rate in degrees')
 
 
     # --------------------------- INSERT steps functions ---------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.alignSubtomogramPairsStep)
-        self._insertFunctionStep(self.conciliateAlignmentsStep)
-        self._insertFunctionStep(self.averageSubtomogramsStep)
-        self._insertFunctionStep(self.createOutputStep)
+        #self._insertFunctionStep(self.conciliateAlignmentsStep)
+        #self._insertFunctionStep(self.averageSubtomogramsStep)
+        #self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions ---------------------------
     def convertInputStep(self):
-        pass
+        from xmipp3.convert import writeSetOfVolumes
+        writeSetOfVolumes(self.inputVolumes.get(), self._getInputVolumesMdFilename())
     
     def alignSubtomogramPairsStep(self):
-        pass
+        maxFreq = self.inputVolumes.get().getSamplingRate() / self.maxRes.get()
+        
+        cmd = 'xmipp_tomo_volume_align_twofold'
+        args = []
+        args += ['-i', self._getInputVolumesMdFilename()]
+        args += ['-o', self._getPairwiseAlignmentMdFilename()]
+        args += ['--maxTilt', self.maxTilt.get()]
+        args += ['--maxFreq', maxFreq]
+        args += ['--padding', 2.0]
+        args += ['--angularSampling', self.angularSampling.get()]
+        args += ['--interp', 1]
     
-    def conciliateAlignmentsStep(self):
-        images = list(map(SubTomogram.getLocation  self.inputVolumes.get())) # TODO
+        self.runJob(cmd, args, numberOfMpi=1)
+    
+    def conciliateAlignmentsStep(self):       
+        images = self._getVolumeFilenames()
         
         pairwiseAlignment = self._readPairwiseAlignment()
         pairwiseAlignmentMatrix = self._buildPairwiseAlignmentMatrix(pairwiseAlignment, images)
         alignment = self._conciliateAlignmentMatrix(pairwiseAlignmentMatrix)
+        md = self._createAlignmentMetadata(images, alignment)
         
-        # TODO write
+        md.write(self._getAlignedMdFilename())
         
     def averageSubtomogramsStep(self):
-        pass
+        cmd = 'xmipp_transform_geometry'
+        args = []
+        args += ['-i', self._getAlignedMdFilename()]
+        args += ['-o', self._getExtraPath('rotated.mrc')]
+        self.runJob(cmd, args, numberOfMpi=1)
     
     def createOutputStep(self):
         pass
 
 
     # --------------------------- UTILS functions ---------------------------
+    def _getVolumeFilenames(self) -> List[str]:
+        return list(map(ImageHandler.locationToXmipp, self.inputVolumes.get()))
+    
+    def _getInputVolumesMdFilename(self) -> str:
+        self._getExtraPath('volumes.xmd')
+        
     def _getPairwiseAlignmentMdFilename(self) -> str:
         self._getExtraPath('pairwise.xmd')
     
+    def _getAlignedMdFilename(self) -> str:
+        self._getExtraPath('aligned.xmd')
+
     def _readPairwiseAlignment(self) -> Dict[Tuple[str, str], np.ndarray]:
         result = dict()
         md = emlib.MetaData(self._getPairwiseAlignmentMdFilename())
@@ -136,6 +173,25 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         w, v = scipy.linalg.eigh(matrix, subset_by_index=[n-3, n-1])
         v *= np.sqrt(w)
         return v.reshape((n, 3, 3))
+
+    def _createAlignmentMetadata(images: Sequence[str], alignment: np.ndarray):
+        result = emlib.MetaData()
+        
+        row = emlib.metadata.Row()
+        for i, image in enumerate(images):
+            psi, rot, tilt = np.degrees(euler_from_matrix(alignment[i], 'szyz'))
+            psi = np.degrees(psi)
+            rot = np.degrees(rot)
+            tilt = np.degrees(tilt)
+            
+            row.setValue(emlib.MDL_IMAGE, image)
+            row.setValue(emlib.MDL_ANGLE_ROT, rot)
+            row.setValue(emlib.MDL_ANGLE_TILT, tilt)
+            row.setValue(emlib.MDL_ANGLE_PSI, psi)
+            
+            row.addToMd(result)
+            
+        return result
 
     # --------------------------- INFO functions ---------------------------
     def _summary(self):
