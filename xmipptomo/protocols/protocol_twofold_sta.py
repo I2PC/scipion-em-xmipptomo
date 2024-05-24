@@ -119,13 +119,13 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         return list(map(ImageHandler.locationToXmipp, self.inputVolumes.get()))
     
     def _getInputVolumesMdFilename(self) -> str:
-        self._getExtraPath('volumes.xmd')
+        return self._getExtraPath('volumes.xmd')
         
     def _getPairwiseAlignmentMdFilename(self) -> str:
-        self._getExtraPath('pairwise.xmd')
+        return self._getExtraPath('pairwise.xmd')
     
     def _getAlignedMdFilename(self) -> str:
-        self._getExtraPath('aligned.xmd')
+        return self._getExtraPath('aligned.xmd')
 
     def _readPairwiseAlignment(self) -> Dict[Tuple[str, str], np.ndarray]:
         result = dict()
