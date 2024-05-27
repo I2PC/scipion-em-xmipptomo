@@ -28,6 +28,7 @@
 from typing import Dict, Tuple, Sequence, List
 import numpy as np
 import scipy.linalg
+import scipy.spatial
 
 from pyworkflow import BETA
 from pyworkflow.protocol import params, LEVEL_ADVANCED
@@ -69,8 +70,8 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.alignSubtomogramPairsStep)
-        #self._insertFunctionStep(self.conciliateAlignmentsStep)
-        #self._insertFunctionStep(self.averageSubtomogramsStep)
+        self._insertFunctionStep(self.conciliateAlignmentsStep)
+        self._insertFunctionStep(self.averageSubtomogramsStep)
         #self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions ---------------------------
@@ -98,9 +99,9 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         
         pairwiseAlignment = self._readPairwiseAlignment()
         pairwiseAlignmentMatrix = self._buildPairwiseAlignmentMatrix(pairwiseAlignment, images)
-        alignment = self._conciliateAlignmentMatrix(pairwiseAlignmentMatrix)
-        md = self._createAlignmentMetadata(images, alignment)
         
+        alignment = self._conciliateAlignmentMatrix(pairwiseAlignmentMatrix, len(images))
+        md = self._createAlignmentMetadata(images, alignment)
         md.write(self._getAlignedMdFilename())
         
     def averageSubtomogramsStep(self):
@@ -108,7 +109,7 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         args = []
         args += ['-i', self._getAlignedMdFilename()]
         args += ['-o', self._getExtraPath('rotated.mrc')]
-        self.runJob(cmd, args, numberOfMpi=1)
+        self.runJob(cmd, args, numberOfMpi=4)
     
     def createOutputStep(self):
         pass
@@ -116,7 +117,10 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
 
     # --------------------------- UTILS functions ---------------------------
     def _getVolumeFilenames(self) -> List[str]:
-        return list(map(ImageHandler.locationToXmipp, self.inputVolumes.get()))
+        result = []
+        for image in self.inputVolumes.get():
+            result.append(ImageHandler.locationToXmipp(image.getLocation()))
+        return result
     
     def _getInputVolumesMdFilename(self) -> str:
         return self._getExtraPath('volumes.xmd')
@@ -149,7 +153,8 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
 
         return result
     
-    def _buildPairwiseAlignmentMatrix(alignments: Dict[Tuple[str, str], np.ndarray], 
+    def _buildPairwiseAlignmentMatrix(self,
+                                      alignments: Dict[Tuple[str, str], np.ndarray], 
                                       images: Sequence[str] ) -> np.ndarray:
         alignmentMatrix = np.eye(3*len(images))
         
@@ -168,22 +173,18 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
 
         return alignmentMatrix
 
-    def _conciliateAlignmentMatrix(matrix: np.ndarray) -> np.ndarray:
-        n = len(matrix) // 3
-        w, v = scipy.linalg.eigh(matrix, subset_by_index=[n-3, n-1])
+    def _conciliateAlignmentMatrix(self, matrix: np.ndarray, n: int) -> np.ndarray:
+        w, v = scipy.linalg.eigh(matrix, subset_by_index=[3*n-3, 3*n-1])
         v *= np.sqrt(w)
+        v[:,-1] *= -1 # TODO determine if conditional
         return v.reshape((n, 3, 3))
 
-    def _createAlignmentMetadata(images: Sequence[str], alignment: np.ndarray):
+    def _createAlignmentMetadata(self, images: Sequence[str], alignment: np.ndarray):
         result = emlib.MetaData()
-        
+
         row = emlib.metadata.Row()
         for i, image in enumerate(images):
-            psi, rot, tilt = np.degrees(euler_from_matrix(alignment[i], 'szyz'))
-            psi = np.degrees(psi)
-            rot = np.degrees(rot)
-            tilt = np.degrees(tilt)
-            
+            psi, tilt, rot = np.rad2deg(euler_from_matrix(alignment[i], axes='szyz'))
             row.setValue(emlib.MDL_IMAGE, image)
             row.setValue(emlib.MDL_ANGLE_ROT, rot)
             row.setValue(emlib.MDL_ANGLE_TILT, tilt)
