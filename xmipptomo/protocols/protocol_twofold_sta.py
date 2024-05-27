@@ -89,9 +89,10 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         args += ['-o', self._getPairwiseAlignmentMdFilename()]
         args += ['--maxTilt', self.maxTilt.get()]
         args += ['--maxFreq', maxFreq]
-        args += ['--padding', 2.0]
+        args += ['--padding', 1.0]
         args += ['--angularSampling', self.angularSampling.get()]
         args += ['--interp', 1]
+        args += ['--threads', 8] # TODO
     
         self.runJob(cmd, args, numberOfMpi=1)
     
@@ -106,7 +107,13 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         md.write(self._getAlignedMdFilename())
         
     def averageSubtomogramsStep(self):
-        pass
+        cmd = 'xmipp_tomo_average_subtomos'
+        args = []
+        args += ['-i', self._getAlignedMdFilename()]
+        args += ['-o', self._getAverageVolumeFilename()]
+        args += ['--threads', 8] # TODO
+    
+        self.runJob(cmd, args, numberOfMpi=1)
     
     def createOutputStep(self):
         from xmipp3.convert import readSetOfVolumes
@@ -118,8 +125,12 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
             alignType=pwem.constants.ALIGN_3D
         )
         
-        self._defineOutputs(volumes = outputSetOfVolumes)
+        averageVolume = objects.Volume(location=self._getAverageVolumeFilename())
+        averageVolume.setSamplingRate(outputSetOfVolumes.getSamplingRate())
+        
+        self._defineOutputs(volumes = outputSetOfVolumes, average=averageVolume)
         self._defineSourceRelation(self.inputVolumes, outputSetOfVolumes)
+        self._defineSourceRelation(self.inputVolumes, averageVolume)
 
     # --------------------------- UTILS functions ---------------------------
     def _getVolumeFilenames(self) -> List[str]:
@@ -136,6 +147,9 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
     
     def _getAlignedMdFilename(self) -> str:
         return self._getExtraPath('aligned.xmd')
+
+    def _getAverageVolumeFilename(self) -> str:
+        return self._getExtraPath('average.mrc')
 
     def _readPairwiseAlignment(self) -> Dict[Tuple[str, str], np.ndarray]:
         result = dict()
