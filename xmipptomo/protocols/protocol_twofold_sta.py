@@ -39,6 +39,7 @@ from pwem.emlib.image import ImageHandler
 
 from tomo.protocols import ProtTomoSubtomogramAveraging
 import pwem.objects as objects
+import pwem.constants
 
 
 class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
@@ -72,7 +73,7 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         self._insertFunctionStep(self.alignSubtomogramPairsStep)
         self._insertFunctionStep(self.conciliateAlignmentsStep)
         self._insertFunctionStep(self.averageSubtomogramsStep)
-        #self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions ---------------------------
     def convertInputStep(self):
@@ -105,15 +106,20 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         md.write(self._getAlignedMdFilename())
         
     def averageSubtomogramsStep(self):
-        cmd = 'xmipp_transform_geometry'
-        args = []
-        args += ['-i', self._getAlignedMdFilename()]
-        args += ['-o', self._getExtraPath('rotated.mrc')]
-        self.runJob(cmd, args, numberOfMpi=4)
+        pass
     
     def createOutputStep(self):
-        pass
-
+        from xmipp3.convert import readSetOfVolumes
+        outputSetOfVolumes = self._createSetOfVolumes()
+        outputSetOfVolumes.copyInfo(self.inputVolumes.get())
+        readSetOfVolumes(
+            self._getAlignedMdFilename(), 
+            outputSetOfVolumes, 
+            alignType=pwem.constants.ALIGN_3D
+        )
+        
+        self._defineOutputs(volumes = outputSetOfVolumes)
+        self._defineSourceRelation(self.inputVolumes, outputSetOfVolumes)
 
     # --------------------------- UTILS functions ---------------------------
     def _getVolumeFilenames(self) -> List[str]:
