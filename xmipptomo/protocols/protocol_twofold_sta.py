@@ -91,8 +91,8 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         args += ['--maxFreq', maxFreq]
         args += ['--padding', 1.0]
         args += ['--angularSampling', self.angularSampling.get()]
-        args += ['--interp', 1]
-        args += ['--threads', 8] # TODO
+        args += ['--interp', 3]
+        args += ['--threads', 16] # TODO
     
         self.runJob(cmd, args, numberOfMpi=1)
     
@@ -197,7 +197,12 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         w, v = scipy.linalg.eigh(matrix, subset_by_index=[3*n-3, 3*n-1])
         v *= np.sqrt(w)
         v[:,-1] *= -1 # TODO determine if conditional
-        return v.reshape((n, 3, 3))
+        
+        matrices = v.reshape((n, 3, 3))
+        for i in range(matrices):
+            matrices[i] = scipy.linalg.orth(matrices[i])
+            
+        return matrices
 
     def _createAlignmentMetadata(self, images: Sequence[str], alignment: np.ndarray):
         result = emlib.MetaData()
