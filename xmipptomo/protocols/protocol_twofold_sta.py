@@ -199,7 +199,7 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         v[:,-1] *= -1 # TODO determine if conditional
         
         matrices = v.reshape((n, 3, 3))
-        for i in range(matrices):
+        for i in range(len(matrices)):
             matrices[i] = scipy.linalg.orth(matrices[i])
             
         return matrices
