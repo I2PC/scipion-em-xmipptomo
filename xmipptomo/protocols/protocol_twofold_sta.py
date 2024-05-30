@@ -194,8 +194,8 @@ class XmippProtTwofoldSta(ProtTomoSubtomogramAveraging):
         return alignmentMatrix
 
     def _conciliateAlignmentMatrix(self, matrix: np.ndarray, n: int) -> np.ndarray:
-        w, v = scipy.linalg.eigh(matrix, subset_by_index=[3*n-3, 3*n-1])
-        v *= np.sqrt(w)
+        _, v = scipy.linalg.eigh(matrix, subset_by_index=[3*n-3, 3*n-1])
+        v *= np.sqrt(n) # TODO determine if multipy by w
         v[:,-1] *= -1 # TODO determine if conditional
         
         matrices = v.reshape((n, 3, 3))
