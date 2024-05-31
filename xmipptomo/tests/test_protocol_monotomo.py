@@ -26,7 +26,7 @@
 from os.path import exists
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from tomo.protocols import ProtImportTomograms
-from xmipptomo.protocols import XmippProtMonoTomo
+from xmipptomo.protocols.protocol_resolution_local_monotomo import XmippProtMonoTomo, TOMOGRAM_RESOLUTION_FILE, FULL_TOMOGRAM_FILE, HISTOGRAM_RESOLUTION_FILE, MRCEXT, XMDEXT
 
 
 class TestMonoTomoBase(BaseTest):
@@ -65,17 +65,17 @@ class TestMonoTomo(TestMonoTomoBase):
                                     minRes=1,
                                     maxRes=150,
                                     )
+        tsIdList = []
+        for tomo in self.protImportHalf1.Tomograms:
+            tsIdList.append(tomo.getTsId())
+
         self.launchProtocol(MonoTomo)
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/fullTomogram_odd_tomogram_rx1.mrc')),
-                        "MonoTomo has failed creating the resolution tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/histogram_resolution_odd_tomogram_rx1.xmd')),
-                        "MonoTomo has failed creating the resolution histogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/localResolutionTomogram_odd_tomogram_rx1.mrc')),
-                        "MonoTomo has failed creating the mean tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/fullTomogram_odd_tomogram_rx2.mrc')),
-                        "MonoTomo has failed creating the resolution tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/histogram_resolution_odd_tomogram_rx2.xmd')),
-                        "MonoTomo has failed creating the resolution histogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/localResolutionTomogram_odd_tomogram_rx2.mrc')),
-                        "MonoTomo has failed creating the mean tomogram")
+
+        for tsId in tsIdList:
+            self.assertTrue(exists(MonoTomo.createOutputPath(HISTOGRAM_RESOLUTION_FILE, tsId, XMDEXT)),
+                            "MonoTomo has failed creating the resolution histogram")
+            self.assertTrue(exists(MonoTomo.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)),
+                            "MonoTomo has failed creating the resolution tomogram")
+
+
 
