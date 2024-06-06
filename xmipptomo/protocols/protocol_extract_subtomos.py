@@ -247,7 +247,9 @@ class XmippProtExtractSubtomos(EMProtocol, ProtTomoBase):
             subtomo = SubTomogram()
             idx = row.getValue(md.MDL_PARTICLE_ID)
             fn = row.getValue(md.MDL_IMAGE)
-            subtomo.setLocation(os.path.join(self._getExtraPath(tsId), fn))
+            index, filename = fn.split('@')
+            subtomo.setIndex(index)
+            subtomo.setFileName(os.path.join(self._getExtraPath(tsId), filename))
             subtomo.setSamplingRate(sampling)
             coord = coords[idx]
             subtomo.setCoordinate3D(coord)
