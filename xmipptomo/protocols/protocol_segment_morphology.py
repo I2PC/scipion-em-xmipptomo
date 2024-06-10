@@ -55,6 +55,8 @@ class XmippProtMorphology(EMProtocol):
         self.morphology = Morphology(self)
         EMProtocol.__init__(self, **args)
 
+        self.TomoMasks  = None
+
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         form.addSection(label='Input')
@@ -112,6 +114,29 @@ class XmippProtMorphology(EMProtocol):
 
         if self.doSmooth:
             self.morphology.doSmooth(fnSegmentation, self.sigmaConvolution.get())
+
+    def getOutputSetOfTomoMasks(self, inputSet, setPath, binning=1) -> SetOfTomoMasks:
+
+        if self.TomoMasks:
+            getattr(self, OUTPUT_SEGMENTATION_NAME).enableAppend()
+        else:
+            outputSetOfTomoMasks = SetOfTomoMasks.create(setPath, suffix='tomoMasks')
+
+            if isinstance(inputSet, SetOfTomograms):
+                outputSetOfTomoMasks.copyInfo(inputSet)
+
+            if binning > 1:
+                samplingRate = inputSet.getSamplingRate()
+                samplingRate *= self.binning.get()
+                outputSetOfTomoMasks.setSamplingRate(samplingRate)
+
+            outputSetOfTomoMasks.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(**{OUTPUT_SEGMENTATION_NAME: outputSetOfTomoMasks})
+            self._defineSourceRelation(inputSet, outputSetOfTomoMasks)
+
+        return self.TomoMasks
+
 
     def createOutputStep(self, tomId):
         output = self.getOutputSetOfTomoMasks(self.inputSetOfTomograms.get(), self.getPath())
