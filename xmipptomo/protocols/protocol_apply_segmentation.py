@@ -33,6 +33,7 @@ import pyworkflow.utils.path as path
 
 from pwem.protocols import EMProtocol
 from tomo.objects import Tomogram, SetOfTomograms
+from tomo.protocols import ProtTomoBase
 from pyworkflow import BETA
 
 
@@ -40,7 +41,7 @@ MRCEXT = '.mrc'
 XMDEXT = '.xmd'
 OUTPUT_TOMOGRAMS_NAME = "Tomograms"
 
-class XmippProtApplySegmentation(EMProtocol):
+class XmippProtApplySegmentation(EMProtocol, ProtTomoBase):
     """
     This protocol applies a segmentation to a set of tomograms.
     """
@@ -51,6 +52,7 @@ class XmippProtApplySegmentation(EMProtocol):
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
+        self.Tomograms = None
 
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -97,11 +99,47 @@ class XmippProtApplySegmentation(EMProtocol):
                 fnMasked = self.createOutputExtraPath(tsId, '_masked'+MRCEXT)
                 self.runJob("xmipp_image_operate", "-i %s --mult %s -o %s" % (fnTomo, fnSegmentation, fnMasked))
 
+    def createOutputExtraPath(self, tomId, ext):
+        '''
+        This function takes a filename as basis, and add the id as suffix and completes
+        the path with an extension. Exmaple: filename = 'tomogram_' id = 5, ext = '.mrc'
+        the output will be tomogram_5.mrc
+        '''
+        tomoPath = self._getExtraPath(str(tomId))
+        fnPath = os.path.join(tomoPath, str(tomId)+ext)
+        return fnPath
+
+
+    def getOutputSetOfTomograms(self, inputSet, binning=1) -> SetOfTomograms:
+
+        if self.Tomograms:
+            getattr(self, OUTPUT_TOMOGRAMS_NAME).enableAppend()
+
+
+        else:
+            outputSetOfTomograms = self._createSetOfTomograms()
+
+            if isinstance(inputSet, SetOfTomograms):
+                outputSetOfTomograms.copyInfo(inputSet)
+
+            if binning > 1:
+                samplingRate = inputSet.getSamplingRate()
+                samplingRate *= self.binning.get()
+                outputSetOfTomograms.setSamplingRate(samplingRate)
+
+            outputSetOfTomograms.setStreamState(Set.STREAM_OPEN)
+
+            self._defineOutputs(**{OUTPUT_TOMOGRAMS_NAME: outputSetOfTomograms})
+            self._defineSourceRelation(inputSet, outputSetOfTomograms)
+
+        return self.Tomograms
+
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTomograms.get()[tsObjId]
         tsId = ts.getTsId()
 
         fullTomogramName = self.createOutputExtraPath(tsId, '_masked'+MRCEXT)
+        print(fullTomogramName)
 
         if os.path.exists(fullTomogramName):
             output = self.getOutputSetOfTomograms(self.inputSetOfTomograms.get())
