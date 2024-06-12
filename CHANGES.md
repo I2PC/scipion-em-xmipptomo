@@ -1,3 +1,17 @@
+## V3.24.06
+   - New protocols:
+      - apply_segmentation: Applies a segmentation to a set of tomograms.
+      - segment_morphology: Segments a tomogram by means of thresholding, different kind of filters and morphological operations.
+   - Protocols updated
+      - deep_misalignment: updated model, minor improvements
+      - extract_subtomos: improve extract subtomos readability
+   - Protocols fixed
+      - dose_filter: Dose filter, removing extract stacks
+   - More xmippTomo
+      - New xmippBase repository to manage shared protocols with Xmipp
+      - protocols deprecated: score_transform, denoising_confidence
+      - Removed tilt particles object (not used)
+
 ## V3.23.11
    - Protocols updated
       - applyAlignmentTS

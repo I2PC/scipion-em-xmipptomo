@@ -11,25 +11,29 @@ jobs:
   build:
     # Specify the machine to run the job on
     runs-on: ubuntu-22.04
-
+    
+    # Avoid send statistics 
+    env:
+      SEND_INSTALLATION_STATISTICS: "False"
+      
     # Define the steps to be taken in the job
-    steps:    
-    # Installing dependencies
+    steps:
+    - name: Free Disk Space (Ubuntu only)
+      uses: jlumbroso/free-disk-space@main
+
     - name: Install dependencies 
       run: |
         sudo apt-get update
         sudo apt-get install -y libfftw3-dev libopenmpi-dev openmpi-bin libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev libopenmpi-dev make cmake
     
-    # Installing CUDA
     - name: Install CUDA
-      uses: Jimver/cuda-toolkit@v0.2.11
+      uses: Jimver/cuda-toolkit@master
       id: cuda-toolkit
       with:
         cuda: '11.8.0'
         method: network
         sub-packages: '["nvcc", "toolkit"]'
 
-    # Installing Miniconda
     - name: Install Miniconda
       working-directory: ${{ github.workspace }}/../
       run: |
@@ -38,7 +42,6 @@ jobs:
         source ./miniconda/etc/profile.d/conda.sh
         conda update -n base -c defaults conda -y
         
-    # Installing Scipion
     - name: Install Scipion
       working-directory: ${{ github.workspace }}/../
       run: |
@@ -53,7 +56,6 @@ jobs:
         conda activate scipion3
         pip install scons
         
-    # Cloning Xmipp 
     - name: Cloning Xmipp
       working-directory: ${{ github.workspace }}/../
       run: git clone https://github.com/I2PC/xmipp.git
@@ -98,13 +100,20 @@ jobs:
     
     # Check out the repository in the pull request
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@main
       with:
         ref: ${{ github.head_ref }}
-            
-    # Install plugin from the pull request using the Scipion3 installp command
+      
     - name: Install plugin from pull request
       working-directory: ${{ github.workspace }}
+      run: ../scipion/scipion3 installp -p . --devel
+    
+    # Currently, test script is being downloaded from scipion-chem, but that should be temporary
+    # Ideally, the script might be included in scipion core to be able to import it,
+    # or maybe host it in a separate repository common with useful scripts for all scipion plugins
+    - name: Run tests
+      working-directory: ${{ github.workspace }}/${{ vars.FOLDER_WITH_VERSION }}
       run: |
-        # Install the repository from the pull request
-        ../scipion/scipion3 installp -p . --devel
+        wget https://raw.githubusercontent.com/scipion-chem/scipion-chem/devel/pwchem/runTests.py
+        eval "$(${{ github.workspace }}/../miniconda/bin/conda shell.bash hook)"
+        python runTests.py ${{ github.workspace }}/../scipion/scipion3 ${{ vars.FOLDER_WITH_VERSION }} -noGPU -testData=testData.json -j=3
