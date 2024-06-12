@@ -22,7 +22,7 @@
       - subtraction_subtomo: Improved implementation with MPI and md convert
       - cltomo:
       - resolution_local_monotomo: Allowing odd-even associated to the full tomogram
-   - Protocls fixed
+   - Protocols fixed
       - extract_particlestacks: Dose fixes
       - deep_misalignment_detection:  Recover deleted methods
       - dose_filter: Dose validation fixed
