@@ -12,7 +12,6 @@
       - protocols deprecated: score_transform, denoising_confidence
       - Removed tilt particles object (not used)
 
-   
 ## V3.23.11
    - Protocols updated
       - applyAlignmentTS
