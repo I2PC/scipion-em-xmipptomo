@@ -282,7 +282,6 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     defU, defV = self.getCorrectedDefocus(row.getValue(MDL_ANGLE_TILT), subtomogram.getCoordinate3D())
                     row.setValue(MDL_CTF_DEFOCUSU, defU)
                     row.setValue(MDL_CTF_DEFOCUSV, defV)
-                    # TODO: This only works if the TS is aligned
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
                 
                 # Add metadata row to file
