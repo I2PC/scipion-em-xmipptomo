@@ -263,6 +263,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         acquisition.copyInfo(inputSubtomograms.getAcquisition())
         outputSetOfParticles.setAcquisition(acquisition)
 
+
         # Getting input element list
         inputList = [subtomogram.getFileName() for subtomogram in inputSubtomograms]
 
@@ -285,7 +286,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
                 
                 # Add metadata row to file
-                row.addToMd(mdCtf)
+                row.writeToMd(mdCtf, row.getObjId())
             
             # Write metadata file with modified info
             mdCtf.write(self.getProjectionMetadataAbsolutePath(subtomogram))
