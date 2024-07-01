@@ -28,7 +28,7 @@
 
 # General imports
 import os, math
-from typing import Tuple, Union, TypedDict
+from typing import Tuple, Union, Dict
 from emtable import Table
 
 # Scipion em imports
@@ -263,6 +263,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         acquisition.copyInfo(inputSubtomograms.getAcquisition())
         outputSetOfParticles.setAcquisition(acquisition)
 
+
         # Getting input element list
         inputList = [subtomogram.getFileName() for subtomogram in inputSubtomograms]
 
@@ -282,11 +283,10 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     defU, defV = self.getCorrectedDefocus(row.getValue(MDL_ANGLE_TILT), subtomogram.getCoordinate3D())
                     row.setValue(MDL_CTF_DEFOCUSU, defU)
                     row.setValue(MDL_CTF_DEFOCUSV, defV)
-                    # TODO: This only works if the TS is aligned
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
                 
                 # Add metadata row to file
-                row.addToMd(mdCtf)
+                row.writeToMd(mdCtf, row.getObjId())
             
             # Write metadata file with modified info
             mdCtf.write(self.getProjectionMetadataAbsolutePath(subtomogram))
@@ -519,7 +519,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                 defocusU, defocusV = closestCTF.getDefocusU(), closestCTF.getDefocusV()
                 
                 # Obtain and return corrected defocus
-                generalDefocus = (coordinates.getX() * math.cos(radiansTiltAngle) + coordinates.getZ() * math.sin(radiansTiltAngle)) * ts.getSamplingRate() * math.sin(radiansTiltAngle)
+                generalDefocus = coordinates.getX() * math.cos(radiansTiltAngle) * ts.getSamplingRate()
                 correctedDefU = defocusU + defocusDir * generalDefocus
                 correctedDefV = defocusV + defocusDir * generalDefocus
                 return correctedDefU, correctedDefV
@@ -546,7 +546,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Returning closest CTF
         return outputCTF
     
-    def getAngleDictionary(self) -> TypedDict:
+    def getAngleDictionary(self) -> Dict:
         """
         This function returs a dictionary containing all the angles of each Tilt Series of the input set
         """
