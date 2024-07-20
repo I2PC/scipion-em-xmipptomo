@@ -76,7 +76,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       params.PointerParam,
                       pointerClass='SetOfTiltSeries, SetOfLandmarkModels',
                       important=True,
-                      label='Input set of tilt-series',
+                      label='Input set',
                       help='Input set of tilt-series or landmark models:\n'
                            '- Tilt-series: landmarks are detected in the tilt-series to posteriorly calculate the '
                            'residual vectors and finally analyze them for misalignment detection.\n'
