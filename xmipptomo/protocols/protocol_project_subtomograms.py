@@ -519,7 +519,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                 defocusU, defocusV = closestCTF.getDefocusU(), closestCTF.getDefocusV()
                 
                 # Obtain and return corrected defocus
-                generalDefocus = coordinates.getX() * math.cos(radiansTiltAngle) * ts.getSamplingRate()
+                generalDefocus = coordinates.getX() * math.sin(radiansTiltAngle) * ts.getSamplingRate()
                 correctedDefU = defocusU + defocusDir * generalDefocus
                 correctedDefV = defocusV + defocusDir * generalDefocus
                 return correctedDefU, correctedDefV
