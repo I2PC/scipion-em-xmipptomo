@@ -1,4 +1,4 @@
-name: Build scipion-em-xmipptomo on Pull Request
+name: Build & test plugin
 
 on:
   pull_request:
@@ -48,15 +48,11 @@ jobs:
         pip install --user scipion-installer
         python3 -m scipioninstaller -conda -noXmipp -noAsk scipion
         
-    - name: Install Scons in Scipion's enviroment
-      run: |
-        pip install --user scons
-        
     - name: Cloning Xmipp
       working-directory: ${{ github.workspace }}/../
       run: git clone https://github.com/I2PC/xmipp.git
     
-    # Checkout Xmipp to Pull Request branch if exists, by default stays in devel
+    # Checkout Xmipp to Pull Request branch if exists
     - name: Conditionally checkout Xmipp to ${{ github.head_ref }}
       working-directory: ${{ github.workspace }}/../xmipp
       env:
@@ -74,7 +70,7 @@ jobs:
       run: |
         ../scipion/scipion3 run ./xmipp --keep-output || (cat compileLOG.txt && false)
       
-    # Checkout scipion-em-xmipp to Pull Request branch if exists, else to devel
+    # Checkout scipion-em-xmipp to Pull Request branch if exists
     - name: Conditionally checkout scipion-em-xmipp to ${{ github.head_ref }}
       working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
       env:
@@ -82,15 +78,12 @@ jobs:
       run: |
         if [ $(git ls-remote --heads https://github.com/I2PC/scipion-em-xmipp.git $BRANCH_NAME | wc -l) -eq 1 ]; then
           git checkout $BRANCH_NAME
-        else
-          git checkout devel
         fi
     
     - name: Install scipion-em-xmipp
       working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
       run: ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel --noBin
     
-    # Check out the repository in the pull request
     - name: Checkout repository
       uses: actions/checkout@main
       with:
