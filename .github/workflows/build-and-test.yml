@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies 
       run: |
         sudo apt-get update
-        sudo apt-get install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake
+        sudo apt install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake
     
     - name: Install CUDA
       uses: Jimver/cuda-toolkit@master
@@ -47,12 +47,6 @@ jobs:
       run: |
         pip install --user scipion-installer
         python3 -m scipioninstaller -conda -noXmipp -noAsk scipion
-    
-    - name: Test print env
-      working-directory: ${{ github.workspace }}/../
-      run: |
-        scipion/scipion3 printenv
-        false
         
     - name: Cloning Xmipp
       working-directory: ${{ github.workspace }}/../
