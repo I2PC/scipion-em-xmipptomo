@@ -48,7 +48,7 @@ jobs:
         pip install --user scipion-installer
         python3 -m scipioninstaller -conda -noXmipp -noAsk scipion
     
-    - name: Test: print env
+    - name: Test print env
       working-directory: ${{ github.workspace }}/../
       run: |
         scipion/scipion3 printenv
