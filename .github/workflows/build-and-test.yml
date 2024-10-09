@@ -1,0 +1,100 @@
+name: Build & test plugin
+
+on:
+  pull_request:
+    branches: [devel, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    env:
+      SEND_INSTALLATION_STATISTICS: "False"
+      
+    steps:
+    - name: Free Disk Space (Ubuntu only)
+      uses: jlumbroso/free-disk-space@main
+    
+    - name: Set up MPI
+      uses: mpi4py/setup-mpi@master
+      with:
+        mpi: 'openmpi'
+
+    - name: Install dependencies 
+      run: |
+        sudo apt-get update
+        sudo apt install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake
+    
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@master
+      id: cuda-toolkit
+      with:
+        cuda: '11.8.0'
+        method: network
+        sub-packages: '["nvcc", "toolkit"]'
+
+    - name: Install Miniconda
+      uses: conda-incubator/setup-miniconda@main
+      with:
+        miniconda-version: "latest"
+        auto-update-conda: true
+        auto-activate-base: true
+        activate-environment: scipion3
+        python-version: "3.8"
+        
+    - name: Install Scipion
+      working-directory: ${{ github.workspace }}/../
+      run: |
+        pip install --user scipion-installer
+        python3 -m scipioninstaller -conda -noAsk scipion
+        
+    - name: Cloning Xmipp
+      working-directory: ${{ github.workspace }}/../
+      run: git clone https://github.com/I2PC/xmipp.git
+    
+    # Checkout Xmipp to Pull Request branch if exists
+    - name: Conditionally checkout Xmipp to ${{ github.head_ref }}
+      working-directory: ${{ github.workspace }}/../xmipp
+      env:
+        BRANCH_NAME: ${{ github.head_ref }}
+      run: |
+        if [ $(git ls-remote --heads https://github.com/I2PC/xmipp.git $BRANCH_NAME | wc -l) -eq 1 ]; then
+          git checkout $BRANCH_NAME
+        fi
+      
+    # Log is shown afterwards because new Xmipp's installer does not show error trace if there is any
+    - name: Compile Xmipp
+      working-directory: ${{ github.workspace }}/../xmipp
+      env:
+        BUILD_TESTS: True
+      run: |
+        ../scipion/scipion3 run ./xmipp --keep-output || (cat compileLOG.txt && false)
+      
+    # Checkout scipion-em-xmipp to Pull Request branch if exists
+    - name: Conditionally checkout scipion-em-xmipp to ${{ github.head_ref }}
+      working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
+      env:
+        BRANCH_NAME: ${{ github.head_ref }}
+      run: |
+        if [ $(git ls-remote --heads https://github.com/I2PC/scipion-em-xmipp.git $BRANCH_NAME | wc -l) -eq 1 ]; then
+          git checkout $BRANCH_NAME
+        fi
+    
+    - name: Install scipion-em-xmipp
+      working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
+      run: ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel --noBin
+    
+    - name: Checkout repository
+      uses: actions/checkout@main
+      with:
+        ref: ${{ github.head_ref }}
+      
+    - name: Install plugin from pull request
+      working-directory: ${{ github.workspace }}
+      run: ../scipion/scipion3 installp -p . --devel
+    
+    - name: Run tests
+      working-directory: ${{ github.workspace }}/${{ vars.FOLDER_WITH_VERSION }}
+      run: |
+        pip install --user scipion-testrunner
+        scipion_testrunner ${{ github.workspace }}/../scipion/scipion3 ${{ vars.FOLDER_WITH_VERSION }} --noGpu --testData=testData.json -j=3
