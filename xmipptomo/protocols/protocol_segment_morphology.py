@@ -110,7 +110,7 @@ class XmippProtMorphology(EMProtocol):
             self.morphology.doMorphological(fnSegmentation, self.elementSize.get(), self.getEnumText('morphologicalOperation'))
 
         if self.doInvert:
-            Morphology.doInvert(fnSegmentation)
+            self.morphology.doInvert(fnSegmentation)
 
         if self.doSmooth:
             self.morphology.doSmooth(fnSegmentation, self.sigmaConvolution.get())
