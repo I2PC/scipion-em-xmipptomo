@@ -42,7 +42,7 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
                                          option=1,
                                          nsubtomos=1)
         self.launchProtocol(createAverage)
-        self.assertIsNotNone(createAverage.outputSubtomograms,
+        self.assertIsNotNone(createAverage.outputVolume,
                              "There was a problem with subtomogram average phantom output")
         createSubtomos = self.newProtocol(XmippProtPhantomSubtomo,
                                           option=1,
@@ -58,7 +58,7 @@ class TestXmipptomoSubtractionSubtomo(BaseTest):
         createAverage, createSubtomos = self._runPreviousProtocols()
         subtraction = self.newProtocol(XmippProtSubtractionSubtomo,
                                        inputSubtomos=createSubtomos.outputSubtomograms,
-                                       average=createAverage.outputSubtomograms,
+                                       average=createAverage.outputVolume,
                                        maskBool=False)
         self.launchProtocol(subtraction)
         self.assertIsNotNone(subtraction.outputSubtomograms,
