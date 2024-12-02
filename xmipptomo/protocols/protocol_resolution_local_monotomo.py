@@ -38,6 +38,7 @@ from pwem.protocols import ProtAnalysis3D
 from pwem.emlib.image import ImageHandler
 import pwem.emlib.metadata as md
 from pwem.protocols import EMProtocol
+from pyworkflow import utils as pwutils
 
 from tomo.protocols import ProtTomoBase
 from tomo.objects import Tomogram
@@ -120,7 +121,7 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
 
         line.addParam('minRes', FloatParam, default=0, label='High')
         line.addParam('maxRes', FloatParam, allowsNull=True, label='Low')
-        line.addParam('stepSize', FloatParam, allowsNull=True, default=0.5,
+        line.addParam('stepSize', FloatParam, allowsNull=True, default=1.0,
                       expertLevel=LEVEL_ADVANCED, label='Step')
 
         form.addParallelSection(threads=4, mpi=0)
@@ -179,7 +180,8 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
 
         # Defining the output folder
         tomoPath = self._getExtraPath(tsId)
-        os.mkdir(tomoPath)
+
+        pwutils.path.makePath(tomoPath)
 
         # Defining outfiles
         outputlocalResTomoFn = self.createOutputPath(TOMOGRAM_RESOLUTION_FILE, tsId, MRCEXT)

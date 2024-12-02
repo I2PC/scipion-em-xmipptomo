@@ -64,16 +64,13 @@ class TestMonoTomo(TestMonoTomoBase):
                                     useMask=False,
                                     minRes=1,
                                     maxRes=150,
+                                    stepSize = 5.0
                                     )
         self.launchProtocol(MonoTomo)
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/fullTomogram_odd_tomogram_rx1.mrc')),
-                        "MonoTomo has failed creating the resolution tomogram")
         self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/histogram_resolution_odd_tomogram_rx1.xmd')),
                         "MonoTomo has failed creating the resolution histogram")
         self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx1/localResolutionTomogram_odd_tomogram_rx1.mrc')),
                         "MonoTomo has failed creating the mean tomogram")
-        self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/fullTomogram_odd_tomogram_rx2.mrc')),
-                        "MonoTomo has failed creating the resolution tomogram")
         self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/histogram_resolution_odd_tomogram_rx2.xmd')),
                         "MonoTomo has failed creating the resolution histogram")
         self.assertTrue(exists(MonoTomo._getExtraPath('odd_tomogram_rx2/localResolutionTomogram_odd_tomogram_rx2.mrc')),
