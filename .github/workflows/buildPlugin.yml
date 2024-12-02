@@ -71,8 +71,7 @@ jobs:
       env:
         BUILD_TESTS: True
       run: |
-        ../scipion/scipion3 run ./xmipp || (cat compileLOG.txt && false)
-        cat compileLOG.txt
+        ../scipion/scipion3 run ./xmipp
     #TODO: Remove last "cat compileLOG.txt" once there is a new Scipion release
       
     # Checkout scipion-em-xmipp to Pull Request branch if exists, else to devel
