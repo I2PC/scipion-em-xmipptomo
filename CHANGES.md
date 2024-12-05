@@ -1,3 +1,6 @@
+## V3.23.07.1
+   - CTF addeed to projection protocols
+
 ## V3.23.07
    - New protocols
       - project_subtomograms (for obtaining sobtomogram projections)

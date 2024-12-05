@@ -28,7 +28,6 @@
 import numpy as np
 import os
 
-from pyworkflow import VERSION_2_0
 from pyworkflow.utils import getExt
 from pyworkflow.object import Set, Float
 from pyworkflow.protocol.params import (PointerParam, BooleanParam, FloatParam,
@@ -62,7 +61,6 @@ class XmippProtMonoTomo(EMProtocol, ProtTomoBase):
     tomogram with the values of local resolution.
     """
     _label = 'local Resolution MonoTomo'
-    _lastUpdateVersion = VERSION_2_0
 
     def __init__(self, **args):
         ProtAnalysis3D.__init__(self, **args)

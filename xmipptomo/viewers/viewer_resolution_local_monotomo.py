@@ -29,9 +29,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from pwem.wizards import ColorScaleWizardBase
 from pyworkflow.gui.dialog import showError
-
-import os
-
 from pyworkflow.protocol.params import (LabelParam, EnumParam,
                                         IntParam, LEVEL_ADVANCED, StringParam)
 from pyworkflow.viewer import ProtocolViewer, DESKTOP_TKINTER

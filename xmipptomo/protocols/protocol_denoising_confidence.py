@@ -28,7 +28,6 @@
 
 import os
 
-from pyworkflow import VERSION_2_0
 from pyworkflow.utils import getExt
 from pyworkflow.object import Set, Float
 import pyworkflow.utils.path as path
@@ -65,7 +64,6 @@ class XmippProtConfTomo(EMProtocol, ProtTomoBase):
     Tomograms:
     """
     _label = 'local confidence maps'
-    _lastUpdateVersion = VERSION_2_0
 
     def __init__(self, **args):
         ProtAnalysis3D.__init__(self, **args)

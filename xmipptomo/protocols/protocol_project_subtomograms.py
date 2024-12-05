@@ -31,7 +31,7 @@ import os
 
 # Scipion em imports
 from pwem.protocols import EMProtocol
-from pwem.objects import SetOfParticles
+from pwem.objects import SetOfParticles, CTFModel
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
@@ -57,16 +57,11 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     METHOD_SHEARS = 2
     TYPE_N_SAMPLES = 0
     TYPE_STEP = 1
+    # Defining execution mode. Steps will take place in parallel now
+    # Full tutorial on how to parallelize protocols can be read here:
+    # https://scipion-em.github.io/docs/release-3.0.0/docs/developer/parallelization.html
+    stepsExecutionMode = params.STEPS_PARALLEL
 
-    # --------------------------- Class constructor --------------------------------------------
-    def __init__(self, **args):
-        # Calling parent class constructor
-        super().__init__(**args)
-
-        # Defining execution mode. Steps will take place in parallel now
-        # Full tutorial on how to parallelize protocols can be read here:
-        # https://scipion-em.github.io/docs/release-3.0.0/docs/developer/parallelization.html
-        self.stepsExecutionMode = params.STEPS_PARALLEL
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -174,9 +169,16 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         dimensions = self.getSubtomogramDimensions().split(' ')
         outputSetOfParticles.setDim((int(dimensions[0]), int(dimensions[1]), 1))
 
+        def addCTF(particle, row):
+            #Add ctf values
+            ctf = CTFModel()
+            ctf.setStandardDefocus(0,0,0)
+            particle.setCTF(ctf)
+
         # Adding projections of each subtomogram as a particle each
         for subtomogram in inputSubtomograms.iterItems():
-            readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
+            readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles, postprocessImageRow=addCTF)
+
 
         # Defining the ouput with summary and source relation
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
