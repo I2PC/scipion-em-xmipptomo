@@ -75,15 +75,11 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
     COLUMN_ANGLE_ROT = 'angleRot'
     COLUMN_ANGLE_TILT = 'angleTilt'
 
-    # --------------------------- Class constructor --------------------------------------------
-    def __init__(self, **args):
-        # Calling parent class constructor
-        super().__init__(**args)
+    # Defining execution mode. Steps will take place in parallel now
+    # Full tutorial on how to parallelize protocols can be read here:
+    # https://scipion-em.github.io/docs/release-3.0.0/docs/developer/parallelization.html
+    stepsExecutionMode = params.STEPS_PARALLEL
 
-        # Defining execution mode. Steps will take place in parallel now
-        # Full tutorial on how to parallelize protocols can be read here:
-        # https://scipion-em.github.io/docs/release-3.0.0/docs/developer/parallelization.html
-        self.stepsExecutionMode = params.STEPS_PARALLEL
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -105,7 +101,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         form.addParam('transformMethod', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.METHOD_FOURIER,
                         choices=['Fourier', 'Real space', 'Shears'], label="Transform method: ", expertLevel=params.LEVEL_ADVANCED,
                         help='Select the algorithm that will be used to obtain the projections.')
-        
+
         # Parameter group for fourier transform method
         fourierGroup = form.addGroup('Fourier parameters', condition=f"transformMethod=={self.METHOD_FOURIER}", expertLevel=params.LEVEL_ADVANCED)
         fourierGroup.addParam('pad', params.IntParam, default=2, label="Pad: ", help="Controls the padding factor.")
@@ -113,7 +109,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                                 help="Maximum frequency for the pixels.\nBy default, pixels with frequency more than 0.25 are not considered.")
         fourierGroup.addParam('interp', params.EnumParam, default=self.INTERPOLATION_BSPLINE, label="Interpolation method: ", choices=["BSpline", "Nearest", "Linear"],
                                 help="Method for interpolation.\nOptions:\n\nBSpline: Cubic BSpline\nNearest: Nearest Neighborhood\nLinear: Linear BSpline")
-        
+
         # Tilt related parameter group
         tiltGroup = form.addGroup('Tilt parameters')
         tiltGroup.addParam('tiltTypeGeneration', params.EnumParam, display=params.EnumParam.DISPLAY_COMBO, default=self.TYPE_N_SAMPLES,
@@ -156,20 +152,20 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                         values[self.COLUMN_ANGLE_TILT]  # angleTilt
                     )
                 angTable.write(angleFile, tableName='projectionAngles')
-                
+
                 # Generating param file
                 paramDeps.append(self._insertFunctionStep(self.generateParamFile, tsId))
 
         else:
             # If type of generation is not from Tilt Series, generate single param file
             paramDeps.append(self._insertFunctionStep(self.generateParamFile))
-        
+
         # Generating projections for each subtomogram
         generationDeps = []
         for subtomogram in self.inputSubtomograms.get():
             tsId = '' if self.tiltTypeGeneration.get() != self.TYPE_TILT_SERIES or len([ts for ts in self.tiltRangeTS.get()]) == 1 else subtomogram.getCoordinate3D().getTomoId()
             generationDeps.append(self._insertFunctionStep(self.generateSubtomogramProjections, subtomogram.getFileName(), tsId, prerequisites=paramDeps))
-        
+
         # Conditionally removing temporary files
         if self.cleanTmps.get():
             self._insertFunctionStep(self.removeTempFiles, prerequisites=generationDeps)
@@ -218,7 +214,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         params += ' --method {}'.format(self.getMethodValue())                  # Projection algorithm
         params += ' --params {}'.format(self.getXmippParamPath(tsId=tsId))      # Path to Xmipp param file
         self.runJob("xmipp_phantom_project", params)
-    
+
     def renameMetadataFile(self, metadataFile: str):
         """
         This function renames the given metadata file with a generic name.
@@ -284,16 +280,16 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     row.setValue(MDL_CTF_DEFOCUSV, defV)
                     # TODO: This only works if the TS is aligned
                     row.setValue(MDL_CTF_DEFOCUS_ANGLE, 0.0)
-                
+
                 # Add metadata row to file
                 row.addToMd(mdCtf)
-            
+
             # Write metadata file with modified info
             mdCtf.write(self.getProjectionMetadataAbsolutePath(subtomogram))
 
             # Add particles to set from metadata file
             readSetOfParticles(self.getProjectionMetadataAbsolutePath(subtomogram), outputSetOfParticles)
-        
+
         # Defining the ouput with summary and source relation
         outputSetOfParticles.setObjComment(self.getSummary(outputSetOfParticles))
         self._defineOutputs(outputSetOfParticles=outputSetOfParticles)
@@ -320,7 +316,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             errors.append(angleExtractionError)
 
         return errors
-    
+
     # --------------------------- Auxiliary INFO functions --------------------------------------------
     def _validateGenerationType(self):
         # Initializing base error string
@@ -349,7 +345,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                     elif subtomogram.getCoordinate3D().getTomoId() not in tsIdList:
                         error = 'At least one input subtomogram\'s 3D coordinate does not match any Tilt Series id.\n'
                         break
-            
+
         return baseErrorStr + error if error else ''
 
     # --------------------------- UTILS functions --------------------------------------------
@@ -420,7 +416,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         This function returns the full path of a given subtomogram's metadata file.
         """
         return os.path.splitext(self.getProjectionAbsolutePath(subtomogram))[0] + '.xmd'
-    
+
     def getAngleFileAbsolutePath(self, tsId: str) -> str:
         """
         This function returns the full path of a given tilt series's metadata angle file.
@@ -452,7 +448,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
                 methodString += 'nearest'
             else:
                 methodString += 'linear'
-            
+
             # Returning complete fourier params
             return methodString
         elif self.transformMethod.get() == self.METHOD_REAL_SPACE:
@@ -485,7 +481,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         based on a Tilt Series.
         """
         return os.path.join(os.path.dirname(self.getXmippParamPath()), 'reference.xmd')
-    
+
     def getSummary(self, setOfParticles: SetOfParticles) -> str:
         """
         Returns the summary of a given set of particles.
@@ -500,7 +496,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         """
         # Converting tilt angle to radians (received in degrees)
         radiansTiltAngle = math.radians(tiltAngle)
-        
+
         # Calculating defocus direction
         defocusDir = -1 if self.defocusDir.get() else 1
 
@@ -517,7 +513,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
 
                 # Obtain CTF's defocus
                 defocusU, defocusV = closestCTF.getDefocusU(), closestCTF.getDefocusV()
-                
+
                 # Obtain and return corrected defocus
                 generalDefocus = (coordinates.getX() * math.cos(radiansTiltAngle) + coordinates.getZ() * math.sin(radiansTiltAngle)) * ts.getSamplingRate() * math.sin(radiansTiltAngle)
                 correctedDefU = defocusU + defocusDir * generalDefocus
@@ -532,7 +528,7 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
         # Initial distance
         distance = 360
 
-        # Find , 
+        # Find ,
         for tiltImage in tiltSeries:
             # Obtaining difference in tilt between given angle and tilt image angle
             tiltDistance = abs(tiltAngle - tiltImage.getTiltAngle())
@@ -542,17 +538,17 @@ class XmippProtProjectSubtomograms(EMProtocol, ProtTomoBase):
             if tiltDistance < distance:
                 distance = tiltDistance
                 outputCTF = tiltImage.getCTF()
-        
+
         # Returning closest CTF
         return outputCTF
-    
+
     def getAngleDictionary(self) -> TypedDict:
         """
         This function returs a dictionary containing all the angles of each Tilt Series of the input set
         """
         # Initializing empty dictionary
         angleDict = {}
-        
+
         if self.tiltTypeGeneration.get() == self.TYPE_TILT_SERIES:
             for ts in self.tiltRangeTS.get():
                 tsId = ts.getTsId()

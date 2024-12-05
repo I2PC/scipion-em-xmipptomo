@@ -29,7 +29,7 @@ import enum
 import numpy as np
 from pwem.emlib.image import ImageHandler as ih
 from pwem.emlib import lib
-from pwem.objects import Particle, Transform, String, SetOfVolumes, SetOfParticles
+from pwem.objects import Particle, Transform, String, SetOfVolumes, SetOfParticles, CTFModel, Acquisition
 from pwem.protocols import ProtAnalysis3D
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, EnumParam, IntParam, BooleanParam, Form, LEVEL_ADVANCED
@@ -151,6 +151,11 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
         imgSetOut.setSamplingRate(input.getSamplingRate())
         imgSetOut.setAlignmentProj()
 
+        # Acquisition
+        newAquisition = Acquisition()
+        newAquisition.copy(input.getAcquisition())
+        imgSetOut.setAcquisition(newAquisition)
+
         # Input could be SetOfVolumes or SetOfSubtomograms
         for item in input.iterItems():
             idx = item.getObjId()
@@ -163,6 +168,10 @@ class XmippProtSubtomoProject(ProtAnalysis3D):
                 transform.setMatrix(item.getTransform().getMatrix())
                 p.setTransform(transform)
             imgSetOut.append(p)
+
+            # Add a faked CTF
+            fakeCtf= CTFModel(defocusU=0, defocusAngle=1, defocusV=0)
+            p.setCTF(fakeCtf)
 
         self._defineOutputs(**{SubtomoProjectOutput.particles.name:imgSetOut})
         self._defineSourceRelation(self.input, imgSetOut)

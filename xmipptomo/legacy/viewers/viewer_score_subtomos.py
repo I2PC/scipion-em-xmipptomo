@@ -53,7 +53,7 @@ class XmippTomoScoreSubtomoViewer(Viewer):
 
         plotter = EmPlotter(x=1, y=1, windowTitle='Angular distribution')
 
-        plotter.plotAngularDistributionFromSet(subtomos, "Angular distribution", weightAttr=XmippProtScoreTransform.SCORE_ATTR)
+        plotter.plotAngularDistributionFromSet(subtomos, "Angular distribution")
 
         return plotter
 

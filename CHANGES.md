@@ -1,3 +1,5 @@
+## V3.24.06.2
+   - CTF addeed to projection protocols
 ## V3.24.06
    - New protocols:
       - apply_segmentation: Applies a segmentation to a set of tomograms.

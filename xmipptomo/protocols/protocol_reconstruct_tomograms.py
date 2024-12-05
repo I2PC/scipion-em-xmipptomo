@@ -28,7 +28,6 @@
 import numpy as np
 import os
 
-from pyworkflow import VERSION_2_0
 from pyworkflow.object import Set, Float
 from pyworkflow.protocol.params import (PointerParam, FloatParam, EnumParam, LEVEL_ADVANCED)
 import pyworkflow.utils.path as path
@@ -51,7 +50,6 @@ class XmippProtReconstructTomograms(EMProtocol, ProtTomoBase):
     Given a set of Tilt series with the corresponding alignment parameters. This protocol
     will reconstruct the tomograms associated to the tilt series."""
     _label = 'reconstruct tomogram'
-    _lastUpdateVersion = VERSION_2_0
 
     RECONSTRUCT_ART = 0
     RECONSTRUCT_SIRT = 1

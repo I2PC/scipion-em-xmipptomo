@@ -67,10 +67,10 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
     _label = 'map back subtomos'
     _devStatus = BETA
     _possibleOutputs = MapBackOutputs
+    stepsExecutionMode = STEPS_PARALLEL
 
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
-        self.stepsExecutionMode = STEPS_PARALLEL
         self.tomos = None
 
     # --------------------------- DEFINE param functions ------------------------
@@ -123,10 +123,10 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
         # For each tomogram
         for key, value in self._getTomogramsInvolved().items():
             mapBackStepId = self._insertFunctionStep(self.runMapBack, value.getTsId(),
-                                     self.paintingType.get(),
-                                     self.removeBackground.get(),
-                                     self.threshold.get(),
-                                     prerequisites=prepRefId)
+                                                     self.paintingType.get(),
+                                                     self.removeBackground.get(),
+                                                     self.threshold.get(),
+                                                     prerequisites=prepRefId)
 
             mapBacksStepIds.append(mapBackStepId)
 
@@ -357,7 +357,7 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
                 subtomo = self.inputSubtomos.get().getFirstItem()
                 if not subtomo.hasCoordinate3D():
                     validateMsgs.append('Please provide a set of subtomograms which contains subtomograms with 3D '
-                                            'coordinates.')
+                                        'coordinates.')
         return validateMsgs
 
     def _summary(self):
@@ -380,5 +380,5 @@ class XmippProtSubtomoMapBack(EMProtocol, ProtTomoBase):
 
         if hasattr(self, MapBackOutputs.tomograms.name):
             methods.append("A reference was mapped back %d times into %s." %
-                       (setSize, self.getObjectTag(getattr(self, MapBackOutputs.tomograms.name))))
+                           (setSize, self.getObjectTag(getattr(self, MapBackOutputs.tomograms.name))))
         return methods
