@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     you (you@yourinstitution.email)
+# * Authors:     Estrella Fernandez Gimenez (me.fernandez@cnb.csic.es)
 # *
-# * your institution
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -23,29 +23,5 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import xmipp3
-import subprocess, os
-import pyworkflow.utils as pwutils
 
-_logo = "xmipp_logo.png"
-_references = ['delaRosaTrevin2013', 'Jimenez2022']
-__version__ = "3.24.06.2" #X.YY.MM.sv
-        # X.Y.M = version of the xmipp release associated.
-        # sv = Set this to ".0" on each xmipp  release.
-        # For not release version (hotfix) increase it --> ".1", ".2", ...
-
-class Plugin(xmipp3.Plugin):
-
-    @classmethod
-    def getTensorFlowEnviron(cls):
-        """ Create the needed environment for XmippTomo programs. """
-        environ = xmipp3.Plugin.getEnviron()
-        environ.update({
-            "TF_FORCE_GPU_ALLOW_GROWTH": "'true'"
-        }, position=pwutils.Environ.BEGIN)
-        return environ
-
-    @classmethod
-    def defineBinaries(cls, env):
-
-        pass
+from .convert import *

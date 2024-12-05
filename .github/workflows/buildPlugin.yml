@@ -1,5 +1,5 @@
 # Name of the GitHub Action
-name: Build scipion-em-xmipp on Pull Request
+name: Build scipion-em-xmipptomo on Pull Request
 
 # Specify when the Action should be triggered: when a pull request is opened against the 'devel' or 'master' branch
 on:
@@ -10,74 +10,59 @@ on:
 jobs:
   build:
     # Specify the machine to run the job on
-    runs-on: ubuntu-20.04
-
+    runs-on: ubuntu-22.04
+    
+    # Avoid send statistics 
+    env:
+      SEND_INSTALLATION_STATISTICS: "False"
+      
     # Define the steps to be taken in the job
     steps:
-    # Getting current test time
-    - name: Get current time
-      uses: josStorer/get-current-time@v2
-      id: current-time
-      with:
-        format: YYYYMMDD-HH
-        utcOffset: "+02:00"
+    - name: Free Disk Space (Ubuntu only)
+      uses: jlumbroso/free-disk-space@main
+
+    - name: Install dependencies 
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfftw3-dev libopenmpi-dev openmpi-bin libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev libopenmpi-dev make cmake
     
-    # Using current time to view test time (for debugging purposes)
-    - name: Use current time
-      env:
-        R_TIME: "${{ steps.current-time.outputs.readableTime }}"
-      run: echo $R_TIME
-    
-    # Installing CUDA
     - name: Install CUDA
-      uses: Jimver/cuda-toolkit@v0.2.8
+      uses: Jimver/cuda-toolkit@master
       id: cuda-toolkit
       with:
-        cuda: '11.7.0'
-        linux-local-args: '[ "--toolkit" ]'
-    
-    # Echo CUDA Version
-    - name: Echo CUDA Version
-      run: echo "Installed cuda version is:${{steps.cuda-toolkit.outputs.cuda}}"
+        cuda: '11.8.0'
+        method: network
+        sub-packages: '["nvcc", "toolkit"]'
 
-    # Installing Miniconda
     - name: Install Miniconda
       working-directory: ${{ github.workspace }}/../
       run: |
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-        bash Miniconda3-latest-Linux-x86_64.sh -b -p ${{ github.workspace }}/../miniconda/ && \
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+        bash Miniconda3-latest-Linux-x86_64.sh -b -p ${{ github.workspace }}/../miniconda/
         source ./miniconda/etc/profile.d/conda.sh
-    
-    # Updating libraries
-    - name: Update 
-      run: sudo apt-get update
+        conda update -n base -c defaults conda -y
         
-    # Installing Python dependencies
-    - name: Install python dependencies
-      run:  python -m pip install --upgrade pip
-        pip install scons numpy
-    
-    # Installing Xmipp dependencies
-    - name: Install Xmipp dependencies
-      run: sudo apt-get install -y libfftw3-dev libopenmpi-dev openmpi-bin libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev
-
-    # Installing Scipion
-    - name: Install Scipion with dependencies
+    - name: Install Scipion
       working-directory: ${{ github.workspace }}/../
       run: |
-        sudo apt-get install -y gcc-10 g++-10 libopenmpi-dev make && \
-        eval "$(${{ github.workspace }}/../miniconda/bin/conda shell.bash hook)" && \
-        pip3 install --user scipion-installer && \
-        python3 -m scipioninstaller -conda -noXmipp -noAsk ${{ github.workspace }}/../scipion
+        eval "$(${{ github.workspace }}/../miniconda/bin/conda shell.bash hook)"
+        pip3 install --user scipion-installer
+        python3 -m scipioninstaller -conda -noXmipp -noAsk scipion
         
-    # Cloning Xmipp 
+    # Installing Xmipp's Python dependencies in scipion conda enviroment
+    - name: Install scons in scipion enviroment
+      run: |
+        eval "$(${{ github.workspace }}/../miniconda/bin/conda shell.bash hook)"
+        conda activate scipion3
+        pip install scons
+        
     - name: Cloning Xmipp
       working-directory: ${{ github.workspace }}/../
-      run: git clone https://github.com/I2PC/xmipp.git xmipp-bundle
+      run: git clone https://github.com/I2PC/xmipp.git
     
     # Checkout Xmipp to Pull Request branch if exists, by default stays in devel
     - name: Conditionally checkout Xmipp to ${{ github.head_ref }}
-      working-directory: ${{ github.workspace }}/../xmipp-bundle
+      working-directory: ${{ github.workspace }}/../xmipp
       env:
         BRANCH_NAME: ${{ github.head_ref }}
       run: |
@@ -86,15 +71,19 @@ jobs:
         fi
       
     # Installing Xmipp
-    - name: Compile Xmipp
-      working-directory: ${{ github.workspace }}/../xmipp-bundle
+    # Log is shown afterwards because new Xmipp's installer does not show error trace if there is any
+    - name: Compile Xmipp and show log
+      working-directory: ${{ github.workspace }}/../xmipp
       env:
-        BUILD_TESTS: False
-      run: ${{ github.workspace }}/../scipion/scipion3 run ./xmipp noAsk
+        BUILD_TESTS: True
+      run: |
+        ../scipion/scipion3 run ./xmipp || (cat compileLOG.txt && false)
+        cat compileLOG.txt
+    #TODO: Remove last "cat compileLOG.txt" once there is a new Scipion release
       
     # Checkout scipion-em-xmipp to Pull Request branch if exists, else to devel
     - name: Conditionally checkout scipion-em-xmipp to ${{ github.head_ref }}
-      working-directory: ${{ github.workspace }}/../xmipp-bundle/src/scipion-em-xmipp
+      working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
       env:
         BRANCH_NAME: ${{ github.head_ref }}
       run: |
@@ -106,18 +95,25 @@ jobs:
     
     # Install scipion-em-xmipp, because scipion-em-xmipptomo depends on it
     - name: Install scipion-em-xmipp
-      working-directory: ${{ github.workspace }}/../xmipp-bundle/src/scipion-em-xmipp
-      run: ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel
+      working-directory: ${{ github.workspace }}/../xmipp/src/scipion-em-xmipp
+      run: ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel --noBin
     
     # Check out the repository in the pull request
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@main
       with:
         ref: ${{ github.head_ref }}
-            
-    # Install plugin from the pull request using the Scipion3 installp command
+      
     - name: Install plugin from pull request
       working-directory: ${{ github.workspace }}
+      run: ../scipion/scipion3 installp -p . --devel
+    
+    # Currently, test script is being downloaded from scipion-chem, but that should be temporary
+    # Ideally, the script might be included in scipion core to be able to import it,
+    # or maybe host it in a separate repository common with useful scripts for all scipion plugins
+    - name: Run tests
+      working-directory: ${{ github.workspace }}/${{ vars.FOLDER_WITH_VERSION }}
       run: |
-        # Install the repository from the pull request
-        ${{ github.workspace }}/../scipion/scipion3 installp -p . --devel
+        wget https://raw.githubusercontent.com/scipion-chem/scipion-chem/devel/pwchem/runTests.py
+        eval "$(${{ github.workspace }}/../miniconda/bin/conda shell.bash hook)"
+        python runTests.py ${{ github.workspace }}/../scipion/scipion3 ${{ vars.FOLDER_WITH_VERSION }} -noGPU -testData=testData.json -j=3

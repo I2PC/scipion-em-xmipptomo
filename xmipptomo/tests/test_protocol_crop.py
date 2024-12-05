@@ -23,11 +23,10 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import exists, join, split
+
 from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 from tomo.protocols import ProtImportTomograms
 from xmipptomo.protocols import XmippProtCropTomograms
-from xmipptomo.protocols.protocol_crop_tomograms import SUFIXCROPPED
 
 
 class TestReSizeBase(BaseTest):
@@ -55,16 +54,15 @@ class TestCropTomograms(TestReSizeBase):
         cls.protImportTomos = cls.runImportTomograms(cls.tomos, 16.14)
 
     def testCropTomogramsSamplingRate(self):
-        Rrb = XmippProtCropTomograms()
         crop = self.newProtocol(XmippProtCropTomograms,
-                                    objLabel='crop tomos',
-                                    inputSet=self.protImportTomos.Tomograms,
-                                    xcrop0=100,
-                                    xcropF=900,
-                                    ycrop0=100,
-                                    ycropF=900,
-                                    zcrop0=10,
-                                    zcropF=100)
+                                objLabel='crop tomos',
+                                inputSet=self.protImportTomos.Tomograms,
+                                xcrop0=100,
+                                xcropF=900,
+                                ycrop0=100,
+                                ycropF=900,
+                                zcrop0=10,
+                                zcropF=100)
         self.launchProtocol(crop)
 
         self.assertTrue(crop)
