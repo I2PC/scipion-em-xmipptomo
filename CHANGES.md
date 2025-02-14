@@ -1,21 +1,73 @@
-V3.23.03.6:
+## V3.24.06
+   - New protocols:
+      - apply_segmentation: Applies a segmentation to a set of tomograms.
+      - segment_morphology: Segments a tomogram by means of thresholding, different kind of filters and morphological operations.
+   - Protocols updated
+      - deep_misalignment: updated model, minor improvements
+      - extract_subtomos: improve extract subtomos readability
+   - Protocols fixed
+      - dose_filter: Dose filter, removing extract stacks
+   - More xmippTomo
+      - New xmippBase repository to manage shared protocols with Xmipp
+      - protocols deprecated: score_transform, denoising_confidence
+      - Removed tilt particles object (not used)
+
+## V3.23.11
+   - Protocols updated
+      - applyAlignmentTS
+      - extract_particlesstacks: Added angles from Tilt Series
+      - extract_subtomos: Keeping directions in extract subtomos
+      - project_subtomograms: Added angles from Tilt Series
+      - deep_misalignment_detection: Update deep misalignment detection with new version of subtomo extraction and fiducial size options
+      - subtraction_subtomo: Improved implementation with MPI and md convert
+      - cltomo:
+      - resolution_local_monotomo: Allowing odd-even associated to the full tomogram
+   - Protocols fixed
+      - extract_particlestacks: Dose fixes
+      - deep_misalignment_detection:  Recover deleted methods
+      - dose_filter: Dose validation fixed
+      - score_coordinates: 
+   - More xmippTomo
+      - Fixed calculateRotationAngleAndShiftsFromTM
+      - Test refactoring
+
+## V3.23.07
+   - New protocols
+      - project_subtomograms (for obtaining sobtomogram projections)
+      - extract_particlestacks (extract from tilt series and SetOfTiltSeriesParticle)
+      - denoising_confidence
+      - extract_particlestacks
+      - deep_misalignment_detection (misalignment detection in tomographic reconstructions from high-contrast regions)
+      - peak_high_contrast (for detecting high contrast regions in tomographic reconstruction)
+   - Protocols updated 
+      - project_top: Subtomo projector compatible with hdf stacks. Test fixed. Projections keep orientation, Ignore alignments in projection
+      - subtomo_map_back, score_coordinates: Mapback scales any reference to match the tomogram sampling
+      - subtomo_map_back: Mapback waits now when scheduled and not the reference is needed,  works with 3d classes, works with "other tomograms"
+      - project_subtomograms: Parallelized protocol 
+- Update requirements.txt
+- Fix tests: protocol_extract_subtomos, monotomo, crop, resize, xmipptomo
+
+
+## V3.23.03.6:
+ - Subtomo projections: new advance option to ignore alignments
+## V3.23.03.6:
  - Map back fix: works with "other tomograms"
 
-V3.23.03.5:
+## V3.23.03.5:
  - Map back fix: works with 3d classes
 
-V3.23.03.4:
+## V3.23.03.4:
  - Mapback waits now when scheduled and not the reference is needed (validation added)
 
-V3.23.03.3:
+## V3.23.03.3:
  - Fit vesicles removed (moved to tomo)
 
-V3.23.03.2:
+## V3.23.03.2:
  - Mapback scales any reference to match the tomogram sampling.
-V3.23.03.1:
+## V3.23.03.1:
  - Subtomo projector compatible with hdf stacks. Test fixed. Projections keep orientation.
 
-V3.23.03.0:
+## V3.23.03.0:
  - New protocol and test extract_subtomos
  - New protocol splitTS
  - New protocol score_transform
@@ -23,15 +75,15 @@ V3.23.03.0:
  - Updated flexalign
 
 
-V3.1.3:
+## V3.1.3:
  - Fix score transformations: avoid scores over 180.
  - Fix score transformations: not doing the correct match with score index.
 
-V3.1.2:
+## V3.1.2:
  - Projection subtomograms uses alignment information
  - Alignment consensus: Plot series is angle now. Output is of same type as input.
 
-V3.1.1:
+## V3.1.1:
  - First released version of the plugin documented properly in this file. The plugin contains the following 23 protocols:
 
    xmipptomo - align transformations ( XmippProtAlignTransform ):
