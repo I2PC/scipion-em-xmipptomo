@@ -26,12 +26,16 @@
 # *
 # **************************************************************************
 
-from pyworkflow import BETA, UPDATED, NEW, PROD
+from pyworkflow import UPDATED
 from pyworkflow.protocol.params import PointerParam, BooleanParam, IntParam, FloatParam
 from pyworkflow.protocol.constants import LEVEL_ADVANCED
 from pwem.protocols import EMProtocol
+from pwem.objects import Volume
 from pwem.constants import ALIGN_3D
 from tomo.protocols import ProtTomoBase
+from tomo.objects import SetOfSubTomograms, SubTomogram
+import pwem.emlib.metadata as md
+from pwem.emlib import lib
 from xmipptomo.convert import writeSetOfSubtomograms, readSetOfSubtomograms
 
 OUTPUT = "output_subtomograms.xmd"
@@ -51,7 +55,7 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         form.addSection(label='Input')
         form.addParam('inputSubtomos', PointerParam, pointerClass='SetOfSubTomograms', label="Subtomograms ",
                       help='Select the SetOfSubTomograms with transform matrix which will be subtracted.')
-        form.addParam('average', PointerParam, pointerClass='SubTomogram', label="Average subtomogram ",
+        form.addParam('average', PointerParam, pointerClass='Volume', label="Average subtomogram ",
                       help='Select an average subtomogram to be subtracted.')
         form.addParam('maskBool', BooleanParam, label='Mask subtomograms?', default=True,
                       help='The mask are not mandatory but highly recommendable.')
@@ -79,9 +83,9 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('convertStep')
-        self._insertFunctionStep('subtractionStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.convertStep)
+        self._insertFunctionStep(self.subtractionStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def convertStep(self):
@@ -114,7 +118,19 @@ class XmippProtSubtractionSubtomo(EMProtocol, ProtTomoBase):
         inputSubtomos = self.inputSubtomos.get()
         outputSet = self._createSetOfSubTomograms()
         outputSet.copyInfo(inputSubtomos)
-        readSetOfSubtomograms(self._getExtraPath(OUTPUT), outputSet, alignType=ALIGN_3D)
+        sampling = self.average.get().getSamplingRate()
+        #readSetOfSubtomograms(self._getExtraPath(OUTPUT), outputSet, alignType=ALIGN_3D)
+        
+        mdsubtomos = lib.MetaData(self._getExtraPath(OUTPUT))
+
+        for row in md.iterRows(mdsubtomos):
+            idx = row.getValue(md.MDL_PARTICLE_ID)
+            subtomo = SubTomogram(objId=idx)
+            fn = row.getValue(md.MDL_IMAGE)
+            subtomo.setFileName(fn)
+            subtomo.setSamplingRate(sampling)
+            outputSet.append(subtomo)
+
         self._defineOutputs(outputSubtomograms=outputSet)
         self._defineSourceRelation(inputSubtomos, outputSet)
 

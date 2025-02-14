@@ -36,6 +36,7 @@ from tomo.objects import SetOfSubTomograms, SetOfClassesSubTomograms
 from xmipp3.convert import readSetOfVolumes, readSetOfClassesVol, writeSetOfVolumes
 
 OUTPUTATTRIBUTE ='SetOfClassesSubTomograms'
+DEFAULT_MPI = 4
 
 class XmippProtCLTomo(EMProtocol, ProtTomoBase):
     """ Averages a set of subtomograms taking into account the missing edge. """
@@ -90,7 +91,7 @@ class XmippProtCLTomo(EMProtocol, ProtTomoBase):
         form.addParam('maxShiftX', FloatParam, default=10, label='Maximum shift X', help="In voxels")
         form.addParam('maxShiftY', FloatParam, default=10, label='Maximum shift Y', help="In voxels")
         form.addParam('maxShiftZ', FloatParam, default=10, label='Maximum shift Z', help="In voxels")
-        form.addParallelSection(threads=0, mpi=4)
+        form.addParallelSection(threads=0, mpi=DEFAULT_MPI)
 
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
