@@ -180,7 +180,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         lm = tomoObj.LandmarkModel(tsId=tsId,
                                    fileName=lmFileName,
                                    modelName=None,
-                                   size=self.fiducialSize.get(),
+                                   size=self.fiducialSize.get() * 10,
                                    applyTSTransformation=Boolean(False))
         lm.setTiltSeries(ts)
 
