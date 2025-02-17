@@ -153,16 +153,10 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            '- Votes: If the ratio of residuals with a mahalanobis distance greater than 1 is above the '
                            'given threshold the image is discarded.')
 
-        form.addParam('numberFTdirOfDirections',
-                      params.IntParam,
-                      default=8,
-                      label='Fourier filter directions',
-                      help='Number of directions to analyze in the Fourier directional filter.')
-
         # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
-                      advanced=True,
+                      expertLevel=params.LEVEL_ADVANCED,
                       default=3,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
@@ -170,7 +164,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         form.addParam('thrFiducialDistance',
                       params.FloatParam,
-                      advanced=True,
+                      expertLevel=params.LEVEL_ADVANCED,
                       default=0.5,
                       label='Landmark distance threshold',
                       help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
@@ -183,6 +177,13 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Target fiducial size in pixels to calculate the downsampling when detecting landmarks'
                            'on the tilt series.',
                       expertLevel=params.LEVEL_ADVANCED)
+
+        form.addParam('numberFTdirOfDirections',
+                      params.IntParam,
+                      expertLevel=params.LEVEL_ADVANCED,
+                      default=8,
+                      label='Fourier filter directions',
+                      help='Number of directions to analyze in the Fourier directional filter.')
 
         form.addParallelSection(threads=4, mpi=1)
 
