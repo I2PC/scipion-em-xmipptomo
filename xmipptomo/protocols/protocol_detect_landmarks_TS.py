@@ -71,18 +71,25 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         # Advanced params
         form.addParam('thrSD',
                       params.FloatParam,
-                      advanced=True,
-                      default=5,
+                      expertLevel=params.LEVEL_ADVANCED,
+                      default=3,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
 
         form.addParam('targetLMsize',
                       params.FloatParam,
-                      advanced=True,
+                      expertLevel=params.LEVEL_ADVANCED,
                       default=8,
                       label='Target landmark size (px)',
                       help='Target landmark size to adjust down sampling before filtering. Default value is 8 px.')
+
+        form.addParam('numberFTdirOfDirections',
+                      params.IntParam,
+                      expertLevel=params.LEVEL_ADVANCED,
+                      default=8,
+                      label='Fourier filter directions',
+                      help='Number of directions to analyze in the Fourier directional filter.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
@@ -145,7 +152,8 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
             'thrSD': self.thrSD.get(),
             'samplingRate': self.inputSetOfTiltSeries.get().getSamplingRate(),
             'fiducialSize': self.fiducialSize.get() * 10,
-            'targetLMsize': self.targetLMsize.get()
+            'targetLMsize': self.targetLMsize.get(),
+            'numberFTdirOfDirections': self.numberFTdirOfDirections.get()
         }
 
         args = "-i %(i)s " \
@@ -153,7 +161,8 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
                "--thrSD %(thrSD).2f " \
                "--samplingRate %(samplingRate).2f " \
                "--fiducialSize %(fiducialSize).2f " \
-               "--targetLMsize %(targetLMsize).4f "
+               "--targetLMsize %(targetLMsize).4f " \
+               "--numberFTdirOfDirections %(numberFTdirOfDirections)d "
 
         self.runJob('xmipp_tomo_detect_landmarks', args % params)
 
@@ -202,7 +211,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
             self.outputSetOfLandmarkModels.enableAppend()
 
         else:
-            outputSetOfLandmarkModels = self._createSetOfLandmarkModels("_ali")
+            outputSetOfLandmarkModels = self._createSetOfLandmarkModels()
 
             outputSetOfLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
 
