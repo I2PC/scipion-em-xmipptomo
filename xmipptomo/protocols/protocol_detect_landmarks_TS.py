@@ -180,7 +180,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         lm = tomoObj.LandmarkModel(tsId=tsId,
                                    fileName=lmFileName,
                                    modelName=None,
-                                   size=self.fiducialSize.get() * 10,
+                                   size=self.fiducialSize.get(),
                                    applyTSTransformation=Boolean(False))
         lm.setTiltSeries(ts)
 
@@ -190,7 +190,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
             lm.addLandmark(xCoor=lmInfo[0],
                            yCoor=lmInfo[1],
                            tiltIm=lmInfo[2],
-                           chainId=i,
+                           chainId=i+1,
                            xResid=0.0,
                            yResid=0.0)
 
@@ -212,6 +212,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
 
         else:
             outputSetOfLandmarkModels = self._createSetOfLandmarkModels()
+            outputSetOfLandmarkModels.setSetOfTiltSeries(self.inputSetOfTiltSeries)
 
             outputSetOfLandmarkModels.copyInfo(self.inputSetOfTiltSeries.get())
 
