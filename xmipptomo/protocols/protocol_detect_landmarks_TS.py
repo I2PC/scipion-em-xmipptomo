@@ -72,7 +72,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         form.addParam('thrSD',
                       params.FloatParam,
                       expertLevel=params.LEVEL_ADVANCED,
-                      default=3,
+                      default=5,
                       label='Coordinate value SD threshold',
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
@@ -87,7 +87,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         form.addParam('numberFTdirOfDirections',
                       params.IntParam,
                       expertLevel=params.LEVEL_ADVANCED,
-                      default=8,
+                      default=16,
                       label='Fourier filter directions',
                       help='Number of directions to analyze in the Fourier directional filter.')
 
@@ -189,7 +189,7 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
         for i, lmInfo in enumerate(lmList):
             lm.addLandmark(xCoor=lmInfo[0],
                            yCoor=lmInfo[1],
-                           tiltIm=lmInfo[2],
+                           tiltIm=lmInfo[2]+1,
                            chainId=i+1,
                            xResid=0.0,
                            yResid=0.0)
