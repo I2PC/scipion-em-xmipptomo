@@ -162,14 +162,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Number of SD a coordinate value must be over the mean to consider that it belongs to a '
                            'high contrast feature.')
 
-        form.addParam('thrFiducialDistance',
-                      params.FloatParam,
-                      expertLevel=params.LEVEL_ADVANCED,
-                      default=0.5,
-                      label='Landmark distance threshold',
-                      help='Threshold times of fiducial size as maximum distance to consider a match between the 3d '
-                           'coordinate projection and the detected fiducial.')
-
         form.addParam('targetLMsize',
                       params.FloatParam,
                       default=8,
@@ -393,7 +385,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'thrSDHCC': self.thrSDHCC.get(),
-                'thrFiducialDistance': self.thrFiducialDistance.get(),
                 'targetLMsize': self.targetLMsize.get(),
                 'numberFTdirOfDirections': self.numberFTdirOfDirections.get()
             }
@@ -405,7 +396,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                     "--samplingRate %(samplingRate).2f " \
                                     "--fiducialSize %(fiducialSize).2f " \
                                     "--thrSDHCC %(thrSDHCC).2f " \
-                                    "--thrFiducialDistance %(thrFiducialDistance).2f " \
                                     "--targetLMsize %(targetLMsize).2f " \
                                     "--numberFTdirOfDirections %(numberFTdirOfDirections)d"
 
@@ -426,7 +416,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'o': os.path.join(extraPrefix, firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd')),
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
-                'thrFiducialDistance': self.thrFiducialDistance.get(),
                 'numberTiltImages': len(ts),
             }
 
@@ -434,7 +423,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--thrFiducialDistance %(thrFiducialDistance).2f " \
                                "--numberTiltImages %(numberTiltImages)d "
 
             if self.removeOutliers.get():
