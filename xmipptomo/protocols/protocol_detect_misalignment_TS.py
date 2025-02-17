@@ -514,7 +514,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             lm = tomoObj.LandmarkModel(tsId=tsId,
                                        fileName=lmFileName,
                                        modelName=None,
-                                       size=self.fiducialSize.get() * 10,
+                                       size=self.fiducialSize.get(),
                                        applyTSTransformation=Boolean(True))
             lm.setTiltSeries(newTs)
 
@@ -523,8 +523,8 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             for lmInfo in vcmInfoList:
                 lm.addLandmark(xCoor=lmInfo[0],
                                yCoor=lmInfo[1],
-                               tiltIm=lmInfo[2],
-                               chainId=lmInfo[3],
+                               tiltIm=lmInfo[2]+1,
+                               chainId=lmInfo[3]+1,
                                xResid=lmInfo[4],
                                yResid=lmInfo[5])
 
