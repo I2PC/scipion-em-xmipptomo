@@ -124,6 +124,14 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                            '- Votes: If the ratio of residuals with a mahalanobis distance greater than 1 is above the '
                            'given threshold the image is discarded.')
 
+        form.addParam('thrRatioMahalanobis',
+                      params.FloatParam,
+                      important=True,
+                      default=0.8,
+                      label='Mahalanobis distance threshold',
+                      help='Maximum ratio of residuals with Mahalanobis distance over 1 to consider chain/image '
+                           'as misaligned. Default value is 0.8 (80%)')
+
         # Advanced parameters
         form.addParam('thrSDHCC',
                       params.FloatParam,
@@ -362,13 +370,15 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
                 'fiducialSize': self.fiducialSize.get() * 10,
                 'numberTiltImages': len(ts),
+                'thrRatioMahalanobis': self.thrRatioMahalanobis.get(),
             }
 
             argsDetectMisali = "--inputResInfo %(inputResInfo)s " \
                                "-o %(o)s " \
                                "--samplingRate %(samplingRate).2f " \
                                "--fiducialSize %(fiducialSize).2f " \
-                               "--numberTiltImages %(numberTiltImages)d "
+                               "--numberTiltImages %(numberTiltImages)d " \
+                               "--thrRatioMahalanobis %(thrRatioMahalanobis)f "
 
             if self.removeOutliers.get():
                 argsDetectMisali += "--removeOutliers "
