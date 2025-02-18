@@ -61,8 +61,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
         # Global variable to check if coordinates have been input for a specific tilt-series
         self.check = True
 
-        # Global varibale to keep the quality of the tilt-series under study.
-        # If the tilt series is not aligned the detection of subtle misalignment is avoided
+        # Global variable to keep the quality of the tilt-series under study.
         self.aligned = True
 
         self.inputSetOfTiltSeries = None
@@ -105,34 +104,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                       help='Maximum number of tilt-images that might present misalignment to keep series as aligned. '
                            'Default value is 3, meaning that if 3 or less tilt-images present misalignment they are '
                            'annotated but the tilt-series is not classified as misaligned as a whole.')
-
-        form.addParam('subtleMisaliToggle',
-                      params.BooleanParam,
-                      default=True,
-                      label='Subtle misalignment analysis',
-                      display=params.EnumParam.DISPLAY_HLIST,
-                      help='Run local alignment to detect subtle misalignment. This analysis detects lower alignment '
-                           'errors but it requires some computational extra load.')
-
-        form.addParam('subtleMisalignmentTolerance',
-                      params.IntParam,
-                      default=3,
-                      condition='subtleMisaliToggle',
-                      label='Misalignment tolerance (px)',
-                      help='Maximum displacement between to consecutive images to consider that misalignment is '
-                           'present. This displacement is calculated by correlation.')
-
-        form.addParam('inputTsFromLm',
-                      params.PointerParam,
-                      pointerClass='SetOfTiltSeries',
-                      condition="inputSet is not None and inputSet.getClassName()=='SetOfLandmarkModels' and "
-                                "subtleMisaliToggle",
-                      allowsNull=True,
-                      label='Tilt-series associated to the LM',
-                      help='Input set of tilt-series associated to the provided landmark model. This tilt-series is '
-                           'mean to be the tilt-series aligned by the algorithm that has produces the set of landmark'
-                           'models. It might be the interpolated tilt-series or a non-interpolated one with its '
-                           'associated alignment.')
 
         form.addParam('removeOutliers',
                       params.BooleanParam,
@@ -204,32 +175,19 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                                  tsObjId,
                                                  prerequisites=[crvID])
 
-                if self.subtleMisaliToggle.get():
-                    dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
-                                                      tsObjId,
-                                                      prerequisites=[dmsID])
+                gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                 tsObjId,
+                                                 prerequisites=[dmsID])
 
-                    gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                     tsObjId,
-                                                     prerequisites=[dsmsID])
-
-                    allcossId.append(gosID)
-                else:
-                    gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                     tsObjId,
-                                                     prerequisites=[dmsID])
-
-                    allcossId.append(gosID)
+                allcossId.append(gosID)
 
             self._insertFunctionStep(self.closeOutputSetsStep,
                                      prerequisites=allcossId)
 
         else:  # SetOfLandmarkModels
             self.inputSetOfLandmarkModels = self.inputSet.get()
-            if self.subtleMisaliToggle.get():
-                self.inputSetOfTiltSeries = self.inputTsFromLm.get()
-            else:
-                self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries()
+
+            self.inputSetOfTiltSeries = self.inputSet.get().getSetOfTiltSeries()
 
             for lm in self.inputSetOfLandmarkModels:
                 lmTsId = lm.getTsId()
@@ -249,22 +207,11 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                                                  tsObjId,
                                                  prerequisites=[grfID])
 
-                if self.subtleMisaliToggle.get():
-                    dsmsID = self._insertFunctionStep(self.detectSubtleMisalignment,
-                                                      tsObjId,
-                                                      prerequisites=[dmsID])
+                gosID = self._insertFunctionStep(self.generateOutputStep,
+                                                 tsObjId,
+                                                 prerequisites=[dmsID])
 
-                    gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                     tsObjId,
-                                                     prerequisites=[dsmsID])
-
-                    allcossId.append(gosID)
-                else:
-                    gosID = self._insertFunctionStep(self.generateOutputStep,
-                                                     tsObjId,
-                                                     prerequisites=[dmsID])
-
-                    allcossId.append(gosID)
+                allcossId.append(gosID)
 
                 allcossId.append(gosID)
 
@@ -284,7 +231,9 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
-        if modeTs or self.subtleMisaliToggle.get():
+        if modeTs:
+            xDim, yDim, _ = ts.getFirstItem().getDimensions()
+
             """Apply the transformation form the input tilt-series"""
             # Use Xmipp interpolation via Scipion
             swap = False
@@ -295,29 +244,25 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
                 outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
                 ts.applyTransform(outputTsFileName, swapXY=swap)
 
-            else:
-                outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
-                ts.applyTransform(outputTsFileName)
-
-            """Generate angle file"""
-            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-            utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
-
-        if modeTs:
-            """Generate 3D coordinates metadata"""
-            xDim, yDim, _ = ts.getFirstItem().getDimensions()
-
-            if firstItem.hasTransform():
                 if swap:
                     xHalf = yDim / 2
                     yHalf = xDim / 2
                 else:
                     xHalf = xDim / 2
                     yHalf = yDim / 2
+
             else:
+                outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+                ts.applyTransform(outputTsFileName)
+
                 xHalf = firstItem.getDimensions()[0] / 2
                 yHalf = firstItem.getDimensions()[1] / 2
 
+            """Generate angle file"""
+            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
+            utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
+
+            """Generate 3D coordinates metadata"""
             self.check = utils.writeOutputTiltSeriesCoordinates3dXmdFile(self.inputSetOfCoordinates.get(),
                                                                          os.path.join(extraPrefix,
                                                                                       METADATA_INPUT_COORDINATES),
@@ -433,7 +378,7 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.runJob('xmipp_tomo_detect_misalignment_residuals', argsDetectMisali % paramsDetectMisali)
 
-            # Detect if tilt-series presents misalignment. If not subtle misalignment detection will be executed
+            # Check if tilt-series presents misalignment.
             xmdEnableTiltImages = os.path.join(extraPrefix,
                                                firstItem.parseFileName(suffix='_alignmentReport', extension='.xmd'))
 
@@ -450,35 +395,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
 
             self.aligned = True if misaliTi <= self.maxMisaliImages.get() else False
 
-    def detectSubtleMisalignment(self, tsObjId):
-        if self.check and self.aligned:
-            ts = self.inputSetOfTiltSeries[tsObjId]
-            tsId = ts.getTsId()
-
-            extraPrefix = self._getExtraPath(tsId)
-            tmpPrefix = self._getTmpPath(tsId)
-
-            firstItem = ts.getFirstItem()
-
-            angleFilePath = os.path.join(tmpPrefix, firstItem.parseFileName(extension=".tlt"))
-
-            paramsDetectMisali = {
-                'i': os.path.join(tmpPrefix, firstItem.parseFileName() + ":mrcs"),
-                'tlt': angleFilePath,
-                'o': os.path.join(extraPrefix,
-                                  firstItem.parseFileName(suffix='_subtleMisalignmentReport', extension='.xmd')),
-                'samplingRate': self.inputSetOfTiltSeries.getSamplingRate(),
-                'shiftTol': self.subtleMisalignmentTolerance.get(),
-            }
-
-            argsDetectMisali = "-i %(i)s " \
-                               "--tlt %(tlt)s " \
-                               "-o %(o)s " \
-                               "--samplingRate %(samplingRate).2f " \
-                               "--shiftTol %(shiftTol).2f "
-
-            self.runJob('xmipp_tomo_tiltseries_detect_misalignment_corr', argsDetectMisali % paramsDetectMisali)
-
     def generateOutputStep(self, tsObjId):
         if self.check:
             ts = self.inputSetOfTiltSeries[tsObjId]
@@ -487,23 +403,6 @@ class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
             extraPrefix = self._getExtraPath(tsId)
 
             firstItem = ts.getFirstItem()
-
-            # If tilt-series is still aligned search for subtle misalignment
-            if self.aligned and self.subtleMisaliToggle.get():
-                xmdEnableTiltImages = os.path.join(
-                    extraPrefix,
-                    firstItem.parseFileName(suffix='_subtleMisalignmentReport', extension='.xmd'))
-
-                enableInfoList = utils.readXmippMetadataEnabledTiltImages(xmdEnableTiltImages)
-
-                # Check number of locally misaligned tilt images
-                misaliTi = 0
-
-                for line in enableInfoList:
-                    if float(line[0]) != 1:
-                        misaliTi += 1
-
-                self.aligned = True if misaliTi <= self.maxMisaliImages.get() else False
 
             # Generate output sets of aligned and misaligned tilt series
             newTs = tomoObj.TiltSeries(tsId=tsId)
