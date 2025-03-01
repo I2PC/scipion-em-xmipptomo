@@ -41,7 +41,9 @@ OUTPUT_COORDS_FILENAME = "outputLandmarkCoordinates.xmd"
 
 class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
     """
-    Scipion protocol for xmipp_tomo_detect_landmarks. Detect landmarks in a tilt series.
+    Scipion protocol for xmipp_tomo_detect_landmarks. This protocol detect fiducial landmarks in a tilt series. It will
+    not produce a correspondence of landmark between images so chains will not be constructed only single landmark per
+    tilt image.
     """
 
     _label = 'detect landmarks TS'
