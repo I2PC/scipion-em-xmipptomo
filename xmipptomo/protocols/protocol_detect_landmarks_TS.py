@@ -188,6 +188,10 @@ class XmippProtDetectLandmarkTS(EMProtocol, ProtTomoBase):
 
         lmList = utils.parseLandmarkCoordinatesFile(os.path.join(extraPrefix, OUTPUT_COORDS_FILENAME))
 
+        if not lmList:
+            print("WARNING: no landmark detected in tilt-series")
+            return  # Do not create output if no detected landmarks in tilt-series
+
         for i, lmInfo in enumerate(lmList):
             lm.addLandmark(xCoor=lmInfo[0],
                            yCoor=lmInfo[1],
