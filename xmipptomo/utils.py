@@ -43,7 +43,7 @@ from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
 
 # External plugin imports
-from tomo.objects import TiltSeries, TiltImage, SetOfCTFTomoSeries
+from tomo.objects import SetOfCTFTomoSeries
 from tomo.objects import MATRIX_CONVERSION, TiltSeries, TiltImage
 from tomo.constants import BOTTOM_LEFT_CORNER
 from xmipp3.convert import alignmentToRow
