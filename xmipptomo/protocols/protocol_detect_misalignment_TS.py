@@ -45,7 +45,10 @@ VRESMOD_FILE_NAME_EXT = "_vResMod.xmd"
 
 class XmippProtDetectMisalignmentTiltSeries(EMProtocol, ProtTomoBase):
     """
-    Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. Detect misalignment in a tilt series.
+    Scipion protocol for xmipp_tomo_detect_misalignment_trajectory. This protocol detect misalignment in a tilt series
+    based on the residual vectors of their landmarks. It works both directly with a residual model or can generate one
+    is fiducial 3d coordinates are provided. In that case, also a set of landmark models is provided from the detected
+    fiducials in the tilt series.
     """
 
     _label = 'detect misaligned TS'
