@@ -155,19 +155,6 @@ def readXmippMetadataEnabledTiltImages(xmdPath):
 
     return enableInfoList
 
-    # with open(xmdPath) as f:
-    #     enableInfoText = f.read().splitlines()
-    #
-    # for line in enableInfoText[6:]:
-    #     # Split enable and location
-    #     vectorLine = line.split()
-    #
-    #     # Split location in index and path
-    #     locationInfo = vectorLine[1].split("@")
-    #     enableInfoList.append([vectorLine[0], int(locationInfo[0]), locationInfo[1]])
-    #
-    # return enableInfoList
-
 
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
