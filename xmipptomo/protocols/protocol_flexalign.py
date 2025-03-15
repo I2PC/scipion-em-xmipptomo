@@ -26,11 +26,11 @@
 
 from pyworkflow import BETA
 from tomo.protocols import ProtTsCorrectMotion
-from xmipp3.protocols import XmippProtMovieCorr
+from xmipp3.protocols import XmippProtFlexAlign
 from pathlib import Path
 
 
-class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
+class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtFlexAlign):
     """
     Simple protocol to average TiltSeries movies as basic
     motion correction. It is used mainly for testing purposes.
@@ -38,11 +38,11 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
     _label = 'tiltseries FlexAlign'
     _devStatus = BETA
     evenOddCapable = True
-    
+
     def _defineParams(self, form):
-        ProtTsCorrectMotion._defineParams(self, form)
+        ProtTsCorrectMotion._defineParams(self, form, addEvenOddParam = False)
         form.addSection(label="FlexAlign")
-        XmippProtMovieCorr._defineAlignmentParams(self, form)
+        XmippProtFlexAlign._defineAlignmentParams(self, form)
 
     def _getOutputMicName(self, movie):
         return self._getTiltImageMRoot(movie) + ".mrc"
@@ -66,3 +66,18 @@ class XmippProtTsFlexAlign(ProtTsCorrectMotion, XmippProtMovieCorr):
         self.doSaveMovie.set(doSaveMovie)
 
         self.inputMovies = None
+
+    def _validate(self):
+        errors = []
+        #TODO: If protocol_ts_correct_motion is refactored, then this validate should be
+        # the one of flexalign (scipion-em-xmipp).
+        if self.doLocalAlignment.get() and not self.useGpu.get():
+            errors.append("GPU is needed to do local alignment.")
+
+        if (self.binFactor.get() < 1):
+            errors.append("Bin factor must be >= 1")
+
+        return errors
+
+    def _citations(self):
+        return XmippProtFlexAlign._citations(self)

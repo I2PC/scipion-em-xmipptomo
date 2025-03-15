@@ -1,5 +1,4 @@
 scipion-em-xmipp
 scipion-em-tomo
 scipion-em >= 3.0.8
-pandas <= 1.3.5
-statsmodels
+scipion-em-xmippBase

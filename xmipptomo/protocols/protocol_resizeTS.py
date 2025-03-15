@@ -1,6 +1,6 @@
 # **************************************************************************
 # *
-# * Authors:     Federico P. de Isidro Gomez (fp.deisidro@cnb.csi.es) [1]
+# * Authors:     Federico P. de Isidro Gomez (fp.deisidro@cnb.csic.es) [1]
 # *
 # * [1] Centro Nacional de Biotecnologia, CSIC, Spain
 # *
@@ -24,11 +24,8 @@
 # *
 # **************************************************************************
 
-from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
-import pyworkflow.protocol.constants as const
-from tomo.protocols import ProtTomoBase
+from pyworkflow.protocol.params import PointerParam
 import os
 import pyworkflow.utils.path as path
 from pyworkflow.object import Set

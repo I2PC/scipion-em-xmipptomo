@@ -29,9 +29,6 @@ from pyworkflow import BETA
 from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
 import pyworkflow.protocol.constants as const
 from tomo.protocols import ProtTomoBase
-import os
-from pyworkflow.object import Set
-import tomo.objects as tomoObj
 
 
 class XmippProtResizeBase(EMProtocol, ProtTomoBase):

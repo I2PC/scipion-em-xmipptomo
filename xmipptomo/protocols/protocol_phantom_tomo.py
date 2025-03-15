@@ -101,7 +101,6 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         # Hard coded Acquisition
         acq = TomoAcquisition(angleMin=-60, angleMax=60, step=3,
-                              angleAxis1=90, angleAxis2=None,
                               accumDose=0, tiltAxisAngle=90,
                               voltage=300, amplitudeContrast= 0.1,
                               sphericalAberration=2.0, magnification=20000,
@@ -185,7 +184,8 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
                 rot, tilt, psi = self._getRandomAngles()
 
-                posIndex = np.random.randint(0, len(positions))
+                rng = np.random.default_rng()
+                posIndex = rng.integers(len(positions))
                 pos = positions[posIndex]
                 del positions[posIndex]
 
@@ -248,7 +248,7 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
 
         shape = "cub = %s %s %s %s %s 5 5 %s %s %s\n" % (value, pos[0]-shift, pos[1], pos[2], maxDim, rot, tilt, psi)
         # # Y axis: an ellipsoid
-        shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s'\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
+        shape = shape + "ell = %s %s %s %s 5 %s 5 %s %s %s\n" % (value, pos[0], pos[1]+2, pos[2], maxDim/3, rot, tilt, psi)
         # # Z axis: a cone
         shape = shape + "con = %s %s %s %s %s %s %s %s %s\n" % (value, pos[0], pos[1], pos[2], maxDim/4, maxDim, rot, tilt, psi)
 
@@ -257,9 +257,10 @@ class XmippProtPhantomTomo(EMProtocol, ProtTomoBase):
     def _getRandomAngles(self):
         """ Returns random rot, tilt, psi in range"""
 
-        rot = np.random.randint(self.rotmin.get(), self.rotmax.get())
-        tilt = np.random.randint(self.tiltmin.get(), self.tiltmax.get())
-        psi = np.random.randint(self.psimin.get(), self.psimax.get())
+        rng = np.random.default_rng()
+        rot = rng.integers(self.rotmin.get(), self.rotmax.get())
+        tilt = rng.integers(self.tiltmin.get(), self.tiltmax.get())
+        psi = rng.integers(self.psimin.get(), self.psimax.get())
 
         # Get the random values
         return rot, tilt, psi

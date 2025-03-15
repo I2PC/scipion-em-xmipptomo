@@ -24,17 +24,11 @@
 # *
 # *********************************************************************
 
-from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol.params import EnumParam, FloatParam, IntParam, BooleanParam, PointerParam
-import pyworkflow.protocol.constants as const
-from tomo.protocols import ProtTomoBase
-from tomo.objects import SetOfTomograms, Tomogram
+from pyworkflow.protocol.params import PointerParam
+from tomo.objects import Tomogram
 import os
-import pyworkflow.utils.path as path
 from pyworkflow.object import Set
-import tomo.objects as tomoObj
-from pwem.emlib.image import ImageHandler
 from xmipptomo.protocols.protocol_crop_resize_base import XmippProtCropBase3D
 
 SUFIXCROPPED = '_cropped.mrc'
