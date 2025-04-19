@@ -35,6 +35,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol.params import LEVEL_ADVANCED,IntParam, FloatParam, EnumParam, PointerParam, TextParam, BooleanParam
 from tomo.protocols import ProtTomoBase
 from tomo.objects import SetOfSubTomograms, SubTomogram, TomoAcquisition, Coordinate3D, SetOfCoordinates3D
+from pwem.objects import Acquisition, Volume
 
 import tomo.constants as const
 from pwem.convert.headers import setMRCSamplingRate
@@ -181,13 +182,13 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         lineStat.addParam('meanNoise', IntParam, label='mean', default=0, condition='not differentStatistics')
         lineStat.addParam('stdNoise', IntParam, label='std', default=40, condition='not differentStatistics')
 
+
     # --------------------------- INSERT steps functions --------------------------------------------
     def _insertAllSteps(self):
 
         #NOTE: This protocol was discussed with the ScipionTeam about if the subtomograms have or do not have tomogramId.
         # The agreement was that the tomogramId should not appear if subtomograms are imported or phantoms created
         self._insertFunctionStep(self.createSubtomogramsStep)
-        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions --------------------------------------------
     def createSubtomogramsStep(self):
@@ -197,7 +198,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         if self.mwfilter.get():
             mwangle = self.mwangle.get()
         else:
-            mwangle = 90
+            mwangle = 90.0
 
         fnInVol = None
         dim = None
@@ -205,16 +206,30 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             inputVol = self.inputVolume.get()
             fnInVol = inputVol.getFileName()
             dim = inputVol.getDim()
+            fnRef = self.inputVolume.get().getFileName()
         if self.option == 1:
             dim, fnInVol = self.createGeometricalPhantom()
+            fnRef = self._getExtraPath(FN_PHANTOM+MRC_EXT)
+        
+        if self.nsubtomos.get() == 1:
+            volume = Volume()
+            volume.setFileName(fnRef)
+            volume.setSamplingRate(self.sampling.get())
+            self._defineOutputs(outputVolume=volume)
+            if self.option.get() == 0:
+                self._defineSourceRelation(self.inputVolume.get(), volume)
+        else:
+            self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnInVol)
+            self.createOutputStep()
 
-        self.definingOrientationsAndRegisteringInformation(dim, mwangle, fnInVol)
 
     def definingOrientationsAndRegisteringInformation(self, dim, mwangle, fnVol):
+        
+        numberOfSubtomos = self.nsubtomos.get()
         self.createOutputSet(dim)
+
         tomo = None
-        coordsBool = self.generateCoordinates()
-        if coordsBool:
+        if self.generateCoordinates():
             tomos = self.tomos.get()
             tomo = tomos.getFirstItem()
             self.coordsSet = self._createSetOfCoordinates3D(tomos)
@@ -228,11 +243,21 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         acq = TomoAcquisition()
         acq.setAngleMax(mwangle)
         acq.setAngleMin(mwangle * -1)
+        acq.setStep(3.0)
+        acq.setAccumDose(100.0)
+        acq.setDosePerFrame(3.0)
+        acq.setTiltAxisAngle(0.0)
+
+        acq.setAmplitudeContrast(0.1)
+        acq.setSphericalAberration(2.7)
+        acq.setVoltage(300)
+        acq.setMagnification(50000)
+
 
         if self.randomseed.get():
             np.random.seed(42)
 
-        for i in range(int(self.nsubtomos.get())):
+        for i in range(int(numberOfSubtomos)):
             fnPhantomi = self._getExtraPath(FN_PHANTOM + str(int(i+1)) + MRC_EXT)
 
             if self.addNoise.get():
@@ -253,6 +278,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
 
             # Add the subtomogram and the coordinate if applies
             self._addSubtomogram(tomo, acq, fn_aux, rot, tilt, psi, shiftX, shiftY, shiftZ)
+
 
     def createGeometricalPhantom(self):
         fnVol = self._getExtraPath(FN_PHANTOM+MRC_EXT)
@@ -374,6 +400,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         self.outputSet.setDim(dim)
         self.outputSet.setSamplingRate(self.sampling.get())
 
+
     def _addSubtomogram(self, tomo, acq, phantomfn, rot, tilt, psi, shiftX, shiftY, shiftZ):
         """ Creates and adds a the phantom subtomogram to the set. It creates the coordinate as well if active"""
         subtomo = SubTomogram()
@@ -389,6 +416,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
         subtomo.phantom_shiftX = Integer(shiftX)
         subtomo.phantom_shiftY = Integer(shiftY)
         subtomo.phantom_shiftZ = Integer(shiftZ)
+        
 
         # Scipion alignment matrix
         A = euler_matrix(np.deg2rad(psi), np.deg2rad(tilt), np.deg2rad(rot), 'szyz')
@@ -419,6 +447,7 @@ class XmippProtPhantomSubtomo(EMProtocol, ProtTomoBase):
             coor.setX(rng.integers(tomoDim[0]), const.BOTTOM_LEFT_CORNER)
             coor.setY(rng.integers(tomoDim[1]), const.BOTTOM_LEFT_CORNER)
             coor.setZ(rng.integers(tomoDim[2]), const.BOTTOM_LEFT_CORNER)
+            coor.setVolId(1)
 
             self.coordsSet.append(coor)
             self.coordsSet.setBoxSize(subtomo.getDim()[0])
