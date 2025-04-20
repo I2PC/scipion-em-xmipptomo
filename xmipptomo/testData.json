@@ -10,7 +10,7 @@
         "others": [
             {
                 "test": "test_protocol_deep_misalignment_detection.TestDeepMisaligmentDetection",
-                "reason": "Needs DLTK to work, which cannot be installed in GitHub actions due to lack of GPU access."
+                "reason": "Needs DLTK to work, which cannot be installed in GitHub actions due to lack of GPU access"
             },
             {
                 "test": "test_protocol_subtraction_subtomo.TestXmipptomoSubtractionSubtomo",
