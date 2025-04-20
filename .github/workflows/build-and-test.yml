@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     
     env:
       SEND_INSTALLATION_STATISTICS: "False"
@@ -23,13 +23,14 @@ jobs:
     - name: Install dependencies 
       run: |
         sudo apt-get update
-        sudo apt install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake gcc-9 g++-9
+        sudo apt-get install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake
+        sudo apt-get install -y libfftw3-dev libopenmpi-dev libhdf5-dev libtiff5-dev libsqlite3-dev default-jdk git cmake openmpi-bin ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }}
     
     - name: Install CUDA
       uses: Jimver/cuda-toolkit@v0.2.23
       id: cuda-toolkit
       with:
-        cuda: '11.8.0'
+        cuda: '12.6.0'
         method: network
         sub-packages: '["nvcc", "toolkit"]'
 
