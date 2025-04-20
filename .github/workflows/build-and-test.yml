@@ -48,6 +48,7 @@ jobs:
       run: |
         pip install --user scipion-installer
         python3 -m scipioninstaller -conda -noAsk scipion
+        scipion/scipion3 run conda install -c conda-forge libstdcxx-ng
         
     - name: Cloning Xmipp
       working-directory: ${{ github.workspace }}/../
