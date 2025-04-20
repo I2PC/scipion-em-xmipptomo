@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies 
       run: |
         sudo apt-get update
-        sudo apt install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake
+        sudo apt install -y libfftw3-dev libhdf5-dev python3-numpy python3-dev libtiff5-dev unzip libsqlite3-dev default-jdk git cmake libopencv-dev make cmake gcc-9 g++-9
     
     - name: Install CUDA
       uses: Jimver/cuda-toolkit@v0.2.23
