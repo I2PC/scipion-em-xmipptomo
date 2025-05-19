@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [devel, master]
 
+  workflow_dispatch:
+  
+
 # Define the job that should be run
 jobs:
   build:
