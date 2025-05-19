@@ -43,13 +43,33 @@ from pwem.emlib.image import ImageHandler
 import pyworkflow as pw
 
 # External plugin imports
-from tomo.objects import TiltSeries, TiltImage, SetOfCTFTomoSeries
+from tomo.objects import SetOfCTFTomoSeries
 from tomo.objects import MATRIX_CONVERSION, TiltSeries, TiltImage
 from tomo.constants import BOTTOM_LEFT_CORNER
 from xmipp3.convert import alignmentToRow
 
 OUTPUT_TILTSERIES_NAME = "TiltSeries"
 OUTPUT_TS_INTERPOLATED_NAME = "InterpolatedTiltSeries"
+
+
+def retrieveXmipp3dCoordinatesIntoList(coordFilePath):
+    """ This method takes an xmipp metadata (xmd) 3D coordinates file path and returns a list of tuples containing
+    every coordinate. This method also transform the coordinates into the Scipion convention. """
+
+    coorList = []
+
+    with open(coordFilePath) as f:
+        inputLines = f.readlines()
+
+    for line in inputLines[7:]:
+        vector = line.split()
+
+        coorList.append([float(vector[0]),
+                         float(vector[1]),
+                         float(vector[2])])
+
+    return coorList
+
 
 def calculateRotationAngleAndShiftsFromTM(ti):
     """ This method calculates the rot and shifts of a tilt image from its associated transformation matrix."""
@@ -67,6 +87,27 @@ def calculateRotationAngleAndShiftsFromTM(ti):
         sy = tm[1][2]
 
     return rotationAngle, sx, sy
+
+
+def writeXmippMetadataTiltAngleList(ts, angleFilePath):
+    """ This method takes a Scipion tilt-series object and return a Xmipp metadata (xmd) tilt angle file containing
+    every angle of each tilt-image. """
+
+    header = "# XMIPP_STAR_1 * \n" \
+             "#\n" \
+             "data_noname\n" \
+             "loop_\n" \
+             "_angleTilt\n"
+
+    angleList = []
+
+    for ti in ts:
+        angleList.append(ti.getTiltAngle())
+
+    with open(angleFilePath, 'w') as f:
+        f.write(header)
+        f.writelines("%s\n" % angle for angle in angleList)
+
 
 def readXmdStatisticsFile(fnmd):
     xPos = []
@@ -98,6 +139,23 @@ def tiltSeriesParticleToXmd(tsParticle):
         nRow.addToMd(mdtsp)
 
 
+def readXmippMetadataEnabledTiltImages(xmdPath):
+    """ This method takes a Xmipp metadata (xmd) file containing the enabled images from a tilt series and retrieves a
+     matrix containing the enable label and the tilt image location. """
+
+    enableInfoList = []
+
+    mdEnable = md.MetaData(xmdPath)
+
+    for objId in mdEnable:
+        imgNumber = mdEnable.getValue(lib.MDL_IDX, objId)
+        enable = mdEnable.getValue(lib.MDL_ENABLED, objId)
+
+        enableInfoList.append([enable, imgNumber])
+
+    return enableInfoList
+
+
 def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
     """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tomogram (identified by
      its tomo tomoId). If no tomoId is input the xmd output file will contain all the coordinates belonging to the
@@ -118,6 +176,9 @@ def writeOutputCoordinates3dXmdFile(soc, filePath, tomoId=None):
         coordinatesInfo.append([coord.getX(BOTTOM_LEFT_CORNER),
                                 coord.getY(BOTTOM_LEFT_CORNER),
                                 coord.getZ(BOTTOM_LEFT_CORNER)])
+
+    if len(coordinatesInfo) == 0:
+        return False
 
     with open(filePath, 'w') as f:
         f.write(xmdHeader)
@@ -212,15 +273,17 @@ def writeMdTiltSeries(ts, tomoPath, fnXmd=None):
 
     return fnts
 
+
 def getCTFfromId(setOfCTFs: SetOfCTFTomoSeries, targetTsId: Integer) -> CTFModel:
     """
-    This function returns the CTF from the set with the given target Tilt series id. 
+    This function returns the CTF from the set with the given target Tilt series id.
     """
     # Iterate CTF set looking for the one with targetTsId
     for ctf in setOfCTFs:
         # If ctf id matches target TS id, return such CTF
         if targetTsId == ctf.getTsId():
             return ctf
+
 
 def removeTmpElements(tmpElements):
     """ This function removes all given temporary files and directories. """
@@ -231,6 +294,156 @@ def removeTmpElements(tmpElements):
                 shutil.rmtree(item)
             else:
                 os.remove(item)
+    return True
+
+
+def writeOutputTiltSeriesCoordinates3dXmdFile(soc, filePath, sr, halfX, halfY, tsId=None):
+    """ Generates a 3D coordinates xmd file from the set of coordinates associated to a given tilt-series (identified by
+     its tomo tsId). If no tsId is input the xmd output file will contain all the coordinates belonging to the
+     set. """
+
+    coordinatesInfo = []
+
+    if tsId is None:
+        for coord in soc:
+            coordinatesInfo.append([(coord.getX()/sr)+halfX,
+                                    (coord.getY()/sr)+halfY,
+                                    (coord.getZ()/sr)])
+    else:
+        for coord in soc:
+            if coord.getTsId() == tsId:
+                coordinatesInfo.append([(coord.getX()/sr)+halfX,
+                                        (coord.getY()/sr)+halfY,
+                                        (coord.getZ()/sr)])
+
+    if len(coordinatesInfo) == 0:
+        return False
+
+    print(coordinatesInfo)
+
+    mdCoor = lib.MetaData()
+
+    for ci in coordinatesInfo:
+        nRow = md.Row()
+        print(ci)
+        print(ci[0])
+        print(type(ci[0]))
+        nRow.setValue(lib.MDL_XCOOR, int(ci[0]))
+        nRow.setValue(lib.MDL_YCOOR, int(ci[1]))
+        nRow.setValue(lib.MDL_ZCOOR, int(ci[2]))
+
+        nRow.addToMd(mdCoor)
+
+    mdCoor.write(filePath)
+
+    return True
+
+
+def readResidualStatisticsXmdFile(xmdFilePath):
+    """ This method takes the file path of a Xmipp metadata file (.xmd) and generates a dictionary with all the
+    information associated to the residuals from each landmark model: convex hull area and perimeter, statistical
+    tests passed and failed, and its associated coordinate. """
+
+    def paramType(string):
+        """
+            0: convex hull area
+            1: convex hull parameter
+            2: statistical test
+        """
+
+        if string == "chArea":
+            return 0
+        elif string == "chPerim":
+            return 1
+        else:
+            return 2
+
+    statisticsInfoTable = {}
+
+    table = emtable.Table(fileName=xmdFilePath)
+
+    for row in table.iterRows(fileName='noname@'+xmdFilePath):
+        en = row.get('enabled')
+        name = str(row.get('image'))
+        min = row.get('min')  # convex hull area/parameter or p-value
+        _ = row.get('max')  # convex hull area/parameter or p-value pondered by FDR
+        xCoor = row.get('xcoor')
+        yCoor = row.get('ycoor')
+        zCoor = row.get('zcoor')
+
+        key, test = name.split('_')
+        parType = paramType(test)
+
+        if key in statisticsInfoTable.keys():
+            # Convex hull area
+            if parType == 0:
+                statisticsInfoTable[key][0] = min
+
+            # Convex hull perimeter
+            elif parType == 1:
+                statisticsInfoTable[key][1] = min
+
+            # Passed tests
+            elif parType == 2 and en == 1:
+                statisticsInfoTable[key][2].append(test)
+
+            # Failed tests
+            elif parType == 2 and en == -1:
+                statisticsInfoTable[key][3].append(test)
+
+        else:
+            # Convex hull area
+            if parType == 0:
+                statisticsInfoTable[key] = [min, 0, [], [], [xCoor, yCoor, zCoor]]
+
+            # Convex hull perimeter
+            elif parType == 1:
+                statisticsInfoTable[key] = [0, min, [], [], [xCoor, yCoor, zCoor]]
+
+            # Passed tests
+            elif parType == 2 and en == 1:
+                statisticsInfoTable[key] = [0, 0, [test], [], [xCoor, yCoor, zCoor]]
+
+            # Failed tests
+            elif parType == 2 and en == -1:
+                statisticsInfoTable[key] = [0, 0, [], [test], [xCoor, yCoor, zCoor]]
+
+    return statisticsInfoTable
+
+
+def calculateAverageRotationAngleFromTM(ts):
+    """ This method calculates que average tilt image rotation angle from its associated transformation matrix."""
+    avgRotationAngle = 0
+
+    if not ts.getFirstItem().hasTransform():
+        return avgRotationAngle
+
+    for ti in ts:
+        tm = ti.getTransform().getMatrix()
+        cosRotationAngle = tm[0][0]
+        sinRotationAngle = tm[1][0]
+        avgRotationAngle += math.degrees(math.atan(sinRotationAngle/cosRotationAngle))
+
+    avgRotationAngle = avgRotationAngle / ts.getSize()
+
+    return avgRotationAngle
+
+
+def parseLandmarkCoordinatesFile(lmFile):
+    """ This function retrive a list of landmark coordinates form xmd file as generated by xmipp program
+    xmipp_tomo_detect_landmarks"""
+
+    lmInfo = []
+    table = emtable.Table(fileName=lmFile)
+
+    for row in table.iterRows(fileName='noname@' + lmFile):
+        xCoor = row.get('xcoor')
+        yCoor = row.get('ycoor')
+        tiltIm = row.get('zcoor')
+
+        lmInfo.append([xCoor, yCoor, tiltIm])
+
+    return lmInfo
 
 
 def retrieveXmipp3dCoordinatesIntoList(coordFilePath, xmdFormat=0):
@@ -304,3 +517,20 @@ def writeMdCoordinates(setOfCoordinates, tomo, fnCoor):
     mdCoor.write(fnCoor)
 
     return fnCoor
+
+
+def parseLandmarkCoordinatesFile(lmFile):
+    """ This function retrive a list of landmark coordinates form xmd file as generated by xmipp program
+    xmipp_tomo_detect_landmarks"""
+
+    lmInfo = []
+    table = emtable.Table(fileName=lmFile)
+
+    for row in table.iterRows(fileName='noname@' + lmFile):
+        xCoor = row.get('xcoor')
+        yCoor = row.get('ycoor')
+        tiltIm = row.get('zcoor')
+
+        lmInfo.append([xCoor, yCoor, tiltIm])
+
+    return lmInfo

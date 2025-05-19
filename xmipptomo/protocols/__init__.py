@@ -37,6 +37,8 @@ from .protocol_filter_coordinates_by_map import XmippProtFilterCoordinatesByMap
 from .protocol_crop_tomograms import XmippProtCropTomograms
 from .protocol_extract_subtomos import XmippProtExtractSubtomos
 from .protocol_flexalign import XmippProtTsFlexAlign
+from .protocol_detect_misalignment_TS import XmippProtDetectMisalignmentTiltSeries
+from .protocol_detect_landmarks_TS import XmippProtDetectLandmarkTS
 from .protocol_peak_high_contrast import XmippProtPeakHighContrast
 from .protocol_phantom_subtomo import XmippProtPhantomSubtomo
 from .protocol_phantom_tomo import XmippProtPhantomTomo
