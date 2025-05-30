@@ -72,8 +72,10 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         form.addParam('numberViewsAverage',
                       IntParam,
                       important=True,
-                      label='Number of views to average',
-                      help='Number of views to average centered in each angle given in the "Angles of average" list')
+                      label='Number of images to average',
+                      help='Number of tilt-images to be averaged for each calculated mean. The averaging is '
+                           'symmetrical so same number of images left and right to the center image wil be used for '
+                           'averaging.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
