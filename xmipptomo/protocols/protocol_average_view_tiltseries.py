@@ -32,7 +32,7 @@ import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects import Micrograph
 from pyworkflow import BETA
-from pyworkflow.protocol.params import PointerParam, StringParam, IntParam
+from pyworkflow.protocol.params import PointerParam, FloatParam, IntParam
 import pyworkflow.utils.path as path
 from pyworkflow.object import String, Float
 from pwem.protocols import EMProtocol
@@ -62,12 +62,12 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                       important=True,
                       label='Input set of tilt-series')
 
-        form.addParam('avgAngleList',
-                      StringParam,
-                      important=True,
-                      label='Angles of average',
-                      help='List of angles (split by commas) indicating the angles at which to perform the average.'
-                           'For example: -25, 0, 25')
+        line = form.addLine('Angle range',
+                            help="Angle range over which the tilt series images will be averaged.")
+
+        line.addParam('minAngle', FloatParam, default=-60, label='Min')
+
+        line.addParam('maxAngle', FloatParam, default=60, label='Max')
 
         form.addParam('numberViewsAverage',
                       IntParam,
