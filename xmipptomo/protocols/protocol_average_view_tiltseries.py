@@ -63,6 +63,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                       label='Input set of tilt-series')
 
         line = form.addLine('Angle range',
+                            important=True,
                             help="Angle range over which the tilt series images will be averaged.")
 
         line.addParam('minAngle',
@@ -85,12 +86,14 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         form.addParam('gaussFilter',
                       BooleanParam,
+                      important=True,
                       default=False,
                       label="Apply Gaussian filter",
                       help='Filter calculated averages using a Gaussian kernel.')
 
         form.addParam('gaussStd',
                       FloatParam,
+                      important=True,
                       condition='gaussFilter',
                       label="Standard deviation",
                       help='Specify the standard deviation of the Gaussian filter.')
