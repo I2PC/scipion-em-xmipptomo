@@ -95,6 +95,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                       FloatParam,
                       important=True,
                       condition='gaussFilter',
+                      default=3,
                       label="Standard deviation",
                       help='Specify the standard deviation of the Gaussian filter.')
 
@@ -152,25 +153,19 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         tmpPrefix = self._getTmpPath(tsId)
 
         firstItem = ts.getFirstItem()
+        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp", extension=".mrc"))
 
         tiltAngleList = self.getTiltAngleList(ts)
-
-        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp", extension=".mrc"))
-        avgAngleList = self.avgAngleList.get().split(',')
+        avgIndexList = [i for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
+        sideImagesForAvg = int(float(self.numberViewsAverage.get()) / 2)
+        maxIdx = len(tiltAngleList)
 
         ih = ImageHandler()
 
-        for a, avgAngle in enumerate(avgAngleList):
-            difference = 999
-
-            for i, angle in enumerate(tiltAngleList):
-                if abs(float(avgAngle) - angle) < difference:
-                    difference = abs(float(avgAngle) - angle)
-                    index = i
-
-            outputFilePathTmp = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+        for index in avgIndexList:
+            outputFilePathTmp = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_" + str(index),
                                                                                 extension=".mrc"))
-            outputFilePathExtra = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+            outputFilePathExtra = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + str(index),
                                                                                     extension=".mrc"))
 
             ih.createEmptyImage(fnOut=outputFilePathTmp,
@@ -178,17 +173,15 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                                 yDim=firstItem.getYDim(),
                                 nDim=1)
 
-            for i in range(index - int(self.numberViewsAverage.get() / 2),
-                           index + int(self.numberViewsAverage.get() / 2) + 1):
+            for i in range(index - sideImagesForAvg, index + sideImagesForAvg):
+
+                if i < 0 or i >= maxIdx:
+                    continue
 
                 centralAngle = tiltAngleList[index]
                 projectedAngle = tiltAngleList[i]
 
                 angleDiff = centralAngle - projectedAngle
-
-                print(a)
-                print(angleDiff)
-                print(i)
 
                 if np.sign(centralAngle) * angleDiff >= 0:
                     cosineStretchingFactor = np.cos(np.radians(angleDiff))
@@ -198,6 +191,10 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                 t = np.array([[cosineStretchingFactor, 0, 0],
                               [0, 1, 0],
                               [0, 0, 1]])
+
+                print(cosineStretchingFactor)
+                print(tmpTiltImage)
+                print(outputFilePathTmp)
 
                 ih.createEmptyImage(fnOut=tmpTiltImage,
                                     xDim=firstItem.getXDim(),
@@ -221,7 +218,8 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 self.runJob('xmipp_image_operate', argsImageOperate % paramsImageOperate)
 
-            for i in range(len(avgAngleList)):
+        if self.gaussFilter.get():
+            for index in avgIndexList:
                 paramsTransformFilter = {
                     'i': outputFilePathTmp,
                     'out': outputFilePathExtra,
@@ -233,6 +231,80 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                                       "--fourier real_gaussian %(std)d"
 
                 self.runJob('xmipp_transform_filter', argsTransformFilter % paramsTransformFilter)
+
+        # for a, avgAngle in enumerate(avgAngleList):
+        #     difference = 999
+        #
+        #     for i, angle in enumerate(tiltAngleList):
+        #         if abs(float(avgAngle) - angle) < difference:
+        #             difference = abs(float(avgAngle) - angle)
+        #             index = i
+        #
+        #     outputFilePathTmp = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+        #                                                                         extension=".mrc"))
+        #     outputFilePathExtra = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + avgAngle.strip(),
+        #                                                                             extension=".mrc"))
+        #
+        #     ih.createEmptyImage(fnOut=outputFilePathTmp,
+        #                         xDim=firstItem.getXDim(),
+        #                         yDim=firstItem.getYDim(),
+        #                         nDim=1)
+        #
+        #     for i in range(index - int(self.numberViewsAverage.get() / 2),
+        #                    index + int(self.numberViewsAverage.get() / 2) + 1):
+        #
+        #         centralAngle = tiltAngleList[index]
+        #         projectedAngle = tiltAngleList[i]
+        #
+        #         angleDiff = centralAngle - projectedAngle
+        #
+        #         print(a)
+        #         print(angleDiff)
+        #         print(i)
+        #
+        #         if np.sign(centralAngle) * angleDiff >= 0:
+        #             cosineStretchingFactor = np.cos(np.radians(angleDiff))
+        #         else:
+        #             cosineStretchingFactor = 1 / np.cos(np.radians(angleDiff))
+        #
+        #         t = np.array([[cosineStretchingFactor, 0, 0],
+        #                       [0, 1, 0],
+        #                       [0, 0, 1]])
+        #
+        #         ih.createEmptyImage(fnOut=tmpTiltImage,
+        #                             xDim=firstItem.getXDim(),
+        #                             yDim=firstItem.getYDim(),
+        #                             nDim=1)
+        #
+        #         ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
+        #                           outputFile=str(1) + "@" + tmpTiltImage,
+        #                           transformMatrix=t.flatten(),
+        #                           shape=(firstItem.getYDim(), firstItem.getXDim()))
+        #
+        #         paramsImageOperate = {
+        #             'i1': str(1) + "@" + tmpTiltImage,
+        #             'i2': str(1) + "@" + outputFilePathTmp,
+        #             'out': str(1) + "@" + outputFilePathTmp,
+        #         }
+        #
+        #         argsImageOperate = "-i %(i1)s " \
+        #                            "--plus %(i2)s " \
+        #                            "-o %(out)s "
+        #
+        #         self.runJob('xmipp_image_operate', argsImageOperate % paramsImageOperate)
+        #
+        #     for i in range(len(avgAngleList)):
+        #         paramsTransformFilter = {
+        #             'i': outputFilePathTmp,
+        #             'out': outputFilePathExtra,
+        #             'std': 5,
+        #         }
+        #
+        #         argsTransformFilter = "-i %(i)s " \
+        #                               "-o %(out)s " \
+        #                               "--fourier real_gaussian %(std)d"
+        #
+        #         self.runJob('xmipp_transform_filter', argsTransformFilter % paramsTransformFilter)
 
     def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
