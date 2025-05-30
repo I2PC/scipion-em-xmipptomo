@@ -32,7 +32,7 @@ import numpy as np
 from pwem.emlib.image import ImageHandler
 from pwem.objects import Micrograph
 from pyworkflow import BETA
-from pyworkflow.protocol.params import PointerParam, FloatParam, IntParam
+from pyworkflow.protocol.params import PointerParam, FloatParam, IntParam, BooleanParam
 import pyworkflow.utils.path as path
 from pyworkflow.object import String, Float
 from pwem.protocols import EMProtocol
@@ -65,9 +65,15 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         line = form.addLine('Angle range',
                             help="Angle range over which the tilt series images will be averaged.")
 
-        line.addParam('minAngle', FloatParam, default=-60, label='Min')
+        line.addParam('minAngle',
+                      FloatParam,
+                      default=-60,
+                      label='Min')
 
-        line.addParam('maxAngle', FloatParam, default=60, label='Max')
+        line.addParam('maxAngle',
+                      FloatParam,
+                      default=60,
+                      label='Max')
 
         form.addParam('numberViewsAverage',
                       IntParam,
@@ -76,6 +82,18 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                       help='Number of tilt-images to be averaged for each calculated mean. The averaging is '
                            'symmetrical so same number of images left and right to the center image wil be used for '
                            'averaging.')
+
+        form.addParam('gaussFilter',
+                      BooleanParam,
+                      default=False,
+                      label="Apply Gaussian filter",
+                      help='Filter calculated averages using a Gaussian kernel.')
+
+        form.addParam('gaussStd',
+                      FloatParam,
+                      condition='gaussFilter',
+                      label="Standard deviation",
+                      help='Specify the standard deviation of the Gaussian filter.')
 
     # -------------------------- INSERT steps functions ---------------------
     def _insertAllSteps(self):
