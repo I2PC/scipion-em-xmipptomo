@@ -146,6 +146,8 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         utils.writeXmippMetadataTiltAngleList(ts, angleFilePath)
 
     def averageViews(self, tsObjId):
+        ih = ImageHandler()
+
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
@@ -154,19 +156,23 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
         tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp", extension=".mrc"))
+        ih.createEmptyImage(fnOut=tmpTiltImage,
+                            xDim=firstItem.getXDim(),
+                            yDim=firstItem.getYDim(),
+                            nDim=1)
 
         tiltAngleList = self.getTiltAngleList(ts)
         avgIndexList = [i for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
         sideImagesForAvg = int(float(self.numberViewsAverage.get()) / 2)
         maxIdx = len(tiltAngleList)
 
-        ih = ImageHandler()
-
         for index in avgIndexList:
-            outputFilePathTmp = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_" + str(index),
-                                                                                extension=".mrc"))
-            outputFilePathExtra = os.path.join(extraPrefix, firstItem.parseFileName(suffix="_" + str(index),
-                                                                                    extension=".mrc"))
+            print("----------- Processing image " + str(index))
+
+            outputFilePathTmp = os.path.join(tmpPrefix,
+                                             firstItem.parseFileName(suffix="_" + str(index), extension=".mrc"))
+            outputFilePathExtra = os.path.join(extraPrefix,
+                                               firstItem.parseFileName(suffix="_" + str(index), extension=".mrc"))
 
             ih.createEmptyImage(fnOut=outputFilePathTmp,
                                 xDim=firstItem.getXDim(),
@@ -192,17 +198,8 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                               [0, 1, 0],
                               [0, 0, 1]])
 
-                print(cosineStretchingFactor)
-                print(tmpTiltImage)
-                print(outputFilePathTmp)
-
-                ih.createEmptyImage(fnOut=tmpTiltImage,
-                                    xDim=firstItem.getXDim(),
-                                    yDim=firstItem.getYDim(),
-                                    nDim=1)
-
                 ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
-                                  outputFile=str(1) + "@" + tmpTiltImage,
+                                  outputFile=tmpTiltImage,
                                   transformMatrix=t.flatten(),
                                   shape=(firstItem.getYDim(), firstItem.getXDim()))
 
@@ -218,12 +215,11 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 self.runJob('xmipp_image_operate', argsImageOperate % paramsImageOperate)
 
-        if self.gaussFilter.get():
-            for index in avgIndexList:
+            if self.gaussFilter.get():
                 paramsTransformFilter = {
                     'i': outputFilePathTmp,
                     'out': outputFilePathExtra,
-                    'std': 5,
+                    'std': self.gaussStd.get(),
                 }
 
                 argsTransformFilter = "-i %(i)s " \
@@ -314,15 +310,18 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
-        avgAngleList = self.avgAngleList.get().split(',')
+        tiltAngleList = self.getTiltAngleList(ts)
+        avgIndexList = [i for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
 
         setOfMicrographs = self._createSetOfMicrographs(suffix='_ts_average')
 
-        for a, angle in enumerate(avgAngleList):
+        for idx in avgIndexList:
+            angle = tiltAngleList[idx]
             tsAvg = Micrograph()
 
             outputFilePath = os.path.join(extraPrefix,
-                                          firstItem.parseFileName(suffix="_" + angle.strip(), extension=".mrc"))
+                                          firstItem.parseFileName(suffix="_" + str(idx),
+                                                                  extension=".mrc"))
 
             tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
