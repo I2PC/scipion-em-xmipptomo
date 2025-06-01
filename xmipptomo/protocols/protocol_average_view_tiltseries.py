@@ -267,7 +267,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             else:
                 shutil.move(outputFilePathTmp, outputFilePathExtra)
 
-     def createOutputStep(self, tsObjId):
+    def createOutputStep(self, tsObjId):
         ts = self.inputSetOfTiltSeries.get()[tsObjId]
         tsId = ts.getTsId()
 
@@ -285,7 +285,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             tsAvg = Micrograph()
 
             outputFilePath = os.path.join(extraPrefix,
-                                          firstItem.parseFileName(suffix="_" + str(idx),
+                                          firstItem.parseFileName(suffix="_" + str(idx+1),
                                                                   extension=".mrc"))
 
             tsAvg.setFileName(outputFilePath)
