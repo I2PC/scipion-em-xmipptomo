@@ -215,7 +215,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                 # Extract image
                 paramsImageOperateSlice = {
                     'i1': interpolatedTsFileName + ":mrc",
-                    'slice': i+1,
+                    'slice': i,
                     'out': sliceStretchTiltImage,
                 }
 
