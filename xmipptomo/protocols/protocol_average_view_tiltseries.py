@@ -26,6 +26,7 @@
 # **************************************************************************ç
 
 import os
+import shutil
 
 import numpy as np
 
@@ -129,16 +130,15 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         """Apply the transformation form the input tilt-series"""
         # Use Xmipp interpolation via Scipion
+        outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
 
         if firstItem.hasTransform():
             avgRotAngle = utils.calculateRotationAngleFromTM(ts)
             swap = True if (avgRotAngle > 45 or avgRotAngle < -45) else False
 
-            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
             ts.applyTransform(outputTsFileName, swapXY=swap)
 
         else:
-            outputTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
             ts.applyTransform(outputTsFileName)
 
         """Generate angle file"""
@@ -155,31 +155,38 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         tmpPrefix = self._getTmpPath(tsId)
 
         firstItem = ts.getFirstItem()
-        tmpTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_tmp", extension=".mrc"))
-        ih.createEmptyImage(fnOut=tmpTiltImage,
+        interpolatedTsFileName = os.path.join(tmpPrefix, firstItem.parseFileName())
+        cosStretchTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_CS_tmp", extension=".mrc"))
+        sliceStretchTiltImage = os.path.join(tmpPrefix, firstItem.parseFileName(suffix="_extractSlice", extension=".mrc"))
+
+        ih.createEmptyImage(fnOut=cosStretchTiltImage,
                             xDim=firstItem.getXDim(),
                             yDim=firstItem.getYDim(),
+                            zDim=1,
                             nDim=1)
 
         tiltAngleList = self.getTiltAngleList(ts)
-        avgIndexList = [i for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
+        avgIndexList = [i - 1 for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
         sideImagesForAvg = int(float(self.numberViewsAverage.get()) / 2)
         maxIdx = len(tiltAngleList)
 
         for index in avgIndexList:
-            print("----------- Processing image " + str(index))
+            print("----------- Processing image " + str(index) + " at angle " + str(tiltAngleList[index]))
 
             outputFilePathTmp = os.path.join(tmpPrefix,
-                                             firstItem.parseFileName(suffix="_" + str(index), extension=".mrc"))
+                                             firstItem.parseFileName(suffix="_" + str(index + 1), extension=".mrc"))
             outputFilePathExtra = os.path.join(extraPrefix,
-                                               firstItem.parseFileName(suffix="_" + str(index), extension=".mrc"))
+                                               firstItem.parseFileName(suffix="_" + str(index + 1), extension=".mrc"))
 
             ih.createEmptyImage(fnOut=outputFilePathTmp,
                                 xDim=firstItem.getXDim(),
                                 yDim=firstItem.getYDim(),
                                 nDim=1)
 
-            for i in range(index - sideImagesForAvg, index + sideImagesForAvg):
+            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            print(range(index - sideImagesForAvg, index + sideImagesForAvg))
+
+            for i in range(index - sideImagesForAvg, index + sideImagesForAvg + 1):
 
                 if i < 0 or i >= maxIdx:
                     continue
@@ -189,22 +196,48 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 angleDiff = centralAngle - projectedAngle
 
+                print(i)
+                print(centralAngle)
+                print(projectedAngle)
+                print(angleDiff)
+
                 if np.sign(centralAngle) * angleDiff >= 0:
                     cosineStretchingFactor = np.cos(np.radians(angleDiff))
                 else:
                     cosineStretchingFactor = 1 / np.cos(np.radians(angleDiff))
 
+                print(cosineStretchingFactor)
                 t = np.array([[cosineStretchingFactor, 0, 0],
                               [0, 1, 0],
                               [0, 0, 1]])
+                print(t)
 
-                ih.applyTransform(inputFile=str(i) + "@" + os.path.join(tmpPrefix, firstItem.parseFileName()),
-                                  outputFile=tmpTiltImage,
+                # Extract image
+                paramsImageOperateSlice = {
+                    'i1': interpolatedTsFileName + ":mrc",
+                    'slice': i+1,
+                    'out': sliceStretchTiltImage,
+                }
+
+                argsImageOperateSlice = "-i %(i1)s " \
+                                        "--slice %(slice)d " \
+                                        "-o %(out)s "
+
+                self.runJob('xmipp_image_operate', argsImageOperateSlice % paramsImageOperateSlice)
+
+                # Apply cosine stretching
+                print("\033[92m applyTransform(inputFile=" + sliceStretchTiltImage +
+                      ", outputFile=" + cosStretchTiltImage + ", transformMatrix=transformMatrix, shape=(" +
+                      str(firstItem.getYDim()) + "," + str(firstItem.getXDim()) + ")\033[0m")
+
+                ih.applyTransform(inputFile=sliceStretchTiltImage,
+                                  outputFile=cosStretchTiltImage,
                                   transformMatrix=t.flatten(),
                                   shape=(firstItem.getYDim(), firstItem.getXDim()))
 
+                # Add to average
                 paramsImageOperate = {
-                    'i1': str(1) + "@" + tmpTiltImage,
+                    'i1': str(1) + "@" + cosStretchTiltImage,
                     'i2': str(1) + "@" + outputFilePathTmp,
                     'out': str(1) + "@" + outputFilePathTmp,
                 }
@@ -227,6 +260,9 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                                       "--fourier real_gaussian %(std)d"
 
                 self.runJob('xmipp_transform_filter', argsTransformFilter % paramsTransformFilter)
+
+            else:
+                shutil.move(outputFilePathTmp, outputFilePathExtra)
 
         # for a, avgAngle in enumerate(avgAngleList):
         #     difference = 999
