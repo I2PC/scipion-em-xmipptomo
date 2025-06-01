@@ -170,9 +170,6 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
         sideImagesForAvg = int(float(self.numberViewsAverage.get()) / 2)
         maxIdx = len(tiltAngleList)
 
-        print(tiltAngleList)
-        print(avgIndexList)
-
         for index in avgIndexList:
             print("----------- Processing image " + str(index) + " at angle " + str(tiltAngleList[index]))
 
@@ -186,9 +183,6 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                                 yDim=firstItem.getYDim(),
                                 nDim=1)
 
-            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            print(range(index - sideImagesForAvg, index + sideImagesForAvg))
-
             for i in range(index - sideImagesForAvg, index + sideImagesForAvg + 1):
 
                 if i < 0 or i >= maxIdx:
@@ -199,21 +193,14 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
                 angleDiff = centralAngle - projectedAngle
 
-                print(i)
-                print(centralAngle)
-                print(projectedAngle)
-                print(angleDiff)
-
                 if np.sign(centralAngle) * angleDiff >= 0:
                     cosineStretchingFactor = np.cos(np.radians(angleDiff))
                 else:
                     cosineStretchingFactor = 1 / np.cos(np.radians(angleDiff))
 
-                print(cosineStretchingFactor)
                 t = np.array([[cosineStretchingFactor, 0, 0],
                               [0, 1, 0],
                               [0, 0, 1]])
-                print(t)
 
                 # Extract image
                 paramsImageOperateSlice = {
