@@ -191,12 +191,7 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
                 centralAngle = tiltAngleList[index]
                 projectedAngle = tiltAngleList[i]
 
-                angleDiff = centralAngle - projectedAngle
-
-                if np.sign(centralAngle) * angleDiff >= 0:
-                    cosineStretchingFactor = np.cos(np.radians(angleDiff))
-                else:
-                    cosineStretchingFactor = 1 / np.cos(np.radians(angleDiff))
+                cosineStretchingFactor = np.cos(np.radians(centralAngle)) / np.cos(np.radians(projectedAngle))
 
                 t = np.array([[cosineStretchingFactor, 0, 0],
                               [0, 1, 0],
