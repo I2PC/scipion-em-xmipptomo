@@ -35,10 +35,11 @@ from pwem.objects import Micrograph
 from pyworkflow import BETA
 from pyworkflow.protocol.params import PointerParam, FloatParam, IntParam, BooleanParam
 import pyworkflow.utils.path as path
-from pyworkflow.object import String, Float
+from pyworkflow.object import String, Float, Integer
 from pwem.protocols import EMProtocol
 from tomo.protocols import ProtTomoBase
 import xmipptomo.utils as utils
+from tomo.objects import TiltImage
 
 
 class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
@@ -257,12 +258,14 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
         firstItem = ts.getFirstItem()
 
+        acqOrderList = self.getAcqOrderList(ts)
         tiltAngleList = self.getTiltAngleList(ts)
         avgIndexList = [i for i, x in enumerate(tiltAngleList) if self.minAngle.get() <= x <= self.maxAngle.get()]
 
         setOfMicrographs = self._createSetOfMicrographs(suffix='_ts_average')
 
         for idx in avgIndexList:
+            acqOrder = acqOrderList[idx]
             angle = tiltAngleList[idx]
             tsAvg = Micrograph()
 
@@ -272,7 +275,9 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
 
             tsAvg.setFileName(outputFilePath)
             tsAvg.setSamplingRate(firstItem.getSamplingRate())
-            tsAvg._tsId = String(tsId)
+
+            setattr(tsAvg, TiltImage.TS_ID_FIELD, String(tsId))
+            setattr(tsAvg, TiltImage.ACQ_ORDER_FIELD , Integer(acqOrder))
             tsAvg._avgAngle = Float(angle)
 
             setOfMicrographs.append(tsAvg)
@@ -292,5 +297,14 @@ class XmippProtAverageViewTiltSeries(EMProtocol, ProtTomoBase):
             angleList.append(ti.getTiltAngle())
 
         return angleList
+    
+    @staticmethod
+    def getAcqOrderList(ts):
+        acqOrderList = []
+
+        for ti in ts:
+            acqOrderList.append(ti.getAcquisitionOrder())
+
+        return acqOrderList
 
     # --------------------------- INFO functions ----------------------------
