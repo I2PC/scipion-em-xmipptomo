@@ -247,18 +247,38 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         # Otherwise there is no global knowledge here of tsIds, etc.
         self.readInputs()  # Serial and out of the steps 
         self.doBSSRConsensus() # Serial and out of the steps
-        # From here on it can be steps system
-        this = self._insertFunctionStep(self.calculateScalingFactorsStep, prerequisites=[])
-        this = self._insertFunctionStep(self.generateScaledCoordinatesStep, prerequisites=[this])
-        this = self._insertFunctionStep(self.writeScaledCoordinatesStep, prerequisites=[this]) # Serial because of nature
-        deps = []
         threadsPerTomogram = int(self.nThreads) // len(self.allTsIds)
-        threadsPerTomogram = threadsPerTomogram if threadsPerTomogram > 0 else 1
+        threadsPerTomogram = threadsPerTomogram if threadsPerTomogram > 0 else 1 # Guard against zero
+
+        # From here on it can be steps system
+        # SERIAL - Calculate scaling factors
+        this = self._insertFunctionStep(self.calculateScalingFactorsStep, prerequisites=[])  
+
+        # CAN BE DONE INDEPENDENTLY starting now - Tomogram scaling if needed
+        tscaling = deps.append(self._insertFunctionStep(self.tomogramScalingStep, prerequisites=[this])) 
+
+        # PARALLEL - Generate scaled coordinates, one branch per picker
+        # Launch one branch per picker
+        deps = []
+        for index, inputSet in enumerate(self.inputSetsOf3DCoordinates):
+            this = self._insertFunctionStep(self.generateScaledCoordinatesStep, inputSet, index, prerequisites=[this])
+            deps.append(this)
+        
+        # SERIAL - Consolidate per-tsid scaled coordinates into files
+        this = self._insertFunctionStep(self.writeScaledCoordinatesStep, inputSet, index, prerequisites=deps)
+
+        # At this point, we have a common dataset with scaled coordinates for all pickers
+        # Thus, it makes sense to start working in a per-tomogram basis and not per-picker
+        # PARALLEL - Coordinate consensus and noise picking, one branch per tomogram
         for tsId in self.allTsIds:
-            thisStep = self._insertFunctionStep(self.coordConsensusStep, tsId, prerequisites=this)
-            deps.append(self._insertFunctionStep(self.noisePickStep, tsId, threadsPerTomogram, prerequisites=thisStep))
-        this = self._insertFunctionStep(self.tomogramScalingStep, prerequisites=deps)
-        this = self._insertFunctionStep(self.extractionStep, prerequisites=[this])
+            this = self._insertFunctionStep(self.coordConsensusStep, tsId, prerequisites=[this])
+            deps.append(self._insertFunctionStep(self.noisePickStep, tsId, threadsPerTomogram, prerequisites=[this]))
+
+        deps.append(tscaling) # Make sure tomogram scaling is finished before extraction
+        # SERIAL - Extraction of subtomograms from consensus tomograms
+        this = self._insertFunctionStep(self.extractionStep, prerequisites=deps)
+        deps = [] # Empty after use
+
         # this = self._insertFunctionStep(self.processTrainStep)
         # this = self._insertFunctionStep(self.processScoreStep)
         # this = self._insertFunctionStep(self.postProcessStep)
@@ -407,29 +427,18 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
 
         self.printScalingFactorsInfo()
 
-    def generateScaledCoordinatesStep(self) -> None:
+    def generateScaledCoordinatesStep(self, inputSet: SetOfCoordinates3D, index: int) -> None:
         """
-        Generates a new entry for a all Picker MD dictionary: picker_coords_scaled
+        Generates an entry of scaled coordinates for a given picker
         """
-        inputSet : SetOfCoordinates3D
-        for index, inputSet in enumerate(self.inputSetsOf3DCoordinates):
-            coord : Coordinate3D
+
+        # Scale the coordinates in the input set
+        for coord in inputSet.iterCoordinates():
             if self.inputScalingFactors[index] != 1.0:
                 for coord in inputSet.iterCoordinates():
                     coord.scale(self.inputScalingFactors[index])
 
-        dims = [-1,-1,-1]
-        for tsId in self.allTsIds:
-            if self.consSampRate in self.allTsIds_filedicts[tsId].keys():
-                ih = ImageHandler()
-                dims = ih.getDimensions(self.allTsIds_filedicts[tsId][self.consSampRate])
-                self.scaledTomoDims[0] = dims[0]
-                self.scaledTomoDims[1] = dims[1]
-                self.scaledTomoDims[2] = dims[2]
-
-        assert (-1 not in dims) and (-1 not in self.scaledTomoDims)
-
-    def writeScaledCoordinatesStep(self):
+    def writeScaledCoordinatesStep(self, inputSet: SetOfCoordinates3D, index: int) -> None:
         """
         Writes an XMD file with the scaled coordinates from each picker. One file per TSID
         
@@ -521,6 +530,8 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
                 self.runJob(program, params)
                 # Add the newly created tomogram to the list
                 self.allTsIds_filedicts[tsId][self.consSampRate] = outputTomo
+            else:
+                print("Tomogram %s does not need scaling." % tsId)
         # Calculate elapsed wall time and print
         end = time.time()
         print(f"tomogramScalingStep scaled {count} tomograms in {end - start} seconds.")
