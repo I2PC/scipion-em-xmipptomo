@@ -605,12 +605,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         args += ' -t ' + str(self.nThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode scoring'
-        args += ' --batchsize ' + str(self.batchSize)
         args += ' --netpath ' + self._getNnPath()
-        args += ' --netname ' + "dpc_nn.h5"
+        args += ' --netname ' + "dpc_nn.h5" # TODO: change default name perhaps or put as global
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
-        # TODO: change this to something more sensible based on folder structure por favor
         args += ' --inputvolpath ' + self._getCombinedDatasetFile()
         args += ' --outputpath ' + self._getOutputFile()
 
