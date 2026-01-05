@@ -1,4 +1,4 @@
-# **************************************************************************
+# *****************************************************************************
 # *
 # * Authors:    Mikel Iceta Tena (miceta@cnb.csic.es)
 # *             Oier Lauzirika (olauzirika@cnb.csic.es)
@@ -27,8 +27,8 @@
 # * Initial release: september 2023
 # * v 0.2 - January 2024
 # *     * Complete refactor, now Pandas is not needed
-# *     * Support for irregular sets (different nº of tomos, different Srate, different BSize)
-# **************************************************************************
+# *     * Support for irregular sets (nº of tomos, samp.rate, boxsize)
+# *****************************************************************************
 
 """
 Deep Consensus picking protocol suited for Cryo-ET
@@ -279,10 +279,10 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         this = self._insertFunctionStep(self.extractionStep, prerequisites=deps)
         deps = [] # Empty after use
 
-        # this = self._insertFunctionStep(self.processTrainStep)
-        # this = self._insertFunctionStep(self.processScoreStep)
-        # this = self._insertFunctionStep(self.postProcessStep)
-        # this = self._insertFunctionStep(self.createOutputStep prerequisites=this)
+        # this = self._insertFunctionStep(self.processTrainStep, prerequisites=this)
+        # this = self._insertFunctionStep(self.processScoreStep, prerequisites=this)
+        # this = self._insertFunctionStep(self.postProcessStep, prerequisites=this)
+        # this = self._insertFunctionStep(self.createOutputStep, prerequisites=this)
 
     #--------------- STEPS functions -----------------------
 
@@ -577,7 +577,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         args += ' -t ' + str(self.nThreads)
         args += ' -g ' + ','.join(map(str, self.getGpuList()))
         args += ' --mode training'
-        args += ' --batchsize ' + str(self.batchSize)
         args += ' --netpath ' + self._getNnPath()
         args += ' --consboxsize ' + str(self.consBoxSize)
         args += ' --conssamprate ' + str(self.consSampRate)
@@ -589,8 +588,6 @@ class XmippProtPickingConsensusTomo(ProtTomoPicking, EMProtocol, XmippProtocol):
         args += ' -l ' + str(self.learningRate)
         args += ' -r ' + str(self.regStrength)
         args += ' --ensemble 1'
-        if not self.convergeStop:
-            args += ' -s'
         print('\nHanding over to Xmipp program for Train')
         self.runJob(program, args)
 
